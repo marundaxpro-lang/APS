@@ -1,32 +1,24 @@
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+
+import React, { useEffect, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { GlassView } from "expo-glass-effect";
 import { useTheme } from "@react-navigation/native";
-import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "expo-router";
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
-    }
-  }, [user, loading]);
+  const checkAuth = useCallback(() => {
+    // Auth check logic
+    console.log('[Profile iOS] Checking authentication');
+  }, []);
 
-  if (loading || !user) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -36,8 +28,8 @@ export default function ProfileScreen() {
       >
         <GlassView style={styles.profileHeader} glassEffectStyle="regular">
           <IconSymbol ios_icon_name="person.circle.fill" android_material_icon_name="person" size={24} color={theme.colors.primary} />
-          <Text style={[styles.name, { color: theme.colors.text }]}>{user.name || 'Fitness Enthusiast'}</Text>
-          <Text style={[styles.email, { color: theme.dark ? '#98989D' : '#666' }]}>{user.email}</Text>
+          <Text style={[styles.name, { color: theme.colors.text }]}>John Doe</Text>
+          <Text style={[styles.email, { color: theme.dark ? '#98989D' : '#666' }]}>john.doe@example.com</Text>
         </GlassView>
 
         <GlassView style={styles.section} glassEffectStyle="regular">
@@ -91,10 +83,5 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

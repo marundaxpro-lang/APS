@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,20 +23,7 @@ export default function FocusScreen() {
   const [timeLeft, setTimeLeft] = useState(timerMinutes * 60);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      setIsTimerRunning(false);
-      saveFocusSession();
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft]);
-
-  const saveFocusSession = async () => {
+  const saveFocusSession = useCallback(async () => {
     try {
       const sessionData = {
         duration_minutes: timerMinutes,
@@ -48,7 +35,20 @@ export default function FocusScreen() {
     } catch (error) {
       console.error('[Focus] Error saving focus session:', error);
     }
-  };
+  }, [timerMinutes]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setIsTimerRunning(false);
+      saveFocusSession();
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timeLeft, saveFocusSession]);
 
   const addTask = async () => {
     if (newTaskTitle.trim()) {

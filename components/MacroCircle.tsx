@@ -38,7 +38,7 @@ export default function MacroCircle({
       duration: 1000,
       easing: Easing.out(Easing.cubic),
     });
-  }, [value, max]);
+  }, [value, max, progress]);
 
   const animatedProps = useAnimatedProps(() => {
     const strokeDashoffset = circumference * (1 - progress.value);
@@ -46,8 +46,6 @@ export default function MacroCircle({
       strokeDashoffset,
     };
   });
-
-  const percentage = Math.round((value / max) * 100);
 
   return (
     <View style={styles.container}>

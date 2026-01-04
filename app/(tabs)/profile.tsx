@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,17 +24,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.replace('/auth');
-      } else {
-        loadProfile();
-      }
-    }
-  }, [user, authLoading]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -61,7 +51,17 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.replace('/auth');
+      } else {
+        loadProfile();
+      }
+    }
+  }, [user, authLoading, router, loadProfile]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [

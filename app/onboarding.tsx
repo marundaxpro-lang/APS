@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,12 +24,16 @@ export default function OnboardingScreen() {
   const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const checkAuth = useCallback(() => {
     // Redirect to auth if not logged in
     if (!authLoading && !user) {
       router.replace('/auth');
     }
-  }, [user, authLoading]);
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const saveProfile = async () => {
     try {

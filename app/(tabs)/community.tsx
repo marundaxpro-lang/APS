@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,7 @@ export default function CommunityScreen() {
   const [friends, setFriends] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -71,7 +67,11 @@ export default function CommunityScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const addFriend = async () => {
     if (friendEmail.trim()) {
@@ -166,43 +166,43 @@ export default function CommunityScreen() {
               <Text style={styles.emptyText}>No posts yet. Start following friends!</Text>
             ) : (
               posts.map((post) => (
-              <View key={post.id} style={styles.postCard}>
-                <View style={styles.postHeader}>
-                  <View style={styles.avatar}>
-                    <IconSymbol
-                      ios_icon_name="person.fill"
-                      android_material_icon_name="person"
-                      size={24}
-                      color={colors.text}
-                    />
+                <View key={post.id} style={styles.postCard}>
+                  <View style={styles.postHeader}>
+                    <View style={styles.avatar}>
+                      <IconSymbol
+                        ios_icon_name="person.fill"
+                        android_material_icon_name="person"
+                        size={24}
+                        color={colors.text}
+                      />
+                    </View>
+                    <View style={styles.postUserInfo}>
+                      <Text style={styles.postUserName}>{post.user_name}</Text>
+                      <Text style={styles.postTime}>{post.created_at}</Text>
+                    </View>
                   </View>
-                  <View style={styles.postUserInfo}>
-                    <Text style={styles.postUserName}>{post.user_name}</Text>
-                    <Text style={styles.postTime}>{post.created_at}</Text>
+                  <Text style={styles.postContent}>{post.content}</Text>
+                  <View style={styles.postActions}>
+                    <TouchableOpacity style={styles.postAction} onPress={() => likePost(post.id)}>
+                      <IconSymbol
+                        ios_icon_name="heart.fill"
+                        android_material_icon_name="favorite"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.postActionText}>{post.likes_count || 0}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.postAction}>
+                      <IconSymbol
+                        ios_icon_name="bubble.left.fill"
+                        android_material_icon_name="chat"
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                      <Text style={styles.postActionText}>Comment</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <Text style={styles.postContent}>{post.content}</Text>
-                <View style={styles.postActions}>
-                  <TouchableOpacity style={styles.postAction} onPress={() => likePost(post.id)}>
-                    <IconSymbol
-                      ios_icon_name="heart.fill"
-                      android_material_icon_name="favorite"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.postActionText}>{post.likes_count || 0}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.postAction}>
-                    <IconSymbol
-                      ios_icon_name="bubble.left.fill"
-                      android_material_icon_name="chat-bubble"
-                      size={20}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.postActionText}>Comment</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
               ))
             )}
           </View>
@@ -235,32 +235,32 @@ export default function CommunityScreen() {
               <Text style={styles.emptyText}>No friends yet. Add some friends!</Text>
             ) : (
               friends.map((friend) => (
-              <View key={friend.id} style={styles.friendCard}>
-                <View style={styles.avatar}>
-                  <IconSymbol
-                    ios_icon_name="person.fill"
-                    android_material_icon_name="person"
-                    size={24}
-                    color={colors.text}
-                  />
+                <View key={friend.id} style={styles.friendCard}>
+                  <View style={styles.avatar}>
+                    <IconSymbol
+                      ios_icon_name="person.fill"
+                      android_material_icon_name="person"
+                      size={24}
+                      color={colors.text}
+                    />
+                  </View>
+                  <View style={styles.friendInfo}>
+                    <Text style={styles.friendName}>{friend.name}</Text>
+                    <Text style={styles.friendStats}>{friend.workouts || 0} workouts</Text>
+                  </View>
+                  {friend.status === 'pending' && (
+                    <TouchableOpacity 
+                      style={styles.acceptButton}
+                      onPress={() => acceptFriend(friend.id)}
+                    >
+                      <Text style={styles.acceptButtonText}>Accept</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <View style={styles.friendInfo}>
-                  <Text style={styles.friendName}>{friend.name}</Text>
-                  <Text style={styles.friendStats}>{friend.workouts || 0} workouts</Text>
-                </View>
-                {friend.status === 'pending' && (
-                  <TouchableOpacity 
-                    style={styles.acceptButton}
-                    onPress={() => acceptFriend(friend.id)}
-                  >
-                    <Text style={styles.acceptButtonText}>Accept</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
               ))
             )}
           </View>
-        ) : activeTab === 'leaderboard' ? (
+        ) : (
           <View>
             {leaderboard.map((user, index) => (
               <View key={user.id} style={styles.leaderboardCard}>

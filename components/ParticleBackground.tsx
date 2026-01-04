@@ -1,12 +1,12 @@
 
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
-  withTiming,
   withSequence,
+  withTiming,
   Easing,
 } from 'react-native-reanimated';
 import { colors } from '@/styles/commonStyles';
@@ -62,7 +62,7 @@ function AnimatedParticle({ particle }: { particle: Particle }) {
       -1,
       true
     );
-  }, []);
+  }, [particle.duration, translateY, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
