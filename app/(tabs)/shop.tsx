@@ -1,5 +1,4 @@
 
-import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,223 +7,62 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
-import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { usePlacement, useUser } from 'expo-superwall';
 import ParticleBackground from '@/components/ParticleBackground';
+import { colors } from '@/styles/commonStyles';
+import React, { useState } from 'react';
+import { authenticatedPost } from '@/utils/api';
 
-export default function ShopScreen() {
-  const { subscriptionStatus, user } = useUser();
-  const { registerPlacement } = usePlacement({
-    onError: (err) => {
-      console.error('Paywall Error:', err);
-      Alert.alert('Error', 'Failed to load payment options. Please try again.');
-    },
-    onPresent: (info) => {
-      console.log('Paywall Presented:', info);
-    },
-    onDismiss: (info, result) => {
-      console.log('Paywall Dismissed:', result);
-      if (result.status === 'purchased') {
-        Alert.alert('🎉 Success!', 'Welcome to premium! Enjoy all features.');
-      }
-    },
-  });
-
-  const isPro = subscriptionStatus?.status === 'ACTIVE';
-
-  const plans = [
-    {
-      id: 'free',
-      name: 'Free',
-      price: '$0',
-      period: 'forever',
-      features: [
-        'Basic workout tracking',
-        'Limited food database',
-        'Progress photos',
-        'Community access',
-      ],
-      current: !isPro,
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: '$9.99',
-      period: '/month',
-      features: [
-        'All Free features',
-        'Full food database',
-        'AI coaching insights',
-        'Advanced analytics',
-        'Custom workout plans',
-        'Priority support',
-      ],
-      popular: true,
-      placement: 'pro_monthly',
-    },
-    {
-      id: 'elite',
-      name: 'Elite',
-      price: '$29.99',
-      period: '/month',
-      features: [
-        'All Pro features',
-        'Personal coach consultation',
-        'Meal planning service',
-        'Video form checks',
-        'Exclusive community',
-        '1-on-1 support',
-      ],
-      placement: 'elite_monthly',
-    },
-  ];
-
-  const handlePlanPress = async (plan: typeof plans[0]) => {
-    if (plan.id === 'free' || plan.current) {
-      return;
-    }
-
-    if (plan.placement) {
-      await registerPlacement({
-        placement: plan.placement,
-        feature() {
-          console.log('Feature unlocked!');
-          Alert.alert('Success!', `You now have access to ${plan.name} features!`);
-        },
-      });
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <ParticleBackground />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Upgrade Your Training</Text>
-          <Text style={styles.subtitle}>Choose the plan that fits your goals</Text>
-          {isPro && (
-            <View style={styles.premiumBadge}>
-              <IconSymbol 
-                ios_icon_name="star.fill" 
-                android_material_icon_name="star" 
-                size={16} 
-                color="#fbbf24" 
-              />
-              <Text style={styles.premiumText}>Premium Member</Text>
-            </View>
-          )}
-        </View>
-
-        {plans.map((plan) => (
-          <View
-            key={plan.id}
-            style={[
-              styles.planCard,
-              plan.popular && styles.planCardPopular,
-            ]}
-          >
-            {plan.popular && (
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularText}>MOST POPULAR</Text>
-              </View>
-            )}
-
-            <View style={styles.planHeader}>
-              <Text style={styles.planName}>{plan.name}</Text>
-              <View style={styles.planPriceContainer}>
-                <Text style={styles.planPrice}>{plan.price}</Text>
-                <Text style={styles.planPeriod}>{plan.period}</Text>
-              </View>
-            </View>
-
-            <View style={styles.planFeatures}>
-              {plan.features.map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={20}
-                    color={plan.popular ? colors.primary : colors.success}
-                  />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.planButton,
-                plan.current && styles.planButtonCurrent,
-                plan.popular && styles.planButtonPopular,
-              ]}
-              onPress={() => handlePlanPress(plan)}
-              disabled={plan.current}
-            >
-              <Text
-                style={[
-                  styles.planButtonText,
-                  plan.current && styles.planButtonTextCurrent,
-                ]}
-              >
-                {plan.current ? 'Current Plan' : 'Subscribe'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <View style={styles.faqCard}>
-          <Text style={styles.faqTitle}>Frequently Asked Questions</Text>
-
-          <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Can I cancel anytime?</Text>
-            <Text style={styles.faqAnswer}>
-              Yes, you can cancel your subscription at any time. No questions asked.
-            </Text>
-          </View>
-
-          <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>What payment methods do you accept?</Text>
-            <Text style={styles.faqAnswer}>
-              We accept all major credit cards, debit cards, Apple Pay, Google Pay, and more through our secure payment processor.
-            </Text>
-          </View>
-
-          <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>Is there a free trial?</Text>
-            <Text style={styles.faqAnswer}>
-              Pro and Elite plans come with a 7-day free trial. Cancel before the trial ends to avoid charges.
-            </Text>
-          </View>
-
-          <View style={styles.faqItem}>
-            <Text style={styles.faqQuestion}>How do I manage my subscription?</Text>
-            <Text style={styles.faqAnswer}>
-              You can manage your subscription through your device's app store settings (App Store for iOS, Play Store for Android).
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.securityCard}>
-          <IconSymbol 
-            ios_icon_name="lock.shield.fill" 
-            android_material_icon_name="security" 
-            size={32} 
-            color={colors.primary} 
-          />
-          <Text style={styles.securityTitle}>Secure Payments</Text>
-          <Text style={styles.securityText}>
-            All payments are processed securely through industry-standard encryption. Your payment information is never stored on our servers.
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
+const plans = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '$0',
+    priceValue: 0,
+    features: [
+      'Basic workout tracking',
+      'Limited exercise library',
+      'Basic nutrition tracking',
+      'Community access',
+    ],
+    color: colors.text,
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$9.99',
+    priceValue: 9.99,
+    period: '/month',
+    features: [
+      'Full exercise library',
+      'Advanced workout plans',
+      'Complete nutrition database',
+      'AI coaching assistant',
+      'Progress analytics',
+      'Priority support',
+    ],
+    color: colors.primary,
+    popular: true,
+  },
+  {
+    id: 'elite',
+    name: 'Elite',
+    price: '$29.99',
+    priceValue: 29.99,
+    period: '/month',
+    features: [
+      'Everything in Pro',
+      'Personal training consultation',
+      'Custom meal plans',
+      'Video form checks',
+      '1-on-1 coaching sessions',
+      'Exclusive community access',
+    ],
+    color: '#FFD700',
+  },
+];
 
 const styles = StyleSheet.create({
   container: {
@@ -232,171 +70,247 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    padding: 20,
+    paddingBottom: 100,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 30,
     alignItems: 'center',
   },
   title: {
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
   },
-  premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  premiumText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fbbf24',
+  plansContainer: {
+    gap: 20,
   },
   planCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
     borderRadius: 24,
     padding: 24,
-    marginBottom: 20,
-  },
-  planCardPopular: {
-    borderColor: colors.primary,
     borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   popularBadge: {
     position: 'absolute',
     top: -12,
-    alignSelf: 'center',
+    right: 20,
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 12,
   },
   popularText: {
+    color: colors.background,
     fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontWeight: 'bold',
   },
   planHeader: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   planName: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
   },
-  planPriceContainer: {
+  priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
-  planPrice: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: colors.primary,
+  price: {
+    fontSize: 36,
+    fontWeight: 'bold',
   },
-  planPeriod: {
+  period: {
     fontSize: 16,
     color: colors.textSecondary,
     marginLeft: 4,
   },
-  planFeatures: {
+  featuresContainer: {
     marginBottom: 24,
     gap: 12,
   },
-  featureRow: {
+  feature: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   featureText: {
-    flex: 1,
     fontSize: 15,
     color: colors.text,
+    flex: 1,
   },
-  planButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 18,
+  button: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
-  planButtonPopular: {
-    backgroundColor: colors.primary,
+  buttonDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  planButtonCurrent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  planButtonText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  planButtonTextCurrent: {
-    color: colors.textSecondary,
-  },
-  faqCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-  },
-  faqTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 20,
-  },
-  faqItem: {
-    marginBottom: 16,
-  },
-  faqQuestion: {
+  buttonText: {
+    color: colors.background,
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
+    fontWeight: 'bold',
   },
-  faqAnswer: {
-    fontSize: 14,
+  buttonTextDisabled: {
     color: colors.textSecondary,
-    lineHeight: 20,
   },
-  securityCard: {
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-    borderColor: colors.primary,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
+  footer: {
+    marginTop: 40,
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
   },
-  securityTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  securityText: {
+  footerText: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
 });
+
+export default function ShopScreen() {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handlePlanPress = async (plan: typeof plans[0]) => {
+    if (plan.id === 'free') {
+      Alert.alert('Free Plan', 'You are already on the free plan!');
+      return;
+    }
+
+    setLoading(plan.id);
+
+    try {
+      // TODO: Backend Integration - Call the Stripe checkout API endpoint
+      // This will create a Stripe checkout session and return the URL
+      const response = await authenticatedPost('/api/payments/create-checkout', {
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.priceValue,
+      });
+
+      if (response.checkoutUrl) {
+        // Open Stripe checkout page
+        const supported = await Linking.canOpenURL(response.checkoutUrl);
+        if (supported) {
+          await Linking.openURL(response.checkoutUrl);
+        } else {
+          Alert.alert('Error', 'Unable to open checkout page');
+        }
+      } else {
+        Alert.alert('Error', 'Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to start checkout process. Please try again.'
+      );
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <ParticleBackground />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Choose Your Plan</Text>
+          <Text style={styles.subtitle}>
+            Unlock your full potential with premium features
+          </Text>
+        </View>
+
+        <View style={styles.plansContainer}>
+          {plans.map((plan) => (
+            <View
+              key={plan.id}
+              style={[
+                styles.planCard,
+                { borderColor: plan.popular ? plan.color : 'rgba(255, 255, 255, 0.1)' },
+              ]}
+            >
+              {plan.popular && (
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularText}>MOST POPULAR</Text>
+                </View>
+              )}
+
+              <View style={styles.planHeader}>
+                <Text style={styles.planName}>{plan.name}</Text>
+                <View style={styles.priceContainer}>
+                  <Text style={[styles.price, { color: plan.color }]}>
+                    {plan.price}
+                  </Text>
+                  {plan.period && (
+                    <Text style={styles.period}>{plan.period}</Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.featuresContainer}>
+                {plan.features.map((feature, index) => (
+                  <View key={index} style={styles.feature}>
+                    <IconSymbol
+                      ios_icon_name="checkmark.circle.fill"
+                      android_material_icon_name="check-circle"
+                      size={20}
+                      color={plan.color}
+                    />
+                    <Text style={styles.featureText}>{feature}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  plan.id === 'free' && styles.buttonDisabled,
+                  { backgroundColor: plan.id === 'free' ? 'rgba(255, 255, 255, 0.1)' : plan.color },
+                ]}
+                onPress={() => handlePlanPress(plan)}
+                disabled={plan.id === 'free' || loading === plan.id}
+              >
+                <Text
+                  style={[
+                    styles.buttonText,
+                    plan.id === 'free' && styles.buttonTextDisabled,
+                  ]}
+                >
+                  {loading === plan.id
+                    ? 'Loading...'
+                    : plan.id === 'free'
+                    ? 'Current Plan'
+                    : 'Get Started'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            All plans include a 7-day free trial. Cancel anytime.{'\n'}
+            Secure payment powered by Stripe.{'\n'}
+            Supports all major payment methods including credit cards, PayPal, and iDEAL.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
