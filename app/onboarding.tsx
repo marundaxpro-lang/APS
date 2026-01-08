@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,217 +7,214 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { FitnessProfile } from '@/types/fitness';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '@/contexts/AuthContext';
-import { authenticatedPost } from '@/utils/api';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
-  const [saving, setSaving] = useState(false);
-
-  const checkAuth = useCallback(() => {
-    // Redirect to auth if not logged in
-    if (!authLoading && !user) {
-      router.replace('/auth');
-    }
-  }, [authLoading, user, router]);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
 
   const saveProfile = async () => {
     try {
-      setSaving(true);
-      
-      // Save to local storage
       await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
-      
-      // Save to backend
-      await authenticatedPost('/api/fitness-profile', profile);
-      
-      console.log('[Onboarding] Profile saved successfully');
-      router.replace('/(tabs)/(home)/');
+      router.replace('/(tabs)/training');
     } catch (error) {
-      console.error('[Onboarding] Error saving profile:', error);
-      Alert.alert(
-        'Error',
-        'Failed to save your profile. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setSaving(false);
+      console.error('Error saving profile:', error);
     }
   };
-
-  if (authLoading || !user) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your experience level?</Text>
-      <Text style={styles.stepSubtitle}>This helps us customize your workouts</Text>
-      
+      <Text style={styles.stepSubtitle}>This helps us create the perfect workout plan for you</Text>
+
       <View style={styles.optionsContainer}>
-        {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+        {[
+          { value: 'beginner', label: 'Beginner', iosIcon: 'figure.walk', androidIcon: 'directions-walk', desc: 'New to fitness or returning after a break' },
+          { value: 'intermediate', label: 'Intermediate', iosIcon: 'figure.run', androidIcon: 'directions-run', desc: '6-12 months of consistent training' },
+          { value: 'advanced', label: 'Advanced', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center', desc: '1+ years of structured training' },
+        ].map((option) => (
           <TouchableOpacity
-            key={level}
+            key={option.value}
             style={[
               styles.optionCard,
-              profile.experience_level === level && styles.optionCardSelected,
+              profile.experience === option.value && styles.optionCardSelected,
             ]}
-            onPress={() => setProfile({ ...profile, experience_level: level })}
+            onPress={() => setProfile({ ...profile, experience: option.value as any })}
           >
-            <Text style={[
-              styles.optionText,
-              profile.experience_level === level && styles.optionTextSelected,
-            ]}>
-              {level.charAt(0).toUpperCase() + level.slice(1)}
+            <IconSymbol 
+              ios_icon_name={option.iosIcon} 
+              android_material_icon_name={option.androidIcon as any}
+              size={32} 
+              color={profile.experience === option.value ? colors.primary : colors.textSecondary} 
+            />
+            <Text style={[styles.optionLabel, profile.experience === option.value && styles.optionLabelSelected]}>
+              {option.label}
             </Text>
-            <Text style={styles.optionDescription}>
-              {level === 'beginner' && 'New to fitness'}
-              {level === 'intermediate' && '6+ months training'}
-              {level === 'advanced' && '2+ years training'}
-            </Text>
+            <Text style={styles.optionDesc}>{option.desc}</Text>
           </TouchableOpacity>
         ))}
       </View>
-
-      <TouchableOpacity
-        style={[styles.nextButton, !profile.experience_level && styles.nextButtonDisabled]}
-        onPress={() => setStep(2)}
-        disabled={!profile.experience_level}
-      >
-        <Text style={styles.nextButtonText}>Next</Text>
-      </TouchableOpacity>
     </View>
   );
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your primary goal?</Text>
-      <Text style={styles.stepSubtitle}>We&apos;ll tailor your plan accordingly</Text>
-      
+      <Text style={styles.stepSubtitle}>We&apos;ll optimize your training for this objective</Text>
+
       <View style={styles.optionsContainer}>
-        {([
-          { key: 'strength', label: 'Build Strength', desc: 'Get stronger' },
-          { key: 'muscle', label: 'Build Muscle', desc: 'Gain mass' },
-          { key: 'endurance', label: 'Endurance', desc: 'Improve stamina' },
-          { key: 'weight-loss', label: 'Weight Loss', desc: 'Lose fat' },
-        ] as const).map((goal) => (
+        {[
+          { value: 'strength', label: 'Build Strength', iosIcon: 'bolt.fill', androidIcon: 'flash-on', desc: 'Increase max lifts and power' },
+          { value: 'muscle', label: 'Build Muscle', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center', desc: 'Hypertrophy and size gains' },
+          { value: 'endurance', label: 'Endurance', iosIcon: 'figure.run', androidIcon: 'directions-run', desc: 'Improve stamina and conditioning' },
+          { value: 'weight-loss', label: 'Lose Weight', iosIcon: 'flame.fill', androidIcon: 'local-fire-department', desc: 'Fat loss and body recomposition' },
+        ].map((option) => (
           <TouchableOpacity
-            key={goal.key}
+            key={option.value}
             style={[
               styles.optionCard,
-              profile.goal === goal.key && styles.optionCardSelected,
+              profile.goal === option.value && styles.optionCardSelected,
             ]}
-            onPress={() => setProfile({ ...profile, goal: goal.key })}
+            onPress={() => setProfile({ ...profile, goal: option.value as any })}
           >
-            <Text style={[
-              styles.optionText,
-              profile.goal === goal.key && styles.optionTextSelected,
-            ]}>
-              {goal.label}
+            <IconSymbol 
+              ios_icon_name={option.iosIcon} 
+              android_material_icon_name={option.androidIcon as any}
+              size={32} 
+              color={profile.goal === option.value ? colors.primary : colors.textSecondary} 
+            />
+            <Text style={[styles.optionLabel, profile.goal === option.value && styles.optionLabelSelected]}>
+              {option.label}
             </Text>
-            <Text style={styles.optionDescription}>{goal.desc}</Text>
+            <Text style={styles.optionDesc}>{option.desc}</Text>
           </TouchableOpacity>
         ))}
-      </View>
-
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.nextButton, !profile.goal && styles.nextButtonDisabled]}
-          onPress={() => setStep(3)}
-          disabled={!profile.goal}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>How often can you train?</Text>
-      <Text style={styles.stepSubtitle}>Days per week</Text>
-      
-      <View style={styles.optionsContainer}>
+      <Text style={styles.stepTitle}>Training frequency & split</Text>
+      <Text style={styles.stepSubtitle}>How many days per week can you train?</Text>
+
+      <View style={styles.frequencyContainer}>
         {[2, 3, 4, 5, 6].map((days) => (
           <TouchableOpacity
             key={days}
             style={[
-              styles.optionCard,
-              styles.optionCardSmall,
-              profile.training_frequency === days && styles.optionCardSelected,
+              styles.frequencyButton,
+              profile.trainingFrequency === days && styles.frequencyButtonSelected,
             ]}
-            onPress={() => setProfile({ ...profile, training_frequency: days })}
+            onPress={() => setProfile({ ...profile, trainingFrequency: days })}
           >
             <Text style={[
-              styles.optionText,
-              profile.training_frequency === days && styles.optionTextSelected,
+              styles.frequencyText,
+              profile.trainingFrequency === days && styles.frequencyTextSelected,
             ]}>
-              {days} days
+              {days}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.nextButton, (!profile.training_frequency || saving) && styles.nextButtonDisabled]}
-          onPress={saveProfile}
-          disabled={!profile.training_frequency || saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.nextButtonText}>Get Started</Text>
-          )}
-        </TouchableOpacity>
+      <Text style={[styles.stepSubtitle, { marginTop: 32 }]}>Choose your training split</Text>
+
+      <View style={styles.optionsContainer}>
+        {[
+          { value: 'ppl', label: 'Push/Pull/Legs', desc: 'Best for 3-6 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency >= 3 },
+          { value: 'upper-lower', label: 'Upper/Lower', desc: 'Best for 4 days/week', recommended: profile.trainingFrequency === 4 },
+          { value: 'full-body', label: 'Full Body', desc: 'Best for 2-3 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency <= 3 },
+          { value: 'bro-split', label: 'Bro Split', desc: 'Best for 5-6 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency >= 5 },
+        ].map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.splitCard,
+              profile.splitType === option.value && styles.splitCardSelected,
+            ]}
+            onPress={() => setProfile({ ...profile, splitType: option.value as any })}
+          >
+            <View style={styles.splitHeader}>
+              <Text style={[styles.splitLabel, profile.splitType === option.value && styles.splitLabelSelected]}>
+                {option.label}
+              </Text>
+              {option.recommended && (
+                <View style={styles.recommendedBadge}>
+                  <Text style={styles.recommendedText}>Recommended</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.splitDesc}>{option.desc}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
+
+  const canProceed = () => {
+    if (step === 1) return !!profile.experience;
+    if (step === 2) return !!profile.goal;
+    if (step === 3) return !!profile.trainingFrequency && !!profile.splitType;
+    return false;
+  };
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>APS Fitness</Text>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} />
-            </View>
-            <Text style={styles.progressText}>Step {step} of 3</Text>
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.progressBar}>
+            {[1, 2, 3].map((s) => (
+              <View
+                key={s}
+                style={[
+                  styles.progressDot,
+                  s <= step && styles.progressDotActive,
+                ]}
+              />
+            ))}
           </View>
 
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
           {step === 3 && renderStep3()}
         </ScrollView>
+
+        <View style={styles.footer}>
+          {step > 1 && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setStep(step - 1)}
+            >
+              <IconSymbol ios_icon_name="chevron.left" android_material_icon_name="chevron-left" size={20} color={colors.text} />
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.nextButton, !canProceed() && styles.nextButtonDisabled]}
+            onPress={() => {
+              if (step < 3) {
+                setStep(step + 1);
+              } else {
+                saveProfile();
+              }
+            }}
+            disabled={!canProceed()}
+          >
+            <Text style={styles.nextButtonText}>
+              {step === 3 ? 'Get Started' : 'Continue'}
+            </Text>
+            <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     </>
   );
@@ -228,119 +225,178 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: Platform.OS === 'android' ? 48 : 0,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 24,
-    textAlign: 'center',
+  content: {
+    padding: 20,
+    paddingTop: 60,
   },
   progressBar: {
-    height: 4,
-    backgroundColor: colors.grey,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 40,
   },
-  progressFill: {
-    height: '100%',
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  progressDotActive: {
     backgroundColor: colors.primary,
-  },
-  progressText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
+    width: 24,
   },
   stepContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    marginBottom: 100,
   },
   stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
-    textAlign: 'center',
   },
   stepSubtitle: {
     fontSize: 16,
     color: colors.textSecondary,
     marginBottom: 32,
-    textAlign: 'center',
   },
   optionsContainer: {
     gap: 12,
-    marginBottom: 32,
   },
   optionCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     padding: 20,
-  },
-  optionCardSmall: {
-    padding: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   optionCardSelected: {
-    backgroundColor: colors.primary,
     borderColor: colors.primary,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
   },
-  optionText: {
+  optionLabel: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+    marginTop: 12,
     marginBottom: 4,
   },
-  optionTextSelected: {
-    color: '#ffffff',
+  optionLabelSelected: {
+    color: colors.primary,
   },
-  optionDescription: {
+  optionDesc: {
     fontSize: 14,
     color: colors.textSecondary,
   },
-  nextButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+  frequencyContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  frequencyButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  nextButtonDisabled: {
-    opacity: 0.5,
+  frequencyButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
-  nextButtonText: {
+  frequencyText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
+  },
+  frequencyTextSelected: {
+    color: '#fff',
+  },
+  splitCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  splitCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+  },
+  splitHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  splitLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.text,
   },
-  buttonRow: {
+  splitLabelSelected: {
+    color: colors.primary,
+  },
+  splitDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  recommendedBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  recommendedText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
     gap: 12,
   },
   backButton: {
     flex: 1,
-    backgroundColor: colors.grey,
-    paddingVertical: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
   },
-  loadingContainer: {
-    justifyContent: 'center',
+  nextButton: {
+    flex: 2,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 });

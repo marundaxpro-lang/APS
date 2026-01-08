@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,182 +7,124 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
-import { colors } from '@/styles/commonStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
+import { colors } from '@/styles/commonStyles';
+import { FitnessProfile, WorkoutDay } from '@/types/fitness';
+import { generateWorkoutSplit } from '@/data/workouts';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const WORKOUT_SPLIT = ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Rest'];
 
 export default function PlanScreen() {
-  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const [profile, setProfile] = useState<FitnessProfile | null>(null);
+  const [workoutSplit, setWorkoutSplit] = useState<WorkoutDay[]>([]);
+  const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
+  const today = new Date().getDay();
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('fitnessProfile');
+      if (stored) {
+        const profileData = JSON.parse(stored);
+        setProfile(profileData);
+        const split = generateWorkoutSplit(profileData);
+        setWorkoutSplit(split);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const handleDayPress = (dayIndex: number) => {
-    const today = new Date().getDay();
-    if (dayIndex !== today) {
-      Alert.alert(
-        'Wrong Day',
-        'This workout is scheduled for a different day. Would you like to continue anyway?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: () => setSelectedDay(dayIndex) },
-        ]
-      );
+    const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = dayMap[dayIndex];
+    const workout = workoutSplit.find(w => w.day === dayName);
+    
+    if (workout) {
+      setSelectedDay(workout);
     } else {
-      setSelectedDay(dayIndex);
+      setSelectedDay({ day: dayName, type: 'Rest Day', exercises: [] });
     }
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Weekly Plan</Text>
-          <Text style={styles.subtitle}>Your training schedule</Text>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Weekly Plan</Text>
 
-        <View style={styles.calendarCard}>
-          <View style={styles.daysRow}>
-            {DAYS.map((day, index) => {
-              const dayIndex = index === 6 ? 0 : index + 1;
-              const isToday = dayIndex === new Date().getDay();
-              const isSelected = dayIndex === selectedDay;
+      <View style={styles.weekContainer}>
+        {DAYS.map((day, index) => {
+          const dayIndex = index === 6 ? 0 : index + 1; // Adjust for Sunday
+          const isToday = dayIndex === today;
+          const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const hasWorkout = workoutSplit.some(w => w.day === dayMap[dayIndex]);
 
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[
-                    styles.dayCard,
-                    isToday && styles.dayCardToday,
-                    isSelected && styles.dayCardSelected,
-                  ]}
-                  onPress={() => handleDayPress(dayIndex)}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      (isToday || isSelected) && styles.dayTextActive,
-                    ]}
-                  >
-                    {day}
-                  </Text>
-                  <View
-                    style={[
-                      styles.workoutIndicator,
-                      WORKOUT_SPLIT[index] === 'Rest' && styles.restIndicator,
-                    ]}
-                  >
-                    <Text style={styles.workoutText}>{WORKOUT_SPLIT[index]}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.detailsCard}>
-          <Text style={styles.detailsTitle}>
-            {WORKOUT_SPLIT[selectedDay === 0 ? 6 : selectedDay - 1]} Day
-          </Text>
-          <Text style={styles.detailsSubtitle}>
-            {selectedDay === new Date().getDay() ? "Today's workout" : 'Scheduled workout'}
-          </Text>
-
-          {WORKOUT_SPLIT[selectedDay === 0 ? 6 : selectedDay - 1] === 'Rest' ? (
-            <View style={styles.restDay}>
-              <IconSymbol
-                ios_icon_name="bed.double.fill"
-                android_material_icon_name="hotel"
-                size={48}
-                color={colors.primary}
-              />
-              <Text style={styles.restDayText}>Rest & Recovery</Text>
-              <Text style={styles.restDaySubtext}>
-                Take this day to recover and prepare for your next workout
+          return (
+            <TouchableOpacity
+              key={day}
+              style={[
+                styles.dayButton,
+                isToday && styles.dayButtonToday,
+                selectedDay?.day === dayMap[dayIndex] && styles.dayButtonSelected,
+              ]}
+              onPress={() => handleDayPress(dayIndex)}
+            >
+              <Text style={[styles.dayText, isToday && styles.dayTextToday]}>
+                {day}
               </Text>
+              {hasWorkout && (
+                <View style={[styles.indicator, isToday && styles.indicatorToday]} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {selectedDay && (
+        <View style={styles.workoutCard}>
+          <View style={styles.workoutHeader}>
+            <Text style={styles.workoutDay}>{selectedDay.day}</Text>
+            <Text style={styles.workoutType}>{selectedDay.type}</Text>
+          </View>
+
+          {selectedDay.exercises.length > 0 ? (
+            <View style={styles.exerciseList}>
+              {selectedDay.exercises.map((exercise, index) => (
+                <View key={exercise.id} style={styles.exerciseItem}>
+                  <View style={styles.exerciseNumber}>
+                    <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.exerciseDetails}>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseInfo}>
+                      {exercise.sets} sets × {exercise.reps} reps • Rest: {exercise.restTime}s
+                    </Text>
+                  </View>
+                  <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.textSecondary} />
+                </View>
+              ))}
             </View>
           ) : (
-            <View style={styles.workoutDetails}>
-              <View style={styles.detailRow}>
-                <IconSymbol
-                  ios_icon_name="figure.strengthtraining.traditional"
-                  android_material_icon_name="fitness-center"
-                  size={24}
-                  color={colors.primary}
-                />
-                <View style={styles.detailInfo}>
-                  <Text style={styles.detailLabel}>Workout Type</Text>
-                  <Text style={styles.detailValue}>
-                    {WORKOUT_SPLIT[selectedDay === 0 ? 6 : selectedDay - 1]}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
-                <IconSymbol
-                  ios_icon_name="clock.fill"
-                  android_material_icon_name="schedule"
-                  size={24}
-                  color={colors.primary}
-                />
-                <View style={styles.detailInfo}>
-                  <Text style={styles.detailLabel}>Duration</Text>
-                  <Text style={styles.detailValue}>45-60 minutes</Text>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
-                <IconSymbol
-                  ios_icon_name="list.bullet"
-                  android_material_icon_name="list"
-                  size={24}
-                  color={colors.primary}
-                />
-                <View style={styles.detailInfo}>
-                  <Text style={styles.detailLabel}>Exercises</Text>
-                  <Text style={styles.detailValue}>8-12 exercises</Text>
-                </View>
-              </View>
+            <View style={styles.restDay}>
+              <IconSymbol ios_icon_name="moon.stars.fill" android_material_icon_name="bedtime" size={48} color={colors.primary} />
+              <Text style={styles.restDayText}>Rest Day</Text>
+              <Text style={styles.restDaySubtext}>Recovery is just as important as training</Text>
             </View>
           )}
         </View>
+      )}
 
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>Training Tips</Text>
-          <View style={styles.tipItem}>
-            <IconSymbol
-              ios_icon_name="checkmark.circle.fill"
-              android_material_icon_name="check-circle"
-              size={20}
-              color={colors.success}
-            />
-            <Text style={styles.tipText}>Warm up for 5-10 minutes before starting</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <IconSymbol
-              ios_icon_name="checkmark.circle.fill"
-              android_material_icon_name="check-circle"
-              size={20}
-              color={colors.success}
-            />
-            <Text style={styles.tipText}>Focus on proper form over heavy weight</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <IconSymbol
-              ios_icon_name="checkmark.circle.fill"
-              android_material_icon_name="check-circle"
-              size={20}
-              color={colors.success}
-            />
-            <Text style={styles.tipText}>Rest 60-90 seconds between sets</Text>
-          </View>
+      {!selectedDay && (
+        <View style={styles.emptyState}>
+          <IconSymbol ios_icon_name="calendar" android_material_icon_name="calendar-today" size={64} color={colors.textSecondary} />
+          <Text style={styles.emptyText}>Select a day to view workout details</Text>
         </View>
-      </ScrollView>
-    </View>
+      )}
+    </ScrollView>
   );
 }
 
@@ -191,98 +133,122 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-  },
-  header: {
-    marginBottom: 24,
+  content: {
+    padding: 20,
+    paddingBottom: 100,
   },
   title: {
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 24,
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  calendarCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 16,
-    marginBottom: 20,
-  },
-  daysRow: {
+  weekContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  dayCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 8,
-    marginHorizontal: 2,
+  dayButton: {
+    width: 44,
+    height: 64,
     borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  dayCardToday: {
-    backgroundColor: colors.grey,
+  dayButtonToday: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
   },
-  dayCardSelected: {
+  dayButtonSelected: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 8,
   },
-  dayTextActive: {
-    color: colors.text,
+  dayTextToday: {
+    color: colors.primary,
   },
-  workoutIndicator: {
+  indicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textSecondary,
+    marginTop: 4,
+  },
+  indicatorToday: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
   },
-  restIndicator: {
-    backgroundColor: colors.grey,
-  },
-  workoutText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  detailsCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
+  workoutCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 24,
     padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  workoutHeader: {
     marginBottom: 20,
   },
-  detailsTitle: {
+  workoutDay: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
-  detailsSubtitle: {
-    fontSize: 14,
+  workoutType: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  exerciseList: {
+    gap: 12,
+  },
+  exerciseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+  },
+  exerciseNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exerciseNumberText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  exerciseDetails: {
+    flex: 1,
+  },
+  exerciseName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  exerciseInfo: {
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 20,
   },
   restDay: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 40,
   },
   restDayText: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
@@ -292,49 +258,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  workoutDetails: {
-    gap: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
+  emptyState: {
     alignItems: 'center',
-    gap: 12,
+    paddingVertical: 60,
   },
-  detailInfo: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  detailValue: {
+  emptyText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  tipsCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
-  },
-  tipsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
+    color: colors.textSecondary,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });
