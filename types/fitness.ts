@@ -1,10 +1,12 @@
 
 export interface FitnessProfile {
+  gender: 'male' | 'female' | 'other';
   experience: 'beginner' | 'intermediate' | 'advanced';
   goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';
-  trainingFrequency: number; // 2-6 days per week
-  splitType: 'ppl' | 'upper-lower' | 'full-body' | 'bro-split';
-  userId?: string;
+  trainingDays: number;
+  focusAreas: string[];
+  equipment: 'gym' | 'home-freeweights' | 'home-bodyweight';
+  createdAt: string;
 }
 
 export interface Exercise {
@@ -12,15 +14,18 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: string;
-  restTime: number; // seconds
   muscleGroup: string;
+  equipment: string[];
+  difficulty: string;
+  videoUrl?: string;
+  instructions: string[];
   completed?: boolean;
-  weight?: number;
+  setsCompleted?: number;
 }
 
 export interface WorkoutDay {
   day: string;
-  type: string;
+  name: string;
   exercises: Exercise[];
 }
 
@@ -34,32 +39,38 @@ export interface MealEntry {
   carbs: number;
   fats: number;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+  date: string;
 }
 
 export interface FoodItem {
   id: string;
   name: string;
+  category: string;
   caloriesPer100g: number;
   proteinPer100g: number;
   carbsPer100g: number;
   fatsPer100g: number;
-  isPremium?: boolean;
+  isPremium: boolean;
 }
 
 export interface FocusTask {
   id: string;
   title: string;
+  type: 'study' | 'work' | 'workout' | 'personal';
   completed: boolean;
-  category: string;
-  dueDate: string;
+  priority: 'low' | 'medium' | 'high';
+  dueDate?: string;
+  duration?: number;
 }
 
-export interface Measurement {
+export interface WeeklyTask {
   id: string;
-  weight: number;
-  bodyFat?: number;
-  muscleMass?: number;
-  date: string;
+  title: string;
+  type: 'study' | 'work' | 'workout' | 'personal';
+  dayOfWeek: number;
+  startTime: string;
+  duration: number;
+  completed: boolean;
 }
 
 export interface ProgressPhoto {
@@ -68,4 +79,31 @@ export interface ProgressPhoto {
   date: string;
   weight?: number;
   notes?: string;
+}
+
+export interface Measurement {
+  id: string;
+  date: string;
+  weight: number;
+  bodyFat?: number;
+  muscleMass?: number;
+  notes?: string;
+}
+
+export interface Achievement {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  unlockedDate: string;
+  icon: string;
+}
+
+export interface DashboardStats {
+  weeklyWorkouts: number;
+  totalWorkouts: number;
+  currentStreak: number;
+  weeklyStudyHours: number;
+  tasksCompleted: number;
+  totalTasks: number;
 }

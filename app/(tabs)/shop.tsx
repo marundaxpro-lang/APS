@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,33 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Linking,
+  Alert,
 } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { usePlacement, useUser } from 'expo-superwall';
+import ParticleBackground from '@/components/ParticleBackground';
 
 export default function ShopScreen() {
+  const { subscriptionStatus, user } = useUser();
+  const { registerPlacement } = usePlacement({
+    onError: (err) => {
+      console.error('Paywall Error:', err);
+      Alert.alert('Error', 'Failed to load payment options. Please try again.');
+    },
+    onPresent: (info) => {
+      console.log('Paywall Presented:', info);
+    },
+    onDismiss: (info, result) => {
+      console.log('Paywall Dismissed:', result);
+      if (result.status === 'purchased') {
+        Alert.alert('🎉 Success!', 'Welcome to premium! Enjoy all features.');
+      }
+    },
+  });
+
+  const isPro = subscriptionStatus?.status === 'ACTIVE';
+
   const plans = [
     {
       id: 'free',
@@ -25,7 +46,7 @@ export default function ShopScreen() {
         'Progress photos',
         'Community access',
       ],
-      current: true,
+      current: !isPro,
     },
     {
       id: 'pro',
@@ -41,7 +62,7 @@ export default function ShopScreen() {
         'Priority support',
       ],
       popular: true,
-      paymentLink: 'https://buy.stripe.com/test_pro_plan',
+      placement: 'pro_monthly',
     },
     {
       id: 'elite',
@@ -56,33 +77,29 @@ export default function ShopScreen() {
         'Exclusive community',
         '1-on-1 support',
       ],
-      paymentLink: 'https://buy.stripe.com/test_elite_plan',
+      placement: 'elite_monthly',
     },
   ];
 
   const handlePlanPress = async (plan: typeof plans[0]) => {
-    if (plan.id === 'free') {
+    if (plan.id === 'free' || plan.current) {
       return;
     }
 
-    if (plan.id === 'elite') {
-      // TODO: Backend Integration - Submit Elite plan contact form to backend API
-      console.log('Elite plan selected - contact form');
-      return;
-    }
-
-    // For Pro plan, redirect to Stripe payment link
-    if (plan.paymentLink) {
-      try {
-        await Linking.openURL(plan.paymentLink);
-      } catch (error) {
-        console.error('Error opening payment link:', error);
-      }
+    if (plan.placement) {
+      await registerPlacement({
+        placement: plan.placement,
+        feature() {
+          console.log('Feature unlocked!');
+          Alert.alert('Success!', `You now have access to ${plan.name} features!`);
+        },
+      });
     }
   };
 
   return (
     <View style={styles.container}>
+      <ParticleBackground />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -90,6 +107,17 @@ export default function ShopScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Upgrade Your Training</Text>
           <Text style={styles.subtitle}>Choose the plan that fits your goals</Text>
+          {isPro && (
+            <View style={styles.premiumBadge}>
+              <IconSymbol 
+                ios_icon_name="star.fill" 
+                android_material_icon_name="star" 
+                size={16} 
+                color="#fbbf24" 
+              />
+              <Text style={styles.premiumText}>Premium Member</Text>
+            </View>
+          )}
         </View>
 
         {plans.map((plan) => (
@@ -143,7 +171,7 @@ export default function ShopScreen() {
                   plan.current && styles.planButtonTextCurrent,
                 ]}
               >
-                {plan.current ? 'Current Plan' : plan.id === 'elite' ? 'Contact Us' : 'Subscribe'}
+                {plan.current ? 'Current Plan' : 'Subscribe'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -162,7 +190,7 @@ export default function ShopScreen() {
           <View style={styles.faqItem}>
             <Text style={styles.faqQuestion}>What payment methods do you accept?</Text>
             <Text style={styles.faqAnswer}>
-              We accept all major credit cards, debit cards, and digital wallets through Stripe.
+              We accept all major credit cards, debit cards, Apple Pay, Google Pay, and more through our secure payment processor.
             </Text>
           </View>
 
@@ -172,6 +200,26 @@ export default function ShopScreen() {
               Pro and Elite plans come with a 7-day free trial. Cancel before the trial ends to avoid charges.
             </Text>
           </View>
+
+          <View style={styles.faqItem}>
+            <Text style={styles.faqQuestion}>How do I manage my subscription?</Text>
+            <Text style={styles.faqAnswer}>
+              You can manage your subscription through your device's app store settings (App Store for iOS, Play Store for Android).
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.securityCard}>
+          <IconSymbol 
+            ios_icon_name="lock.shield.fill" 
+            android_material_icon_name="security" 
+            size={32} 
+            color={colors.primary} 
+          />
+          <Text style={styles.securityTitle}>Secure Payments</Text>
+          <Text style={styles.securityText}>
+            All payments are processed securely through industry-standard encryption. Your payment information is never stored on our servers.
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -193,7 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: colors.text,
     marginBottom: 8,
@@ -203,10 +251,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  premiumText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fbbf24',
   },
   planCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderRadius: 24,
     padding: 24,
@@ -234,8 +297,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   planName: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.text,
     marginBottom: 8,
   },
@@ -244,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   planPrice: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '800',
     color: colors.primary,
   },
@@ -264,39 +327,40 @@ const styles = StyleSheet.create({
   },
   featureText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: colors.text,
   },
   planButton: {
-    backgroundColor: colors.grey,
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
   },
   planButtonPopular: {
     backgroundColor: colors.primary,
   },
   planButtonCurrent: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   planButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#ffffff',
   },
   planButtonTextCurrent: {
     color: colors.textSecondary,
   },
   faqCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderRadius: 24,
-    padding: 20,
+    padding: 24,
+    marginBottom: 20,
   },
   faqTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.text,
     marginBottom: 20,
   },
@@ -305,13 +369,34 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 6,
   },
   faqAnswer: {
     fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  securityCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+  },
+  securityTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  securityText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 20,
   },
 });

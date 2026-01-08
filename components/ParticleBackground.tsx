@@ -1,87 +1,93 @@
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated, Dimensions } from 'react-native';
 import { colors } from '@/styles/commonStyles';
+
+interface Particle {
+  x: Animated.Value;
+  y: Animated.Value;
+  size: number;
+  speedX: number;
+  speedY: number;
+  opacity: Animated.Value;
+}
 
 const { width, height } = Dimensions.get('window');
 
-interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  duration: number;
-}
-
 export default function ParticleBackground() {
-  // Generate particles
-  const particles: Particle[] = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * width,
-    y: Math.random() * height,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 3000 + 2000,
-  }));
+  const particles = useRef<Particle[]>([]);
+
+  useEffect(() => {
+    // Create 20 particles
+    particles.current = Array.from({ length: 20 }, () => ({
+      x: new Animated.Value(Math.random() * width),
+      y: new Animated.Value(Math.random() * height),
+      size: Math.random() * 4 + 2,
+      speedX: (Math.random() - 0.5) * 0.5,
+      speedY: (Math.random() - 0.5) * 0.5,
+      opacity: new Animated.Value(Math.random() * 0.5 + 0.2),
+    }));
+
+    // Animate particles
+    const animateParticles = () => {
+      particles.current.forEach((particle) => {
+        // Continuous floating animation
+        Animated.loop(
+          Animated.parallel([
+            Animated.sequence([
+              Animated.timing(particle.x, {
+                toValue: Math.random() * width,
+                duration: 10000 + Math.random() * 10000,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.sequence([
+              Animated.timing(particle.y, {
+                toValue: Math.random() * height,
+                duration: 10000 + Math.random() * 10000,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.sequence([
+              Animated.timing(particle.opacity, {
+                toValue: Math.random() * 0.5 + 0.2,
+                duration: 3000,
+                useNativeDriver: true,
+              }),
+              Animated.timing(particle.opacity, {
+                toValue: Math.random() * 0.3 + 0.1,
+                duration: 3000,
+                useNativeDriver: true,
+              }),
+            ]),
+          ])
+        ).start();
+      });
+    };
+
+    animateParticles();
+  }, []);
 
   return (
     <View style={styles.container} pointerEvents="none">
-      {particles.map((particle) => (
-        <AnimatedParticle key={particle.id} particle={particle} />
+      {particles.current.map((particle, index) => (
+        <Animated.View
+          key={index}
+          style={[
+            styles.particle,
+            {
+              width: particle.size,
+              height: particle.size,
+              transform: [
+                { translateX: particle.x },
+                { translateY: particle.y },
+              ],
+              opacity: particle.opacity,
+            },
+          ]}
+        />
       ))}
     </View>
-  );
-}
-
-function AnimatedParticle({ particle }: { particle: Particle }) {
-  const translateY = useSharedValue(0);
-  const opacity = useSharedValue(0.3);
-
-  useEffect(() => {
-    translateY.value = withRepeat(
-      withSequence(
-        withTiming(-20, { duration: particle.duration, easing: Easing.inOut(Easing.ease) }),
-        withTiming(20, { duration: particle.duration, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: particle.duration / 2 }),
-        withTiming(0.3, { duration: particle.duration / 2 })
-      ),
-      -1,
-      true
-    );
-  }, [particle.duration, translateY, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        styles.particle,
-        {
-          left: particle.x,
-          top: particle.y,
-          width: particle.size,
-          height: particle.size,
-        },
-        animatedStyle,
-      ]}
-    />
   );
 }
 
@@ -94,5 +100,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: colors.primary,
     borderRadius: 100,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
 });

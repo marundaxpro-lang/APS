@@ -8,200 +8,537 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
 import { FitnessProfile } from '@/types/fitness';
+import { colors } from '@/styles/commonStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Stack, useRouter } from 'expo-router';
+import ParticleBackground from '@/components/ParticleBackground';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 24,
+    paddingTop: 60,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 40,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    marginBottom: 40,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  optionCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  optionCardSelected: {
+    backgroundColor: 'rgba(69,155,155,0.15)',
+    borderColor: colors.primary,
+  },
+  optionIcon: {
+    marginBottom: 12,
+  },
+  optionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  multiSelectCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  multiSelectCardSelected: {
+    backgroundColor: 'rgba(69,155,155,0.15)',
+    borderColor: colors.primary,
+  },
+  multiSelectText: {
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
+    flex: 1,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 32,
+  },
+  button: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonSecondary: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  daySelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  dayButton: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  dayButtonSelected: {
+    backgroundColor: 'rgba(69,155,155,0.15)',
+    borderColor: colors.primary,
+  },
+  dayButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+});
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
+  const [profile, setProfile] = useState<Partial<FitnessProfile>>({
+    focusAreas: [],
+  });
 
-  const saveProfile = async () => {
+  const totalSteps = 5;
+
+  async function saveProfile() {
     try {
-      await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
-      router.replace('/(tabs)/training');
+      await AsyncStorage.setItem('fitnessProfile', JSON.stringify({
+        ...profile,
+        createdAt: new Date().toISOString(),
+      }));
+      router.replace('/(tabs)/(home)');
     } catch (error) {
       console.error('Error saving profile:', error);
     }
-  };
+  }
 
-  const renderStep1 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What&apos;s your experience level?</Text>
-      <Text style={styles.stepSubtitle}>This helps us create the perfect workout plan for you</Text>
+  function renderStep1() {
+    return (
+      <>
+        <Text style={styles.title}>What's your gender?</Text>
+        <Text style={styles.subtitle}>
+          This helps us personalize your workout plan
+        </Text>
 
-      <View style={styles.optionsContainer}>
-        {[
-          { value: 'beginner', label: 'Beginner', iosIcon: 'figure.walk', androidIcon: 'directions-walk', desc: 'New to fitness or returning after a break' },
-          { value: 'intermediate', label: 'Intermediate', iosIcon: 'figure.run', androidIcon: 'directions-run', desc: '6-12 months of consistent training' },
-          { value: 'advanced', label: 'Advanced', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center', desc: '1+ years of structured training' },
-        ].map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.optionCard,
-              profile.experience === option.value && styles.optionCardSelected,
-            ]}
-            onPress={() => setProfile({ ...profile, experience: option.value as any })}
-          >
-            <IconSymbol 
-              ios_icon_name={option.iosIcon} 
-              android_material_icon_name={option.androidIcon as any}
-              size={32} 
-              color={profile.experience === option.value ? colors.primary : colors.textSecondary} 
-            />
-            <Text style={[styles.optionLabel, profile.experience === option.value && styles.optionLabelSelected]}>
-              {option.label}
-            </Text>
-            <Text style={styles.optionDesc}>{option.desc}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.gender === 'male' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, gender: 'male' })}
+        >
+          <IconSymbol
+            name="person"
+            size={48}
+            color={profile.gender === 'male' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Male</Text>
+        </TouchableOpacity>
 
-  const renderStep2 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What&apos;s your primary goal?</Text>
-      <Text style={styles.stepSubtitle}>We&apos;ll optimize your training for this objective</Text>
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.gender === 'female' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, gender: 'female' })}
+        >
+          <IconSymbol
+            name="person"
+            size={48}
+            color={profile.gender === 'female' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Female</Text>
+        </TouchableOpacity>
 
-      <View style={styles.optionsContainer}>
-        {[
-          { value: 'strength', label: 'Build Strength', iosIcon: 'bolt.fill', androidIcon: 'flash-on', desc: 'Increase max lifts and power' },
-          { value: 'muscle', label: 'Build Muscle', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center', desc: 'Hypertrophy and size gains' },
-          { value: 'endurance', label: 'Endurance', iosIcon: 'figure.run', androidIcon: 'directions-run', desc: 'Improve stamina and conditioning' },
-          { value: 'weight-loss', label: 'Lose Weight', iosIcon: 'flame.fill', androidIcon: 'local-fire-department', desc: 'Fat loss and body recomposition' },
-        ].map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.optionCard,
-              profile.goal === option.value && styles.optionCardSelected,
-            ]}
-            onPress={() => setProfile({ ...profile, goal: option.value as any })}
-          >
-            <IconSymbol 
-              ios_icon_name={option.iosIcon} 
-              android_material_icon_name={option.androidIcon as any}
-              size={32} 
-              color={profile.goal === option.value ? colors.primary : colors.textSecondary} 
-            />
-            <Text style={[styles.optionLabel, profile.goal === option.value && styles.optionLabelSelected]}>
-              {option.label}
-            </Text>
-            <Text style={styles.optionDesc}>{option.desc}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.gender === 'other' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, gender: 'other' })}
+        >
+          <IconSymbol
+            name="people"
+            size={48}
+            color={profile.gender === 'other' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Other</Text>
+        </TouchableOpacity>
+      </>
+    );
+  }
 
-  const renderStep3 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Training frequency & split</Text>
-      <Text style={styles.stepSubtitle}>How many days per week can you train?</Text>
+  function renderStep2() {
+    return (
+      <>
+        <Text style={styles.title}>Training Frequency</Text>
+        <Text style={styles.subtitle}>
+          How many days per week can you train?
+        </Text>
 
-      <View style={styles.frequencyContainer}>
-        {[2, 3, 4, 5, 6].map((days) => (
-          <TouchableOpacity
-            key={days}
-            style={[
-              styles.frequencyButton,
-              profile.trainingFrequency === days && styles.frequencyButtonSelected,
-            ]}
-            onPress={() => setProfile({ ...profile, trainingFrequency: days })}
-          >
-            <Text style={[
-              styles.frequencyText,
-              profile.trainingFrequency === days && styles.frequencyTextSelected,
-            ]}>
-              {days}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={[styles.stepSubtitle, { marginTop: 32 }]}>Choose your training split</Text>
-
-      <View style={styles.optionsContainer}>
-        {[
-          { value: 'ppl', label: 'Push/Pull/Legs', desc: 'Best for 3-6 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency >= 3 },
-          { value: 'upper-lower', label: 'Upper/Lower', desc: 'Best for 4 days/week', recommended: profile.trainingFrequency === 4 },
-          { value: 'full-body', label: 'Full Body', desc: 'Best for 2-3 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency <= 3 },
-          { value: 'bro-split', label: 'Bro Split', desc: 'Best for 5-6 days/week', recommended: profile.trainingFrequency && profile.trainingFrequency >= 5 },
-        ].map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.splitCard,
-              profile.splitType === option.value && styles.splitCardSelected,
-            ]}
-            onPress={() => setProfile({ ...profile, splitType: option.value as any })}
-          >
-            <View style={styles.splitHeader}>
-              <Text style={[styles.splitLabel, profile.splitType === option.value && styles.splitLabelSelected]}>
-                {option.label}
+        <View style={styles.daySelector}>
+          {[2, 3, 4, 5, 6].map((days) => (
+            <TouchableOpacity
+              key={days}
+              style={[
+                styles.dayButton,
+                profile.trainingDays === days && styles.dayButtonSelected,
+              ]}
+              onPress={() => setProfile({ ...profile, trainingDays: days })}
+            >
+              <Text style={styles.dayButtonText}>{days}</Text>
+              <Text style={[styles.optionDescription, { marginTop: 4 }]}>
+                {days === 1 ? 'day' : 'days'}
               </Text>
-              {option.recommended && (
-                <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Recommended</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.splitDesc}>{option.desc}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </>
+    );
+  }
+
+  function renderStep3() {
+    const focusOptions = [
+      { id: 'chest', label: 'Chest', icon: 'fitness' },
+      { id: 'back', label: 'Back', icon: 'fitness' },
+      { id: 'legs', label: 'Legs', icon: 'directions-run' },
+      { id: 'glutes', label: 'Glutes', icon: 'favorite' },
+      { id: 'arms', label: 'Arms', icon: 'fitness' },
+      { id: 'shoulders', label: 'Shoulders', icon: 'fitness' },
+    ];
+
+    const toggleFocusArea = (area: string) => {
+      const current = profile.focusAreas || [];
+      if (current.includes(area)) {
+        setProfile({
+          ...profile,
+          focusAreas: current.filter((a) => a !== area),
+        });
+      } else {
+        setProfile({
+          ...profile,
+          focusAreas: [...current, area],
+        });
+      }
+    };
+
+    return (
+      <>
+        <Text style={styles.title}>Focus Areas</Text>
+        <Text style={styles.subtitle}>
+          Select the body parts you want to prioritize (choose 2-3)
+        </Text>
+
+        {focusOptions.map((option) => (
+          <TouchableOpacity
+            key={option.id}
+            style={[
+              styles.multiSelectCard,
+              profile.focusAreas?.includes(option.id) &&
+                styles.multiSelectCardSelected,
+            ]}
+            onPress={() => toggleFocusArea(option.id)}
+          >
+            <IconSymbol
+              name={option.icon}
+              size={24}
+              color={
+                profile.focusAreas?.includes(option.id)
+                  ? colors.primary
+                  : colors.textSecondary
+              }
+            />
+            <Text style={styles.multiSelectText}>{option.label}</Text>
+            {profile.focusAreas?.includes(option.id) && (
+              <IconSymbol name="check-circle" size={24} color={colors.primary} />
+            )}
           </TouchableOpacity>
         ))}
-      </View>
-    </View>
-  );
+      </>
+    );
+  }
 
-  const canProceed = () => {
-    if (step === 1) return !!profile.experience;
-    if (step === 2) return !!profile.goal;
-    if (step === 3) return !!profile.trainingFrequency && !!profile.splitType;
-    return false;
-  };
+  function renderStep4() {
+    return (
+      <>
+        <Text style={styles.title}>Equipment Preference</Text>
+        <Text style={styles.subtitle}>
+          What equipment do you have access to?
+        </Text>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.equipment === 'gym' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, equipment: 'gym' })}
+        >
+          <IconSymbol
+            name="fitness-center"
+            size={48}
+            color={profile.equipment === 'gym' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Full Gym Access</Text>
+          <Text style={styles.optionDescription}>
+            Barbells, cables, machines, dumbbells
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.equipment === 'home-freeweights' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, equipment: 'home-freeweights' })}
+        >
+          <IconSymbol
+            name="fitness"
+            size={48}
+            color={
+              profile.equipment === 'home-freeweights'
+                ? colors.primary
+                : colors.textSecondary
+            }
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Home - Free Weights</Text>
+          <Text style={styles.optionDescription}>
+            Dumbbells, resistance bands
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.equipment === 'home-bodyweight' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, equipment: 'home-bodyweight' })}
+        >
+          <IconSymbol
+            name="self-improvement"
+            size={48}
+            color={
+              profile.equipment === 'home-bodyweight'
+                ? colors.primary
+                : colors.textSecondary
+            }
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Home - Bodyweight</Text>
+          <Text style={styles.optionDescription}>
+            No equipment needed
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
+  }
+
+  function renderStep5() {
+    return (
+      <>
+        <Text style={styles.title}>Your Goal</Text>
+        <Text style={styles.subtitle}>
+          What do you want to achieve?
+        </Text>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.goal === 'muscle' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, goal: 'muscle' })}
+        >
+          <IconSymbol
+            name="fitness"
+            size={48}
+            color={profile.goal === 'muscle' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Build Muscle</Text>
+          <Text style={styles.optionDescription}>
+            Hypertrophy-focused training
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.goal === 'strength' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, goal: 'strength' })}
+        >
+          <IconSymbol
+            name="fitness-center"
+            size={48}
+            color={profile.goal === 'strength' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Gain Strength</Text>
+          <Text style={styles.optionDescription}>
+            Progressive overload training
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.goal === 'weight-loss' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, goal: 'weight-loss' })}
+        >
+          <IconSymbol
+            name="trending-down"
+            size={48}
+            color={profile.goal === 'weight-loss' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Lose Weight</Text>
+          <Text style={styles.optionDescription}>
+            Fat loss with muscle retention
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            profile.goal === 'endurance' && styles.optionCardSelected,
+          ]}
+          onPress={() => setProfile({ ...profile, goal: 'endurance' })}
+        >
+          <IconSymbol
+            name="directions-run"
+            size={48}
+            color={profile.goal === 'endurance' ? colors.primary : colors.textSecondary}
+            style={styles.optionIcon}
+          />
+          <Text style={styles.optionTitle}>Build Endurance</Text>
+          <Text style={styles.optionDescription}>
+            Stamina and conditioning
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
+  }
+
+  function canProceed() {
+    switch (step) {
+      case 1:
+        return !!profile.gender;
+      case 2:
+        return !!profile.trainingDays;
+      case 3:
+        return (profile.focusAreas?.length || 0) >= 2;
+      case 4:
+        return !!profile.equipment;
+      case 5:
+        return !!profile.goal;
+      default:
+        return false;
+    }
+  }
 
   return (
-    <>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.progressBar}>
-            {[1, 2, 3].map((s) => (
-              <View
-                key={s}
-                style={[
-                  styles.progressDot,
-                  s <= step && styles.progressDotActive,
-                ]}
-              />
-            ))}
-          </View>
+      <ParticleBackground />
+      
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.progressBar}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${(step / totalSteps) * 100}%` },
+            ]}
+          />
+        </View>
 
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-        </ScrollView>
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
+        {step === 5 && renderStep5()}
 
-        <View style={styles.footer}>
+        <View style={styles.buttonContainer}>
           {step > 1 && (
             <TouchableOpacity
-              style={styles.backButton}
+              style={[styles.button, styles.buttonSecondary]}
               onPress={() => setStep(step - 1)}
             >
-              <IconSymbol ios_icon_name="chevron.left" android_material_icon_name="chevron-left" size={20} color={colors.text} />
-              <Text style={styles.backButtonText}>Back</Text>
+              <Text style={styles.buttonText}>Back</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={[styles.nextButton, !canProceed() && styles.nextButtonDisabled]}
+            style={[
+              styles.button,
+              !canProceed() && styles.buttonDisabled,
+            ]}
             onPress={() => {
-              if (step < 3) {
+              if (step < totalSteps) {
                 setStep(step + 1);
               } else {
                 saveProfile();
@@ -209,194 +546,12 @@ export default function OnboardingScreen() {
             }}
             disabled={!canProceed()}
           >
-            <Text style={styles.nextButtonText}>
-              {step === 3 ? 'Get Started' : 'Continue'}
+            <Text style={styles.buttonText}>
+              {step === totalSteps ? 'Get Started' : 'Next'}
             </Text>
-            <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-      </View>
-    </>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 20,
-    paddingTop: 60,
-  },
-  progressBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 40,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  progressDotActive: {
-    backgroundColor: colors.primary,
-    width: 24,
-  },
-  stepContainer: {
-    marginBottom: 100,
-  },
-  stepTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 32,
-  },
-  optionsContainer: {
-    gap: 12,
-  },
-  optionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  optionCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-  },
-  optionLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  optionLabelSelected: {
-    color: colors.primary,
-  },
-  optionDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  frequencyContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  frequencyButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  frequencyButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  frequencyText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textSecondary,
-  },
-  frequencyTextSelected: {
-    color: '#fff',
-  },
-  splitCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  splitCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-  },
-  splitHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  splitLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  splitLabelSelected: {
-    color: colors.primary,
-  },
-  splitDesc: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  recommendedBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  recommendedText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    padding: 20,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    gap: 12,
-  },
-  backButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  nextButton: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-  },
-  nextButtonDisabled: {
-    opacity: 0.5,
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-});
