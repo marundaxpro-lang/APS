@@ -8,6 +8,13 @@
       "when": 1767536001076,
       "tag": "20260104141321_chubby_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767903337975,
+      "tag": "20260108201537_perfect_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

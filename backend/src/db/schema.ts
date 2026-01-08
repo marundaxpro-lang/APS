@@ -267,3 +267,32 @@ export const fitnessProfilesRelations = relations(fitnessProfiles, ({ one }) => 
     references: [user.id],
   }),
 }));
+
+/**
+ * Subscription: Store user subscription information for Stripe payments
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+    planType: text('plan_type', { enum: ['free', 'pro', 'elite'] }).default('free'),
+    status: text('status', { enum: ['active', 'cancelled', 'expired'] }).default('active'),
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    currentPeriodEnd: timestamp('current_period_end'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_user_subscription').on(table.userId)]
+);
+
+/**
+ * Relations for Subscriptions
+ */
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(user, {
+    fields: [subscriptions.userId],
+    references: [user.id],
+  }),
+}));
