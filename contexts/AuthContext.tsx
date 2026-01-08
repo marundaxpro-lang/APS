@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
@@ -25,12 +26,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function openOAuthPopup(provider: string): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (Platform.OS !== "web") {
+      reject(new Error("OAuth popup is only available on web"));
+      return;
+    }
+
+    // @ts-expect-error - window is available on web
     const popupUrl = `${window.location.origin}/auth-popup?provider=${provider}`;
     const width = 500;
     const height = 600;
+    // @ts-expect-error - window is available on web
     const left = window.screenX + (window.outerWidth - width) / 2;
+    // @ts-expect-error - window is available on web
     const top = window.screenY + (window.outerHeight - height) / 2;
 
+    // @ts-expect-error - window is available on web
     const popup = window.open(
       popupUrl,
       "oauth-popup",
@@ -44,21 +54,25 @@ function openOAuthPopup(provider: string): Promise<string> {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "oauth-success" && event.data?.token) {
+        // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
         clearInterval(checkClosed);
         resolve(event.data.token);
       } else if (event.data?.type === "oauth-error") {
+        // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
         clearInterval(checkClosed);
         reject(new Error(event.data.error || "OAuth failed"));
       }
     };
 
+    // @ts-expect-error - window is available on web
     window.addEventListener("message", handleMessage);
 
     const checkClosed = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkClosed);
+        // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
         reject(new Error("Authentication cancelled"));
       }

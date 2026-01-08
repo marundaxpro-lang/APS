@@ -10,11 +10,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { authenticatedGet } from '@/utils/api';
 
@@ -61,9 +61,9 @@ export default function ProfileScreen() {
         loadProfile();
       }
     }
-  }, [user, authLoading, router, loadProfile]);
+  }, [user, authLoading, loadProfile]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -76,7 +76,7 @@ export default function ProfileScreen() {
         },
       },
     ]);
-  };
+  }, [signOut, router]);
 
   if (authLoading || loading) {
     return (

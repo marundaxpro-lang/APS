@@ -10,6 +10,7 @@ interface Particle {
   speedX: number;
   speedY: number;
   opacity: Animated.Value;
+  duration: number;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -19,14 +20,18 @@ export default function ParticleBackground() {
 
   useEffect(() => {
     // Create 20 particles
-    particles.current = Array.from({ length: 20 }, () => ({
-      x: new Animated.Value(Math.random() * width),
-      y: new Animated.Value(Math.random() * height),
-      size: Math.random() * 4 + 2,
-      speedX: (Math.random() - 0.5) * 0.5,
-      speedY: (Math.random() - 0.5) * 0.5,
-      opacity: new Animated.Value(Math.random() * 0.5 + 0.2),
-    }));
+    particles.current = Array.from({ length: 20 }, () => {
+      const duration = 10000 + Math.random() * 10000;
+      return {
+        x: new Animated.Value(Math.random() * width),
+        y: new Animated.Value(Math.random() * height),
+        size: Math.random() * 4 + 2,
+        speedX: (Math.random() - 0.5) * 0.5,
+        speedY: (Math.random() - 0.5) * 0.5,
+        opacity: new Animated.Value(Math.random() * 0.5 + 0.2),
+        duration,
+      };
+    });
 
     // Animate particles
     const animateParticles = () => {
@@ -37,14 +42,14 @@ export default function ParticleBackground() {
             Animated.sequence([
               Animated.timing(particle.x, {
                 toValue: Math.random() * width,
-                duration: 10000 + Math.random() * 10000,
+                duration: particle.duration,
                 useNativeDriver: true,
               }),
             ]),
             Animated.sequence([
               Animated.timing(particle.y, {
                 toValue: Math.random() * height,
-                duration: 10000 + Math.random() * 10000,
+                duration: particle.duration,
                 useNativeDriver: true,
               }),
             ]),

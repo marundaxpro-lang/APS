@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,11 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
 import ParticleBackground from '@/components/ParticleBackground';
 
 const styles = StyleSheet.create({
@@ -156,6 +156,21 @@ export default function OnboardingScreen() {
 
   const totalSteps = 5;
 
+  useEffect(() => {
+    // Check if user already completed onboarding
+    const checkOnboarding = async () => {
+      try {
+        const storedProfile = await AsyncStorage.getItem('fitnessProfile');
+        if (storedProfile) {
+          router.replace('/(tabs)/(home)');
+        }
+      } catch (error) {
+        console.error('Error checking onboarding:', error);
+      }
+    };
+    checkOnboarding();
+  }, [router]);
+
   async function saveProfile() {
     try {
       await AsyncStorage.setItem('fitnessProfile', JSON.stringify({
@@ -171,7 +186,7 @@ export default function OnboardingScreen() {
   function renderStep1() {
     return (
       <>
-        <Text style={styles.title}>What's your gender?</Text>
+        <Text style={styles.title}>What&apos;s your gender?</Text>
         <Text style={styles.subtitle}>
           This helps us personalize your workout plan
         </Text>
@@ -184,7 +199,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, gender: 'male' })}
         >
           <IconSymbol
-            name="person"
+            ios_icon_name="person"
+            android_material_icon_name="person"
             size={48}
             color={profile.gender === 'male' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -200,7 +216,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, gender: 'female' })}
         >
           <IconSymbol
-            name="person"
+            ios_icon_name="person"
+            android_material_icon_name="person"
             size={48}
             color={profile.gender === 'female' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -216,7 +233,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, gender: 'other' })}
         >
           <IconSymbol
-            name="people"
+            ios_icon_name="person"
+            android_material_icon_name="group"
             size={48}
             color={profile.gender === 'other' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -258,12 +276,12 @@ export default function OnboardingScreen() {
 
   function renderStep3() {
     const focusOptions = [
-      { id: 'chest', label: 'Chest', icon: 'fitness' },
-      { id: 'back', label: 'Back', icon: 'fitness' },
+      { id: 'chest', label: 'Chest', icon: 'fitness-center' },
+      { id: 'back', label: 'Back', icon: 'fitness-center' },
       { id: 'legs', label: 'Legs', icon: 'directions-run' },
       { id: 'glutes', label: 'Glutes', icon: 'favorite' },
-      { id: 'arms', label: 'Arms', icon: 'fitness' },
-      { id: 'shoulders', label: 'Shoulders', icon: 'fitness' },
+      { id: 'arms', label: 'Arms', icon: 'fitness-center' },
+      { id: 'shoulders', label: 'Shoulders', icon: 'fitness-center' },
     ];
 
     const toggleFocusArea = (area: string) => {
@@ -299,7 +317,8 @@ export default function OnboardingScreen() {
             onPress={() => toggleFocusArea(option.id)}
           >
             <IconSymbol
-              name={option.icon}
+              ios_icon_name="dumbbell"
+              android_material_icon_name={option.icon}
               size={24}
               color={
                 profile.focusAreas?.includes(option.id)
@@ -309,7 +328,7 @@ export default function OnboardingScreen() {
             />
             <Text style={styles.multiSelectText}>{option.label}</Text>
             {profile.focusAreas?.includes(option.id) && (
-              <IconSymbol name="check-circle" size={24} color={colors.primary} />
+              <IconSymbol ios_icon_name="checkmark.circle" android_material_icon_name="check-circle" size={24} color={colors.primary} />
             )}
           </TouchableOpacity>
         ))}
@@ -333,7 +352,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, equipment: 'gym' })}
         >
           <IconSymbol
-            name="fitness-center"
+            ios_icon_name="dumbbell"
+            android_material_icon_name="fitness-center"
             size={48}
             color={profile.equipment === 'gym' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -352,7 +372,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, equipment: 'home-freeweights' })}
         >
           <IconSymbol
-            name="fitness"
+            ios_icon_name="dumbbell"
+            android_material_icon_name="fitness-center"
             size={48}
             color={
               profile.equipment === 'home-freeweights'
@@ -375,7 +396,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, equipment: 'home-bodyweight' })}
         >
           <IconSymbol
-            name="self-improvement"
+            ios_icon_name="figure.walk"
+            android_material_icon_name="self-improvement"
             size={48}
             color={
               profile.equipment === 'home-bodyweight'
@@ -409,7 +431,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, goal: 'muscle' })}
         >
           <IconSymbol
-            name="fitness"
+            ios_icon_name="dumbbell"
+            android_material_icon_name="fitness-center"
             size={48}
             color={profile.goal === 'muscle' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -428,7 +451,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, goal: 'strength' })}
         >
           <IconSymbol
-            name="fitness-center"
+            ios_icon_name="dumbbell"
+            android_material_icon_name="fitness-center"
             size={48}
             color={profile.goal === 'strength' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -447,7 +471,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, goal: 'weight-loss' })}
         >
           <IconSymbol
-            name="trending-down"
+            ios_icon_name="chart.line.downtrend.xyaxis"
+            android_material_icon_name="trending-down"
             size={48}
             color={profile.goal === 'weight-loss' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}
@@ -466,7 +491,8 @@ export default function OnboardingScreen() {
           onPress={() => setProfile({ ...profile, goal: 'endurance' })}
         >
           <IconSymbol
-            name="directions-run"
+            ios_icon_name="figure.run"
+            android_material_icon_name="directions-run"
             size={48}
             color={profile.goal === 'endurance' ? colors.primary : colors.textSecondary}
             style={styles.optionIcon}

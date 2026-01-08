@@ -1,11 +1,5 @@
 
-import { colors } from '@/styles/commonStyles';
-import { FocusTask, WeeklyTask } from '@/types/fitness';
 import React, { useState, useEffect, useCallback } from 'react';
-import { IconSymbol } from '@/components/IconSymbol';
-import { authenticatedPost } from '@/utils/api';
-import ParticleBackground from '@/components/ParticleBackground';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -16,6 +10,12 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors } from '@/styles/commonStyles';
+import { FocusTask, WeeklyTask } from '@/types/fitness';
+import { IconSymbol } from '@/components/IconSymbol';
+import ParticleBackground from '@/components/ParticleBackground';
+import { authenticatedPost } from '@/utils/api';
 
 export default function FocusScreen() {
   const [tasks, setTasks] = useState<FocusTask[]>([]);
