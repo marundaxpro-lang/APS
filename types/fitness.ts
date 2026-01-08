@@ -50,6 +50,8 @@ export interface FocusTask {
   id: string;
   title: string;
   completed: boolean;
+  category: string;
+  dueDate: string;
 }
 
 export interface Measurement {
