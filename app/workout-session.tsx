@@ -9,9 +9,11 @@ import {
   Platform,
   Alert,
   Animated,
+  Modal,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { FitnessProfile, Exercise } from '@/types/fitness';
@@ -33,7 +35,7 @@ function ConfettiExplosion() {
   );
 
   useEffect(() => {
-    confettiPieces.forEach((piece, index) => {
+    confettiPieces.forEach((piece) => {
       Animated.parallel([
         Animated.timing(piece.y, {
           toValue: 800,
@@ -97,9 +99,18 @@ export default function WorkoutSessionScreen() {
   const [isResting, setIsResting] = useState(false);
   const [restTimer, setRestTimer] = useState(60);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(
     new Set()
   );
+
+  // Video player for exercise demonstrations
+  const currentExercise = exercises[currentExerciseIndex];
+  const videoSource = currentExercise?.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  
+  const player = useVideoPlayer(videoSource, (player) => {
+    player.loop = true;
+  });
 
   useEffect(() => {
     loadWorkout();
@@ -175,6 +186,16 @@ export default function WorkoutSessionScreen() {
     setRestTimer(60);
   };
 
+  const openVideoModal = () => {
+    setShowVideoModal(true);
+    player.play();
+  };
+
+  const closeVideoModal = () => {
+    setShowVideoModal(false);
+    player.pause();
+  };
+
   if (exercises.length === 0) {
     return (
       <View style={styles.container}>
@@ -187,7 +208,6 @@ export default function WorkoutSessionScreen() {
     );
   }
 
-  const currentExercise = exercises[currentExerciseIndex];
   const progress = ((currentExerciseIndex + (currentSet / currentExercise.sets)) / exercises.length) * 100;
 
   return (
@@ -233,24 +253,27 @@ export default function WorkoutSessionScreen() {
             <View style={styles.exerciseInfo}>
               <Text style={styles.exerciseName}>{currentExercise.name}</Text>
               <Text style={styles.exerciseMeta}>
-                {currentExercise.muscleGroup} • {currentExercise.difficulty}
+                {currentExercise.muscleGroups?.join(', ') || 'Full Body'}
               </Text>
             </View>
           </View>
 
-          {/* Video/Demo Placeholder */}
-          <View style={styles.videoPlaceholder}>
+          {/* Video Demo Button */}
+          <TouchableOpacity 
+            style={styles.videoPlaceholder}
+            onPress={openVideoModal}
+          >
             <IconSymbol
               ios_icon_name="play.circle.fill"
               android_material_icon_name="play-circle-filled"
               size={64}
               color={colors.primary}
             />
-            <Text style={styles.videoText}>Exercise Demonstration</Text>
+            <Text style={styles.videoText}>Watch Exercise Demo</Text>
             <Text style={styles.videoSubtext}>
-              Tap to watch proper form video
+              Learn proper form and technique
             </Text>
-          </View>
+          </TouchableOpacity>
 
           {/* Set Counter */}
           <View style={styles.setCounter}>
@@ -259,17 +282,6 @@ export default function WorkoutSessionScreen() {
               {currentSet} / {currentExercise.sets}
             </Text>
             <Text style={styles.repsText}>{currentExercise.reps} reps</Text>
-          </View>
-
-          {/* Instructions */}
-          <View style={styles.instructions}>
-            <Text style={styles.instructionsTitle}>Instructions</Text>
-            {currentExercise.instructions.map((instruction, index) => (
-              <View key={index} style={styles.instructionItem}>
-                <Text style={styles.instructionBullet}>{index + 1}.</Text>
-                <Text style={styles.instructionText}>{instruction}</Text>
-              </View>
-            ))}
           </View>
 
           {/* Action Button */}
@@ -332,6 +344,48 @@ export default function WorkoutSessionScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Video Modal */}
+      <Modal
+        visible={showVideoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeVideoModal}
+      >
+        <View style={styles.videoModal}>
+          <View style={styles.videoModalContent}>
+            <View style={styles.videoModalHeader}>
+              <Text style={styles.videoModalTitle}>{currentExercise.name}</Text>
+              <TouchableOpacity onPress={closeVideoModal}>
+                <IconSymbol
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="cancel"
+                  size={32}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+            
+            <VideoView
+              style={styles.video}
+              player={player}
+              allowsFullscreen
+              allowsPictureInPicture
+              nativeControls
+            />
+
+            <View style={styles.videoInfo}>
+              <Text style={styles.videoInfoTitle}>Key Points:</Text>
+              <Text style={styles.videoInfoText}>
+                • Maintain proper form throughout the movement{'\n'}
+                • Control the weight on both concentric and eccentric phases{'\n'}
+                • Breathe consistently - exhale on exertion{'\n'}
+                • Focus on the target muscle group
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -419,17 +473,17 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   videoPlaceholder: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
     borderRadius: 16,
     padding: 40,
     alignItems: 'center',
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   videoText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginTop: 12,
   },
@@ -459,31 +513,6 @@ const styles = StyleSheet.create({
   repsText: {
     fontSize: 16,
     color: colors.text,
-  },
-  instructions: {
-    marginBottom: 24,
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  instructionItem: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
-  },
-  instructionBullet: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  instructionText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
   },
   completeButton: {
     backgroundColor: colors.primary,
@@ -591,5 +620,51 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     top: '50%',
+  },
+  videoModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  videoModalContent: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  videoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  videoModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+  },
+  video: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000',
+  },
+  videoInfo: {
+    padding: 20,
+  },
+  videoInfoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  videoInfoText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
   },
 });

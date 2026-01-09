@@ -45,9 +45,19 @@ export default function PlanScreen() {
 
   const loadWeeklyTasks = async () => {
     try {
-      const stored = await AsyncStorage.getItem('weeklyTasks');
-      if (stored) {
-        setWeeklyTasks(JSON.parse(stored));
+      // Load tasks from Focus Hub
+      const focusTasks = await AsyncStorage.getItem('focusTasks');
+      if (focusTasks) {
+        const tasks = JSON.parse(focusTasks);
+        // Convert focus tasks to weekly tasks with day assignments
+        const weeklyTasksData: WeeklyTask[] = tasks.map((task: FocusTask, index: number) => ({
+          ...task,
+          dayOfWeek: (new Date().getDay() + (index % 7)) % 7, // Distribute across week
+          startTime: `${9 + (index % 8)}:00`,
+          duration: 60,
+          type: task.category,
+        }));
+        setWeeklyTasks(weeklyTasksData);
       }
     } catch (error) {
       console.error('Error loading weekly tasks:', error);

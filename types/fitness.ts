@@ -1,12 +1,12 @@
 
 export interface FitnessProfile {
-  gender: 'male' | 'female' | 'other';
-  experience: 'beginner' | 'intermediate' | 'advanced';
-  goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';
+  gender: 'male' | 'female';
   trainingDays: number;
   focusAreas: string[];
-  equipment: 'gym' | 'home-freeweights' | 'home-bodyweight';
-  createdAt: string;
+  equipmentType: 'gym' | 'home' | 'minimal';
+  goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';
+  weight: number;
+  height: number;
 }
 
 export interface Exercise {
@@ -14,96 +14,67 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: string;
-  muscleGroup: string;
-  equipment: string[];
-  difficulty: string;
   videoUrl?: string;
-  instructions: string[];
-  completed?: boolean;
-  setsCompleted?: number;
+  muscleGroups: string[];
+  equipment: string[];
 }
 
 export interface WorkoutDay {
-  day: string;
   name: string;
   exercises: Exercise[];
-}
-
-export interface MealEntry {
-  id: string;
-  foodId: string;
-  foodName: string;
-  grams: number;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
-  date: string;
-}
-
-export interface FoodItem {
-  id: string;
-  name: string;
-  category: string;
-  caloriesPer100g: number;
-  proteinPer100g: number;
-  carbsPer100g: number;
-  fatsPer100g: number;
-  isPremium: boolean;
+  dayIndex: number;
+  day?: string;
 }
 
 export interface FocusTask {
   id: string;
   title: string;
-  type: 'study' | 'work' | 'workout' | 'personal';
   completed: boolean;
-  priority: 'low' | 'medium' | 'high';
   dueDate?: string;
-  duration?: number;
+  category: 'study' | 'work' | 'personal';
 }
 
-export interface WeeklyTask {
-  id: string;
-  title: string;
-  type: 'study' | 'work' | 'workout' | 'personal';
+export interface WeeklyTask extends FocusTask {
   dayOfWeek: number;
-  startTime: string;
-  duration: number;
-  completed: boolean;
+  startTime?: string;
+  duration?: number;
+  type?: 'study' | 'work' | 'personal';
 }
 
-export interface ProgressPhoto {
+export interface TimerType {
   id: string;
-  photoUrl: string;
-  date: string;
-  weight?: number;
-  notes?: string;
+  name: string;
+  duration: number;
+  description: string;
 }
 
 export interface Measurement {
   id: string;
-  date: string;
   weight: number;
   bodyFat?: number;
-  muscleMass?: number;
-  notes?: string;
+  date: string;
 }
 
-export interface Achievement {
+export interface MealEntry {
   id: string;
-  type: string;
-  title: string;
-  description: string;
-  unlockedDate: string;
-  icon: string;
+  foodId: string;
+  grams: number;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+}
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  per100g: boolean;
 }
 
 export interface DashboardStats {
-  weeklyWorkouts: number;
-  totalWorkouts: number;
-  currentStreak: number;
-  weeklyStudyHours: number;
+  workoutsThisWeek: number;
   tasksCompleted: number;
-  totalTasks: number;
+  currentStreak: number;
+  todaysCalories: number;
 }
