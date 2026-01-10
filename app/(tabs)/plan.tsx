@@ -11,18 +11,17 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import { FitnessProfile, WorkoutDay, WeeklyTask } from '@/types/fitness';
 import { generateWorkoutSplit } from '@/data/workouts';
 import ParticleBackground from '@/components/ParticleBackground';
+import { FitnessProfile, WorkoutDay, WeeklyTask } from '@/types/fitness';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function PlanScreen() {
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [workoutSplit, setWorkoutSplit] = useState<WorkoutDay[]>([]);
   const [weeklyTasks, setWeeklyTasks] = useState<WeeklyTask[]>([]);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const today = new Date().getDay();
+  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
 
   useEffect(() => {
     loadProfile();
@@ -34,8 +33,10 @@ export default function PlanScreen() {
       const stored = await AsyncStorage.getItem('fitnessProfile');
       if (stored) {
         const profileData = JSON.parse(stored);
+        console.log('Loaded profile in plan screen:', profileData);
         setProfile(profileData);
         const split = generateWorkoutSplit(profileData);
+        console.log('Generated split in plan screen:', split);
         setWorkoutSplit(split);
       }
     } catch (error) {
@@ -45,19 +46,11 @@ export default function PlanScreen() {
 
   const loadWeeklyTasks = async () => {
     try {
-      // Load tasks from Focus Hub
-      const focusTasks = await AsyncStorage.getItem('focusTasks');
-      if (focusTasks) {
-        const tasks = JSON.parse(focusTasks);
-        // Convert focus tasks to weekly tasks with day assignments
-        const weeklyTasksData: WeeklyTask[] = tasks.map((task: FocusTask, index: number) => ({
-          ...task,
-          dayOfWeek: (new Date().getDay() + (index % 7)) % 7, // Distribute across week
-          startTime: `${9 + (index % 8)}:00`,
-          duration: 60,
-          type: task.category,
-        }));
-        setWeeklyTasks(weeklyTasksData);
+      const stored = await AsyncStorage.getItem('focusTasks');
+      if (stored) {
+        const tasks: WeeklyTask[] = JSON.parse(stored);
+        const tasksWithDays = tasks.filter(task => task.dayOfWeek !== undefined);
+        setWeeklyTasks(tasksWithDays);
       }
     } catch (error) {
       console.error('Error loading weekly tasks:', error);
@@ -65,21 +58,24 @@ export default function PlanScreen() {
   };
 
   const handleDayPress = (dayIndex: number) => {
+    const workout = getDayWorkout(dayIndex);
+    const today = new Date().getDay();
+    
+    if (dayIndex !== today && workout) {
+      // Show warning if clicking on a different day
+      console.log('Warning: This is not today\'s workout');
+    }
+    
     setSelectedDay(dayIndex);
   };
 
   const getDayWorkout = (dayIndex: number): WorkoutDay | null => {
-    const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayName = dayMap[dayIndex];
-    return workoutSplit.find(w => w.day === dayName) || null;
+    return workoutSplit.find(day => day.dayIndex === dayIndex) || null;
   };
 
   const getDayTasks = (dayIndex: number): WeeklyTask[] => {
-    return weeklyTasks.filter(t => t.dayOfWeek === dayIndex);
+    return weeklyTasks.filter(task => task.dayOfWeek === dayIndex);
   };
-
-  const selectedDayWorkout = selectedDay !== null ? getDayWorkout(selectedDay) : null;
-  const selectedDayTasks = selectedDay !== null ? getDayTasks(selectedDay) : [];
 
   return (
     <View style={styles.container}>
@@ -89,39 +85,42 @@ export default function PlanScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Weekly Plan</Text>
-        <Text style={styles.subtitle}>Training & Study Schedule</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Weekly Plan</Text>
+          <Text style={styles.subtitle}>Your training schedule and tasks</Text>
+        </View>
 
+        {/* Week Calendar */}
         <View style={styles.weekContainer}>
           {DAYS.map((day, index) => {
-            const dayIndex = index === 6 ? 0 : index + 1;
-            const isToday = dayIndex === today;
-            const hasWorkout = getDayWorkout(dayIndex) !== null;
-            const hasTasks = getDayTasks(dayIndex).length > 0;
-            const isSelected = selectedDay === dayIndex;
+            const isToday = index === new Date().getDay();
+            const isSelected = index === selectedDay;
+            const hasWorkout = getDayWorkout(index) !== null;
+            const hasTasks = getDayTasks(index).length > 0;
 
             return (
               <TouchableOpacity
-                key={day}
+                key={index}
                 style={[
-                  styles.dayButton,
-                  isToday && styles.dayButtonToday,
-                  isSelected && styles.dayButtonSelected,
+                  styles.dayCard,
+                  isToday && styles.todayCard,
+                  isSelected && styles.selectedCard,
                 ]}
-                onPress={() => handleDayPress(dayIndex)}
+                onPress={() => handleDayPress(index)}
               >
                 <Text style={[
                   styles.dayText,
-                  (isToday || isSelected) && styles.dayTextActive
+                  isToday && styles.todayText,
+                  isSelected && styles.selectedText,
                 ]}>
                   {day}
                 </Text>
                 <View style={styles.indicators}>
                   {hasWorkout && (
-                    <View style={[styles.indicator, styles.indicatorWorkout]} />
+                    <View style={[styles.indicator, styles.workoutIndicator]} />
                   )}
                   {hasTasks && (
-                    <View style={[styles.indicator, styles.indicatorTask]} />
+                    <View style={[styles.indicator, styles.taskIndicator]} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -129,120 +128,126 @@ export default function PlanScreen() {
           })}
         </View>
 
-        {selectedDay !== null ? (
-          <View style={styles.dayDetails}>
-            <View style={styles.dayHeader}>
-              <Text style={styles.dayTitle}>
-                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][selectedDay]}
-              </Text>
-              {selectedDay === today && (
-                <View style={styles.todayBadge}>
-                  <Text style={styles.todayBadgeText}>Today</Text>
-                </View>
-              )}
-            </View>
+        {/* Selected Day Details */}
+        <View style={styles.detailsContainer}>
+          <Text style={styles.detailsTitle}>
+            {DAYS[selectedDay]} - {selectedDay === new Date().getDay() ? 'Today' : 'Upcoming'}
+          </Text>
 
-            {/* Workout Section */}
-            {selectedDayWorkout ? (
-              <View style={styles.workoutSection}>
-                <View style={styles.sectionHeader}>
-                  <IconSymbol 
-                    ios_icon_name="dumbbell.fill" 
-                    android_material_icon_name="fitness-center" 
-                    size={24} 
-                    color={colors.primary} 
-                  />
-                  <Text style={styles.sectionTitle}>Workout</Text>
-                </View>
-
-                <View style={styles.workoutCard}>
-                  <Text style={styles.workoutName}>{selectedDayWorkout.name}</Text>
-                  <Text style={styles.workoutMeta}>
-                    {selectedDayWorkout.exercises.length} exercises • ~45 min
-                  </Text>
-
-                  <View style={styles.exerciseList}>
-                    {selectedDayWorkout.exercises.map((exercise, index) => (
-                      <View key={exercise.id} style={styles.exerciseItem}>
-                        <View style={styles.exerciseNumber}>
-                          <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-                        </View>
-                        <View style={styles.exerciseInfo}>
-                          <Text style={styles.exerciseName}>{exercise.name}</Text>
-                          <Text style={styles.exerciseDetails}>
-                            {exercise.sets} × {exercise.reps}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.restSection}>
+          {/* Workout for selected day */}
+          {getDayWorkout(selectedDay) ? (
+            <View style={styles.workoutCard}>
+              <View style={styles.cardHeader}>
                 <IconSymbol 
-                  ios_icon_name="moon.stars.fill" 
-                  android_material_icon_name="bedtime" 
-                  size={48} 
+                  ios_icon_name="dumbbell.fill" 
+                  android_material_icon_name="fitness-center" 
+                  size={24} 
                   color={colors.primary} 
                 />
-                <Text style={styles.restTitle}>Rest Day</Text>
-                <Text style={styles.restText}>No workout scheduled</Text>
+                <Text style={styles.cardTitle}>
+                  {getDayWorkout(selectedDay)?.name}
+                </Text>
               </View>
-            )}
-
-            {/* Tasks Section */}
-            {selectedDayTasks.length > 0 && (
-              <View style={styles.tasksSection}>
-                <View style={styles.sectionHeader}>
-                  <IconSymbol 
-                    ios_icon_name="list.bullet" 
-                    android_material_icon_name="list" 
-                    size={24} 
-                    color="#8b5cf6" 
-                  />
-                  <Text style={styles.sectionTitle}>Tasks & Study</Text>
-                </View>
-
-                <View style={styles.tasksList}>
-                  {selectedDayTasks.map((task) => (
-                    <View key={task.id} style={styles.taskCard}>
-                      <View style={styles.taskTime}>
-                        <Text style={styles.taskTimeText}>{task.startTime}</Text>
-                      </View>
-                      <View style={styles.taskInfo}>
-                        <Text style={styles.taskTitle}>{task.title}</Text>
-                        <Text style={styles.taskMeta}>
-                          {task.type} • {task.duration} min
-                        </Text>
-                      </View>
-                      <View style={[
-                        styles.taskTypeBadge,
-                        task.type === 'study' && styles.taskTypeStudy,
-                        task.type === 'work' && styles.taskTypeWork,
-                      ]}>
-                        <IconSymbol 
-                          ios_icon_name={task.type === 'study' ? 'book.fill' : 'briefcase.fill'}
-                          android_material_icon_name={task.type === 'study' ? 'menu-book' : 'work'}
-                          size={16} 
-                          color="#fff" 
-                        />
-                      </View>
-                    </View>
-                  ))}
-                </View>
+              <Text style={styles.exerciseCount}>
+                {getDayWorkout(selectedDay)?.exercises.length} exercises
+              </Text>
+              <View style={styles.exerciseList}>
+                {getDayWorkout(selectedDay)?.exercises.slice(0, 3).map((exercise, idx) => (
+                  <View key={exercise.id} style={styles.exerciseItem}>
+                    <Text style={styles.exerciseNumber}>{idx + 1}</Text>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                  </View>
+                ))}
+                {(getDayWorkout(selectedDay)?.exercises.length || 0) > 3 && (
+                  <Text style={styles.moreText}>
+                    +{(getDayWorkout(selectedDay)?.exercises.length || 0) - 3} more exercises
+                  </Text>
+                )}
               </View>
-            )}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <IconSymbol 
-              ios_icon_name="calendar" 
-              android_material_icon_name="calendar-today" 
-              size={64} 
-              color={colors.textSecondary} 
-            />
-            <Text style={styles.emptyText}>Select a day to view details</Text>
+            </View>
+          ) : (
+            <View style={styles.restCard}>
+              <IconSymbol 
+                ios_icon_name="bed.double.fill" 
+                android_material_icon_name="hotel" 
+                size={32} 
+                color={colors.textSecondary} 
+              />
+              <Text style={styles.restText}>Rest Day</Text>
+              <Text style={styles.restSubtext}>Recovery is important!</Text>
+            </View>
+          )}
+
+          {/* Tasks for selected day */}
+          {getDayTasks(selectedDay).length > 0 && (
+            <View style={styles.tasksCard}>
+              <View style={styles.cardHeader}>
+                <IconSymbol 
+                  ios_icon_name="checklist" 
+                  android_material_icon_name="check-circle" 
+                  size={24} 
+                  color="#f59e0b" 
+                />
+                <Text style={styles.cardTitle}>Tasks</Text>
+              </View>
+              <View style={styles.tasksList}>
+                {getDayTasks(selectedDay).map((task) => (
+                  <View key={task.id} style={styles.taskItem}>
+                    <IconSymbol 
+                      ios_icon_name={task.completed ? "checkmark.circle.fill" : "circle"}
+                      android_material_icon_name={task.completed ? "check-circle" : "radio-button-unchecked"}
+                      size={20} 
+                      color={task.completed ? colors.primary : colors.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.taskText,
+                      task.completed && styles.taskCompleted
+                    ]}>
+                      {task.title}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Weekly Summary */}
+        {profile && (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Weekly Summary</Text>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <IconSymbol 
+                  ios_icon_name="calendar" 
+                  android_material_icon_name="calendar-today" 
+                  size={20} 
+                  color={colors.primary} 
+                />
+                <Text style={styles.summaryValue}>{profile.trainingDays}</Text>
+                <Text style={styles.summaryLabel}>Training Days</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <IconSymbol 
+                  ios_icon_name="flame.fill" 
+                  android_material_icon_name="local-fire-department" 
+                  size={20} 
+                  color="#f59e0b" 
+                />
+                <Text style={styles.summaryValue}>{workoutSplit.length}</Text>
+                <Text style={styles.summaryLabel}>Workouts</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <IconSymbol 
+                  ios_icon_name="checkmark.circle.fill" 
+                  android_material_icon_name="check-circle" 
+                  size={20} 
+                  color="#8b5cf6" 
+                />
+                <Text style={styles.summaryValue}>{weeklyTasks.length}</Text>
+                <Text style={styles.summaryLabel}>Tasks</Text>
+              </View>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -263,6 +268,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
+  header: {
+    marginBottom: 28,
+  },
   title: {
     fontSize: 36,
     fontWeight: '800',
@@ -272,39 +280,41 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
-    marginBottom: 28,
   },
   weekContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 28,
-  },
-  dayButton: {
-    width: 44,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
     gap: 8,
   },
-  dayButtonToday: {
+  dayCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  todayCard: {
     borderColor: colors.primary,
     backgroundColor: 'rgba(69, 155, 155, 0.1)',
   },
-  dayButtonSelected: {
-    backgroundColor: colors.primary,
+  selectedCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
   dayText: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.textSecondary,
+    marginBottom: 8,
   },
-  dayTextActive: {
-    color: '#fff',
+  todayText: {
+    color: colors.primary,
+  },
+  selectedText: {
+    color: colors.primary,
   },
   indicators: {
     flexDirection: 'row',
@@ -315,48 +325,20 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  indicatorWorkout: {
+  workoutIndicator: {
     backgroundColor: colors.primary,
   },
-  indicatorTask: {
-    backgroundColor: '#8b5cf6',
+  taskIndicator: {
+    backgroundColor: '#f59e0b',
   },
-  dayDetails: {
-    gap: 20,
+  detailsContainer: {
+    marginBottom: 20,
   },
-  dayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dayTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  todayBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  todayBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  workoutSection: {
-    gap: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sectionTitle: {
+  detailsTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 16,
   },
   workoutCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -364,14 +346,20 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 16,
   },
-  workoutName: {
-    fontSize: 20,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
   },
-  workoutMeta: {
+  exerciseCount: {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 16,
@@ -383,120 +371,101 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 12,
   },
   exerciseNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exerciseNumberText: {
-    fontSize: 12,
-    fontWeight: '800',
     color: '#fff',
-  },
-  exerciseInfo: {
-    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   exerciseName: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    flex: 1,
   },
-  exerciseDetails: {
+  moreText: {
     fontSize: 12,
     color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
-  restSection: {
+  restCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
-    padding: 40,
+    padding: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  restTitle: {
+  restText: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 16,
-    marginBottom: 4,
+    marginTop: 12,
   },
-  restText: {
+  restSubtext: {
     fontSize: 14,
     color: colors.textSecondary,
+    marginTop: 4,
   },
-  tasksSection: {
-    gap: 16,
+  tasksCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   tasksList: {
     gap: 12,
   },
-  taskCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  taskTime: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  taskTimeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8b5cf6',
-  },
-  taskInfo: {
+  taskText: {
+    fontSize: 14,
+    color: colors.text,
     flex: 1,
   },
-  taskTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  taskMeta: {
-    fontSize: 12,
+  taskCompleted: {
+    textDecorationLine: 'line-through',
     color: colors.textSecondary,
-    textTransform: 'capitalize',
   },
-  taskTypeBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  taskTypeStudy: {
-    backgroundColor: '#8b5cf6',
-  },
-  taskTypeWork: {
-    backgroundColor: '#f59e0b',
-  },
-  emptyState: {
+  summaryCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
-    padding: 60,
+    padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
   },
-  emptyText: {
-    fontSize: 16,
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  summaryLabel: {
+    fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 16,
   },
 });

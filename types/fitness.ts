@@ -17,6 +17,9 @@ export interface Exercise {
   videoUrl?: string;
   muscleGroups: string[];
   equipment: string[];
+  muscleGroup?: string;
+  difficulty?: string;
+  instructions?: string[];
 }
 
 export interface WorkoutDay {
