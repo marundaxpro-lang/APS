@@ -192,7 +192,11 @@ export default function OnboardingScreen() {
 
   // Step 5: Goal + Body Stats
   const renderStep5 = () => (
-    <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.stepContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.stepTitle}>Final details</Text>
       <Text style={styles.stepSubtitle}>Your goal and current stats</Text>
       
@@ -335,6 +339,9 @@ const styles = StyleSheet.create({
   },
   progressDotActive: {
     backgroundColor: colors.primary,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   stepContainer: {
     flex: 1,
