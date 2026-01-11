@@ -15,6 +15,7 @@ export default function TabLayout() {
         }}
       >
         <Stack.Screen name="(home)" />
+        <Stack.Screen name="training" />
         <Stack.Screen name="plan" />
         <Stack.Screen name="nutrition" />
         <Stack.Screen name="focus" />

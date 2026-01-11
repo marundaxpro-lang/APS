@@ -31,23 +31,49 @@ export default function OnboardingScreen() {
   }, []);
 
   const saveProfile = async () => {
-    await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
+    // If name is empty, don't include it (will default to "Athlete" in the UI)
+    const finalProfile = {
+      ...profile,
+      name: profile.name?.trim() || undefined,
+    };
+    await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
     router.replace('/(tabs)/(home)');
   };
 
   const canProceed = () => {
-    if (step === 1) return profile.gender;
-    if (step === 2) return profile.trainingDays;
-    if (step === 3) return profile.focusAreas && profile.focusAreas.length > 0;
-    if (step === 4) return profile.equipmentType;
-    if (step === 5) return profile.goal && profile.weight && profile.height;
+    if (step === 1) return true; // Name is optional
+    if (step === 2) return profile.gender;
+    if (step === 3) return profile.trainingDays;
+    if (step === 4) return profile.focusAreas && profile.focusAreas.length > 0;
+    if (step === 5) return profile.equipmentType;
+    if (step === 6) return profile.goal && profile.weight && profile.height;
     return false;
   };
 
-  // Step 1: Gender
+  // Step 1: Name (Optional)
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What's your gender?</Text>
+      <Text style={styles.stepTitle}>What&apos;s your name?</Text>
+      <Text style={styles.stepSubtitle}>Optional - we&apos;ll call you Athlete if you skip</Text>
+      
+      <View style={styles.nameInputContainer}>
+        <TextInput
+          style={styles.nameInput}
+          placeholder="Enter your name"
+          placeholderTextColor={colors.grey}
+          value={profile.name || ''}
+          onChangeText={(text) => setProfile({ ...profile, name: text })}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      </View>
+    </View>
+  );
+
+  // Step 2: Gender
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>What&apos;s your gender?</Text>
       <Text style={styles.stepSubtitle}>This helps us personalize your workout plan</Text>
       
       <View style={styles.optionsContainer}>
@@ -78,8 +104,8 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 2: Training Frequency
-  const renderStep2 = () => (
+  // Step 3: Training Frequency
+  const renderStep3 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>How many days can you train?</Text>
       <Text style={styles.stepSubtitle}>Choose your weekly training frequency</Text>
@@ -112,8 +138,8 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 3: Focus Areas
-  const renderStep3 = () => {
+  // Step 4: Focus Areas
+  const renderStep4 = () => {
     const areas = profile.gender === 'female'
       ? ['Glutes', 'Legs', 'Core', 'Upper Body', 'Full Body']
       : ['Chest', 'Back', 'Arms', 'Legs', 'Shoulders'];
@@ -152,8 +178,8 @@ export default function OnboardingScreen() {
     );
   };
 
-  // Step 4: Equipment
-  const renderStep4 = () => (
+  // Step 5: Equipment
+  const renderStep5 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What equipment do you have?</Text>
       <Text style={styles.stepSubtitle}>This determines your exercise selection</Text>
@@ -190,8 +216,8 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 5: Goal + Body Stats
-  const renderStep5 = () => (
+  // Step 6: Goal + Body Stats
+  const renderStep6 = () => (
     <ScrollView 
       style={styles.scrollContainer}
       contentContainerStyle={styles.stepContainer}
@@ -266,7 +292,7 @@ export default function OnboardingScreen() {
       
       <View style={styles.content}>
         <View style={styles.progressBar}>
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4, 5, 6].map((s) => (
             <View
               key={s}
               style={[
@@ -282,6 +308,7 @@ export default function OnboardingScreen() {
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
         {step === 5 && renderStep5()}
+        {step === 6 && renderStep6()}
 
         <View style={styles.navigation}>
           {step > 1 && (
@@ -299,13 +326,13 @@ export default function OnboardingScreen() {
               !canProceed() && styles.nextButtonDisabled,
             ]}
             onPress={() => {
-              if (step < 5) setStep(step + 1);
+              if (step < 6) setStep(step + 1);
               else saveProfile();
             }}
             disabled={!canProceed()}
           >
             <Text style={styles.nextButtonText}>
-              {step === 5 ? 'Get Started' : 'Next'}
+              {step === 6 ? 'Get Started' : 'Next'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -332,7 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   progressDot: {
-    width: 40,
+    width: 32,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
@@ -360,6 +387,20 @@ const styles = StyleSheet.create({
     color: colors.grey,
     textAlign: 'center',
     marginBottom: 40,
+  },
+  nameInputContainer: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  nameInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 20,
+    fontSize: 18,
+    color: colors.text,
+    textAlign: 'center',
   },
   optionsContainer: {
     flexDirection: 'row',

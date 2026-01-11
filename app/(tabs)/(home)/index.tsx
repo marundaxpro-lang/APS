@@ -16,21 +16,19 @@ import { IconSymbol } from '@/components/IconSymbol';
 import ParticleBackground from '@/components/ParticleBackground';
 import { colors } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTodaysWorkout } from '@/data/workouts';
-import { FitnessProfile, WorkoutDay, FocusTask, DashboardStats } from '@/types/fitness';
+import { FitnessProfile, DashboardStats } from '@/types/fitness';
 
 const { width } = Dimensions.get('window');
 
-export default function TrainingDashboardScreen() {
+export default function HomeScreen() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
-  const [todaysWorkout, setTodaysWorkout] = useState<WorkoutDay | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
-    weeklyWorkouts: 0,
-    weeklyStudyHours: 0,
+    workoutsThisWeek: 0,
+    tasksCompleted: 0,
     currentStreak: 0,
-    todaysTasks: 0,
+    todaysCalories: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -44,9 +42,6 @@ export default function TrainingDashboardScreen() {
 
       const profileData: FitnessProfile = JSON.parse(storedProfile);
       setProfile(profileData);
-
-      const workout = getTodaysWorkout(profileData);
-      setTodaysWorkout(workout);
 
       const storedStats = await AsyncStorage.getItem('dashboardStats');
       if (storedStats) {
@@ -74,6 +69,8 @@ export default function TrainingDashboardScreen() {
     );
   }
 
+  const displayName = profile?.name || 'Athlete';
+
   return (
     <View style={styles.container}>
       <ParticleBackground />
@@ -85,7 +82,7 @@ export default function TrainingDashboardScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{user?.name || 'Athlete'}</Text>
+            <Text style={styles.name}>{displayName}</Text>
           </View>
           <TouchableOpacity
             style={styles.profileButton}
@@ -119,19 +116,8 @@ export default function TrainingDashboardScreen() {
               size={32}
               color={colors.primary}
             />
-            <Text style={styles.statValue}>{stats.weeklyWorkouts}</Text>
+            <Text style={styles.statValue}>{stats.workoutsThisWeek}</Text>
             <Text style={styles.statLabel}>This Week</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="clock.fill"
-              android_material_icon_name="schedule"
-              size={32}
-              color="#8b5cf6"
-            />
-            <Text style={styles.statValue}>{stats.weeklyStudyHours}h</Text>
-            <Text style={styles.statLabel}>Study Time</Text>
           </View>
 
           <View style={styles.statCard}>
@@ -141,64 +127,38 @@ export default function TrainingDashboardScreen() {
               size={32}
               color={colors.success}
             />
-            <Text style={styles.statValue}>{stats.todaysTasks}</Text>
+            <Text style={styles.statValue}>{stats.tasksCompleted}</Text>
             <Text style={styles.statLabel}>Tasks Done</Text>
           </View>
-        </View>
 
-        {todaysWorkout && (
-          <View style={styles.workoutCard}>
-            <View style={styles.workoutHeader}>
-              <View>
-                <Text style={styles.workoutTitle}>Today&apos;s Workout</Text>
-                <Text style={styles.workoutSubtitle}>{todaysWorkout.name}</Text>
-              </View>
-              <View style={styles.workoutBadge}>
-                <Text style={styles.workoutBadgeText}>
-                  {todaysWorkout.exercises.length} exercises
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.exercisePreview}>
-              {todaysWorkout.exercises.slice(0, 3).map((exercise, index) => (
-                <View key={exercise.id} style={styles.exerciseItem}>
-                  <View style={styles.exerciseNumber}>
-                    <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-                    <Text style={styles.exerciseMeta}>
-                      {exercise.sets} × {exercise.reps}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              {todaysWorkout.exercises.length > 3 && (
-                <Text style={styles.moreExercises}>
-                  +{todaysWorkout.exercises.length - 3} more exercises
-                </Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => router.push('/workout-session')}
-            >
-              <IconSymbol
-                ios_icon_name="play.fill"
-                android_material_icon_name="play-arrow"
-                size={24}
-                color="#fff"
-              />
-              <Text style={styles.startButtonText}>Start Workout</Text>
-            </TouchableOpacity>
+          <View style={styles.statCard}>
+            <IconSymbol
+              ios_icon_name="flame.fill"
+              android_material_icon_name="local-fire-department"
+              size={32}
+              color="#ec4899"
+            />
+            <Text style={styles.statValue}>{stats.todaysCalories}</Text>
+            <Text style={styles.statLabel}>Calories</Text>
           </View>
-        )}
+        </View>
 
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionGrid}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/(tabs)/training')}
+            >
+              <IconSymbol
+                ios_icon_name="dumbbell.fill"
+                android_material_icon_name="fitness-center"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.actionText}>Start Training</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/plan')}
@@ -249,6 +209,19 @@ export default function TrainingDashboardScreen() {
                 color={colors.primary}
               />
               <Text style={styles.actionText}>Progress</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/(tabs)/community')}
+            >
+              <IconSymbol
+                ios_icon_name="person.3.fill"
+                android_material_icon_name="group"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.actionText}>Community</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -326,96 +299,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-  workoutCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 24,
-  },
-  workoutHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  workoutTitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  workoutSubtitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  workoutBadge: {
-    backgroundColor: 'rgba(69, 155, 155, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  workoutBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  exercisePreview: {
-    marginBottom: 20,
-  },
-  exerciseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  exerciseNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(69, 155, 155, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exerciseNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  exerciseInfo: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  exerciseMeta: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  moreExercises: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  startButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  startButtonText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
   },
   quickActions: {
     marginBottom: 24,

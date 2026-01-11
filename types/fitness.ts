@@ -1,5 +1,6 @@
 
 export interface FitnessProfile {
+  name?: string; // Optional name field
   gender: 'male' | 'female';
   trainingDays: number;
   focusAreas: string[];

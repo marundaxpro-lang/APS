@@ -78,6 +78,10 @@ export default function ProfileScreen() {
     ]);
   }, [signOut, router]);
 
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
   if (authLoading || loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -86,8 +90,22 @@ export default function ProfileScreen() {
     );
   }
 
+  const displayName = profile?.name || user?.name || 'Athlete';
+
   return (
     <View style={styles.container}>
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.text}
+          />
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -101,7 +119,7 @@ export default function ProfileScreen() {
               color={colors.text}
             />
           </View>
-          <Text style={styles.name}>{user?.name || 'Fitness Enthusiast'}</Text>
+          <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email || 'user@example.com'}</Text>
         </View>
 
@@ -109,9 +127,9 @@ export default function ProfileScreen() {
           <View style={styles.profileCard}>
             <Text style={styles.cardTitle}>Your Profile</Text>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Experience Level</Text>
+              <Text style={styles.profileLabel}>Gender</Text>
               <Text style={styles.profileValue}>
-                {profile.experience_level.charAt(0).toUpperCase() + profile.experience_level.slice(1)}
+                {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
               </Text>
             </View>
             <View style={styles.profileRow}>
@@ -122,8 +140,20 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.profileRow}>
               <Text style={styles.profileLabel}>Training Frequency</Text>
-              <Text style={styles.profileValue}>{profile.training_frequency} days/week</Text>
+              <Text style={styles.profileValue}>{profile.trainingDays} days/week</Text>
             </View>
+            {profile.weight && (
+              <View style={styles.profileRow}>
+                <Text style={styles.profileLabel}>Weight</Text>
+                <Text style={styles.profileValue}>{profile.weight} kg</Text>
+              </View>
+            )}
+            {profile.height && (
+              <View style={styles.profileRow}>
+                <Text style={styles.profileLabel}>Height</Text>
+                <Text style={styles.profileValue}>{profile.height} cm</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -232,8 +262,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
+  backButtonContainer: {
     paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
