@@ -21,7 +21,7 @@ import { FitnessProfile, WorkoutDay, FocusTask, DashboardStats } from '@/types/f
 
 const { width } = Dimensions.get('window');
 
-export default function DashboardScreen() {
+export default function TrainingDashboardScreen() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);

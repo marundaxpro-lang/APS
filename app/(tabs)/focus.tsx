@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FocusTask, TimerType } from '@/types/fitness';
@@ -20,41 +22,127 @@ const TIMER_TYPES: TimerType[] = [
   { id: 'short', name: 'Short Focus', duration: 15 * 60, description: '15 minutes' },
   { id: 'long', name: 'Deep Work', duration: 90 * 60, description: '90 minutes' },
   { id: 'stopwatch', name: 'Stopwatch', duration: 0, description: 'Count up from zero' },
+  { id: 'custom', name: 'Custom Timer', duration: 0, description: 'Set your own duration' },
 ];
+
+interface TimerState {
+  isRunning: boolean;
+  timeLeft: number;
+  startTime: number;
+  timerType: string;
+  customDuration: number;
+}
 
 export default function FocusScreen() {
   const [tasks, setTasks] = useState<FocusTask[]>([]);
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'study' | 'work' | 'personal'>('study');
   const [showTimerModal, setShowTimerModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [selectedTimer, setSelectedTimer] = useState<TimerType | null>(null);
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [customHours, setCustomHours] = useState('');
 
   useEffect(() => {
     loadTasks();
+    loadTimerState();
+
+    // Handle app state changes (background/foreground)
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
+        setTimeLeft((prev) => {
+          const newTime = prev - 1;
+          saveTimerState(true, newTime);
+          return newTime;
+        });
       }, 1000);
     } else if (timeLeft === 0 && isTimerRunning && selectedTimer?.id !== 'stopwatch') {
       setIsTimerRunning(false);
+      saveTimerState(false, 0);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft]);
+  }, [isTimerRunning, timeLeft, selectedTimer]);
+
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    if (nextAppState === 'active') {
+      // App came to foreground - recalculate timer
+      await loadTimerState();
+    } else if (nextAppState === 'background') {
+      // App went to background - save current state
+      await saveTimerState(isTimerRunning, timeLeft);
+    }
+  };
+
+  const saveTimerState = async (running: boolean, time: number) => {
+    try {
+      const state: TimerState = {
+        isRunning: running,
+        timeLeft: time,
+        startTime: Date.now(),
+        timerType: selectedTimer?.id || '',
+        customDuration: selectedTimer?.duration || 0,
+      };
+      await AsyncStorage.setItem('timerState', JSON.stringify(state));
+    } catch (error) {
+      console.error('Error saving timer state:', error);
+    }
+  };
+
+  const loadTimerState = async () => {
+    try {
+      const stateStr = await AsyncStorage.getItem('timerState');
+      if (stateStr) {
+        const state: TimerState = JSON.parse(stateStr);
+        if (state.isRunning) {
+          // Calculate elapsed time since app was backgrounded
+          const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+          const newTimeLeft = Math.max(0, state.timeLeft - elapsed);
+          
+          setTimeLeft(newTimeLeft);
+          setIsTimerRunning(newTimeLeft > 0);
+          
+          // Restore timer type
+          const timer = TIMER_TYPES.find(t => t.id === state.timerType);
+          if (timer) {
+            setSelectedTimer({
+              ...timer,
+              duration: state.customDuration || timer.duration,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading timer state:', error);
+    }
+  };
 
   const loadTasks = async () => {
-    const data = await AsyncStorage.getItem('focusTasks');
-    if (data) setTasks(JSON.parse(data));
+    try {
+      const data = await AsyncStorage.getItem('focusTasks');
+      if (data) setTasks(JSON.parse(data));
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
   };
 
   const saveTasks = async (updatedTasks: FocusTask[]) => {
-    await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
-    setTasks(updatedTasks);
+    try {
+      await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
+      setTasks(updatedTasks);
+    } catch (error) {
+      console.error('Error saving tasks:', error);
+    }
   };
 
   const addTask = () => {
@@ -74,10 +162,47 @@ export default function FocusScreen() {
   };
 
   const startTimer = (timer: TimerType) => {
+    if (timer.id === 'custom') {
+      setShowTimerModal(false);
+      setShowCustomModal(true);
+      return;
+    }
+
     setSelectedTimer(timer);
     setTimeLeft(timer.duration);
     setIsTimerRunning(true);
     setShowTimerModal(false);
+    saveTimerState(true, timer.duration);
+  };
+
+  const startCustomTimer = () => {
+    const hours = parseInt(customHours) || 0;
+    const minutes = parseInt(customMinutes) || 0;
+    
+    if (hours === 0 && minutes === 0) {
+      return;
+    }
+
+    const totalSeconds = (hours * 3600) + (minutes * 60);
+    const customTimer: TimerType = {
+      id: 'custom',
+      name: 'Custom Timer',
+      duration: totalSeconds,
+      description: `${hours > 0 ? hours + 'h ' : ''}${minutes}min`,
+    };
+
+    setSelectedTimer(customTimer);
+    setTimeLeft(totalSeconds);
+    setIsTimerRunning(true);
+    setShowCustomModal(false);
+    setCustomHours('');
+    setCustomMinutes('');
+    saveTimerState(true, totalSeconds);
+  };
+
+  const stopTimer = () => {
+    setIsTimerRunning(false);
+    saveTimerState(false, 0);
   };
 
   const formatTime = (seconds: number) => {
@@ -103,7 +228,7 @@ export default function FocusScreen() {
               <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
               <TouchableOpacity
                 style={styles.stopButton}
-                onPress={() => setIsTimerRunning(false)}
+                onPress={stopTimer}
               >
                 <Text style={styles.buttonText}>Stop</Text>
               </TouchableOpacity>
@@ -160,7 +285,7 @@ export default function FocusScreen() {
 
         {/* Tasks List */}
         <View style={styles.tasksSection}>
-          <Text style={styles.sectionTitle}>Today's Tasks</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Tasks</Text>
           {tasks.length === 0 ? (
             <Text style={styles.emptyText}>No tasks yet. Add one above!</Text>
           ) : (
@@ -219,6 +344,73 @@ export default function FocusScreen() {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowTimerModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Timer Modal */}
+      <Modal
+        visible={showCustomModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCustomModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Custom Timer</Text>
+            <Text style={styles.modalSubtitle}>Set your own duration</Text>
+            
+            <View style={styles.customInputContainer}>
+              <View style={styles.customInputGroup}>
+                <Text style={styles.customInputLabel}>Hours</Text>
+                <TextInput
+                  style={styles.customInput}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.grey}
+                  value={customHours}
+                  onChangeText={setCustomHours}
+                  maxLength={2}
+                />
+              </View>
+
+              <Text style={styles.customInputSeparator}>:</Text>
+
+              <View style={styles.customInputGroup}>
+                <Text style={styles.customInputLabel}>Minutes</Text>
+                <TextInput
+                  style={styles.customInput}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.grey}
+                  value={customMinutes}
+                  onChangeText={setCustomMinutes}
+                  maxLength={2}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.startCustomButton,
+                (!customHours && !customMinutes) && styles.startCustomButtonDisabled,
+              ]}
+              onPress={startCustomTimer}
+              disabled={!customHours && !customMinutes}
+            >
+              <Text style={styles.buttonText}>Start Timer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowCustomModal(false);
+                setCustomHours('');
+                setCustomMinutes('');
+              }}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -409,7 +601,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 20,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.grey,
+    marginBottom: 24,
     textAlign: 'center',
   },
   timerOption: {
@@ -431,10 +629,53 @@ const styles = StyleSheet.create({
     color: colors.grey,
     marginTop: 4,
   },
+  customInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  customInputGroup: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  customInputLabel: {
+    fontSize: 14,
+    color: colors.grey,
+    fontWeight: '600',
+  },
+  customInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 16,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    width: 100,
+  },
+  customInputSeparator: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginTop: 24,
+  },
+  startCustomButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  startCustomButtonDisabled: {
+    opacity: 0.5,
+  },
   cancelButton: {
     padding: 16,
     alignItems: 'center',
-    marginTop: 8,
   },
   cancelButtonText: {
     color: colors.grey,

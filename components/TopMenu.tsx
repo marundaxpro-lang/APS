@@ -21,7 +21,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { label: 'Training', route: '/(tabs)/training', iosIcon: 'dumbbell', androidIcon: 'fitness-center' },
+  { label: 'Training', route: '/(tabs)/(home)', iosIcon: 'dumbbell', androidIcon: 'fitness-center' },
   { label: 'Plan', route: '/(tabs)/plan', iosIcon: 'calendar', androidIcon: 'calendar-today' },
   { label: 'Nutrition', route: '/(tabs)/nutrition', iosIcon: 'leaf.fill', androidIcon: 'restaurant' },
   { label: 'Focus', route: '/(tabs)/focus', iosIcon: 'target', androidIcon: 'center-focus-strong' },
