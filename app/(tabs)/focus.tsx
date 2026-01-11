@@ -10,9 +10,10 @@ import {
   Modal,
   AppState,
   AppStateStatus,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FocusTask, TimerType } from '@/types/fitness';
+import { WeeklyTask, TimerType } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
@@ -25,6 +26,8 @@ const TIMER_TYPES: TimerType[] = [
   { id: 'custom', name: 'Custom Timer', duration: 0, description: 'Set your own duration' },
 ];
 
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 interface TimerState {
   isRunning: boolean;
   timeLeft: number;
@@ -34,16 +37,19 @@ interface TimerState {
 }
 
 export default function FocusScreen() {
-  const [tasks, setTasks] = useState<FocusTask[]>([]);
+  const [tasks, setTasks] = useState<WeeklyTask[]>([]);
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'study' | 'work' | 'personal'>('study');
+  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [selectedTimer, setSelectedTimer] = useState<TimerType | null>(null);
   const [customMinutes, setCustomMinutes] = useState('');
   const [customHours, setCustomHours] = useState('');
+  const [taskTime, setTaskTime] = useState('');
 
   useEffect(() => {
     loadTasks();
@@ -136,7 +142,7 @@ export default function FocusScreen() {
     }
   };
 
-  const saveTasks = async (updatedTasks: FocusTask[]) => {
+  const saveTasks = async (updatedTasks: WeeklyTask[]) => {
     try {
       await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
       setTasks(updatedTasks);
@@ -145,20 +151,38 @@ export default function FocusScreen() {
     }
   };
 
+  const openTaskModal = () => {
+    setNewTask('');
+    setTaskTime('');
+    setSelectedDay(new Date().getDay());
+    setSelectedCategory('study');
+    setShowTaskModal(true);
+  };
+
   const addTask = () => {
     if (!newTask.trim()) return;
-    const task: FocusTask = {
+    
+    const task: WeeklyTask = {
       id: Date.now().toString(),
       title: newTask,
       completed: false,
       category: selectedCategory,
+      dayOfWeek: selectedDay,
+      startTime: taskTime || undefined,
     };
+    
     saveTasks([...tasks, task]);
+    setShowTaskModal(false);
     setNewTask('');
+    setTaskTime('');
   };
 
   const toggleTask = (id: string) => {
     saveTasks(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+  };
+
+  const deleteTask = (id: string) => {
+    saveTasks(tasks.filter((t) => t.id !== id));
   };
 
   const startTimer = (timer: TimerType) => {
@@ -213,6 +237,14 @@ export default function FocusScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Group tasks by day
+  const tasksByDay = tasks.reduce((acc, task) => {
+    const day = task.dayOfWeek ?? -1;
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(task);
+    return acc;
+  }, {} as Record<number, WeeklyTask[]>);
+
   return (
     <View style={styles.container}>
       <ParticleBackground />
@@ -247,76 +279,159 @@ export default function FocusScreen() {
           )}
         </View>
 
-        {/* Task Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>Add Task</Text>
-          <View style={styles.categorySelector}>
-            {(['study', 'work', 'personal'] as const).map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  selectedCategory === cat && styles.categoryChipActive,
-                ]}
-                onPress={() => setSelectedCategory(cat)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  selectedCategory === cat && styles.categoryTextActive,
-                ]}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.inputRow}>
+        {/* Add Task Button */}
+        <TouchableOpacity style={styles.addTaskButton} onPress={openTaskModal}>
+          <IconSymbol ios_icon_name="plus.circle.fill" android_material_icon_name="add-circle" size={24} color="#fff" />
+          <Text style={styles.addTaskButtonText}>Add Task to Weekly Plan</Text>
+        </TouchableOpacity>
+
+        {/* Tasks by Day */}
+        <View style={styles.tasksSection}>
+          <Text style={styles.sectionTitle}>Weekly Tasks</Text>
+          {Object.keys(tasksByDay).length === 0 ? (
+            <Text style={styles.emptyText}>No tasks scheduled. Add one above!</Text>
+          ) : (
+            Object.entries(tasksByDay)
+              .sort(([dayA], [dayB]) => parseInt(dayA) - parseInt(dayB))
+              .map(([day, dayTasks]) => {
+                const dayIndex = parseInt(day);
+                if (dayIndex === -1) return null;
+                
+                return (
+                  <View key={day} style={styles.daySection}>
+                    <Text style={styles.dayTitle}>{DAYS[dayIndex]}</Text>
+                    {dayTasks.map((task) => (
+                      <View key={task.id} style={styles.taskCard}>
+                        <TouchableOpacity
+                          style={styles.taskMain}
+                          onPress={() => toggleTask(task.id)}
+                        >
+                          <View style={[
+                            styles.checkbox,
+                            task.completed && styles.checkboxChecked,
+                          ]}>
+                            {task.completed && (
+                              <IconSymbol ios_icon_name="checkmark" android_material_icon_name="check" size={16} color="#fff" />
+                            )}
+                          </View>
+                          <View style={styles.taskContent}>
+                            <Text style={[
+                              styles.taskTitle,
+                              task.completed && styles.taskTitleCompleted,
+                            ]}>
+                              {task.title}
+                            </Text>
+                            <View style={styles.taskMeta}>
+                              <Text style={styles.taskCategory}>{task.category}</Text>
+                              {task.startTime && (
+                                <Text style={styles.taskTime}>• {task.startTime}</Text>
+                              )}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.deleteButton}
+                          onPress={() => deleteTask(task.id)}
+                        >
+                          <IconSymbol ios_icon_name="trash" android_material_icon_name="delete" size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Add Task Modal */}
+      <Modal
+        visible={showTaskModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTaskModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Task</Text>
+            
+            <Text style={styles.inputLabel}>Task Description</Text>
             <TextInput
-              style={styles.input}
+              style={styles.textInput}
               placeholder="What do you need to do?"
               placeholderTextColor={colors.grey}
               value={newTask}
               onChangeText={setNewTask}
             />
-            <TouchableOpacity style={styles.addButton} onPress={addTask}>
-              <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={24} color="#fff" />
+
+            <Text style={styles.inputLabel}>Day</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daySelector}>
+              {DAYS.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.dayChip,
+                    selectedDay === index && styles.dayChipActive,
+                  ]}
+                  onPress={() => setSelectedDay(index)}
+                >
+                  <Text style={[
+                    styles.dayChipText,
+                    selectedDay === index && styles.dayChipTextActive,
+                  ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.inputLabel}>Time (Optional)</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., 9:00 AM"
+              placeholderTextColor={colors.grey}
+              value={taskTime}
+              onChangeText={setTaskTime}
+            />
+
+            <Text style={styles.inputLabel}>Category</Text>
+            <View style={styles.categorySelector}>
+              {(['study', 'work', 'personal'] as const).map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory === cat && styles.categoryChipActive,
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text style={[
+                    styles.categoryText,
+                    selectedCategory === cat && styles.categoryTextActive,
+                  ]}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.addButton, !newTask.trim() && styles.addButtonDisabled]}
+              onPress={addTask}
+              disabled={!newTask.trim()}
+            >
+              <Text style={styles.buttonText}>Add Task</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowTaskModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Tasks List */}
-        <View style={styles.tasksSection}>
-          <Text style={styles.sectionTitle}>Today&apos;s Tasks</Text>
-          {tasks.length === 0 ? (
-            <Text style={styles.emptyText}>No tasks yet. Add one above!</Text>
-          ) : (
-            tasks.map((task) => (
-              <TouchableOpacity
-                key={task.id}
-                style={styles.taskCard}
-                onPress={() => toggleTask(task.id)}
-              >
-                <View style={[
-                  styles.checkbox,
-                  task.completed && styles.checkboxChecked,
-                ]}>
-                  {task.completed && (
-                    <IconSymbol ios_icon_name="checkmark" android_material_icon_name="check" size={16} color="#fff" />
-                  )}
-                </View>
-                <View style={styles.taskContent}>
-                  <Text style={[
-                    styles.taskTitle,
-                    task.completed && styles.taskTitleCompleted,
-                  ]}>
-                    {task.title}
-                  </Text>
-                  <Text style={styles.taskCategory}>{task.category}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </ScrollView>
+      </Modal>
 
       {/* Timer Selection Modal */}
       <Modal
@@ -430,6 +545,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
     padding: 20,
     paddingBottom: 100,
   },
@@ -477,7 +593,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  inputSection: {
+  addTaskButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  addTaskButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  tasksSection: {
     marginBottom: 24,
   },
   sectionTitle: {
@@ -486,72 +617,36 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
-  categorySelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryText: {
-    color: colors.grey,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#fff',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tasksSection: {
-    marginBottom: 24,
-  },
   emptyText: {
     color: colors.grey,
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
   },
+  daySection: {
+    marginBottom: 24,
+  },
+  dayTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 12,
+  },
   taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+  },
+  taskMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   checkbox: {
     width: 24,
@@ -573,15 +668,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     fontWeight: '600',
+    marginBottom: 4,
   },
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
     color: colors.grey,
   },
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   taskCategory: {
     fontSize: 12,
     color: colors.grey,
-    marginTop: 4,
+  },
+  taskTime: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    padding: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -596,12 +704,13 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 20,
     textAlign: 'center',
   },
   modalSubtitle: {
@@ -609,6 +718,82 @@ const styles = StyleSheet.create({
     color: colors.grey,
     marginBottom: 24,
     textAlign: 'center',
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  textInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    color: colors.text,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  daySelector: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  dayChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginRight: 8,
+  },
+  dayChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayChipText: {
+    color: colors.grey,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dayChipTextActive: {
+    color: '#fff',
+  },
+  categorySelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryText: {
+    color: colors.grey,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoryTextActive: {
+    color: '#fff',
+  },
+  addButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButtonDisabled: {
+    opacity: 0.5,
   },
   timerOption: {
     flexDirection: 'row',

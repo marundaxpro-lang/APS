@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -14,18 +15,32 @@ import { colors } from '@/styles/commonStyles';
 import { generateWorkoutSplit } from '@/data/workouts';
 import ParticleBackground from '@/components/ParticleBackground';
 import { FitnessProfile, WorkoutDay, WeeklyTask } from '@/types/fitness';
+import { useRouter } from 'expo-router';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function PlanScreen() {
+  const router = useRouter();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [workoutSplit, setWorkoutSplit] = useState<WorkoutDay[]>([]);
   const [weeklyTasks, setWeeklyTasks] = useState<WeeklyTask[]>([]);
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(null);
 
   useEffect(() => {
     loadProfile();
     loadWeeklyTasks();
+  }, []);
+
+  useEffect(() => {
+    // Reload tasks when screen comes into focus
+    const interval = setInterval(() => {
+      loadWeeklyTasks();
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadProfile = async () => {
@@ -58,15 +73,20 @@ export default function PlanScreen() {
   };
 
   const handleDayPress = (dayIndex: number) => {
-    const workout = getDayWorkout(dayIndex);
+    setSelectedDay(dayIndex);
+  };
+
+  const handleWorkoutPress = (workout: WorkoutDay) => {
     const today = new Date().getDay();
     
-    if (dayIndex !== today && workout) {
-      // Show warning if clicking on a different day
-      console.log('Warning: This is not today\'s workout');
+    if (workout.dayIndex === today) {
+      // Navigate to training screen to start workout
+      router.push('/(tabs)/training');
+    } else {
+      // Show workout details in modal
+      setSelectedWorkout(workout);
+      setShowWorkoutModal(true);
     }
-    
-    setSelectedDay(dayIndex);
   };
 
   const getDayWorkout = (dayIndex: number): WorkoutDay | null => {
@@ -75,6 +95,18 @@ export default function PlanScreen() {
 
   const getDayTasks = (dayIndex: number): WeeklyTask[] => {
     return weeklyTasks.filter(task => task.dayOfWeek === dayIndex);
+  };
+
+  const toggleTask = async (taskId: string) => {
+    const updatedTasks = weeklyTasks.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    );
+    setWeeklyTasks(updatedTasks);
+    try {
+      await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
   };
 
   return (
@@ -131,12 +163,18 @@ export default function PlanScreen() {
         {/* Selected Day Details */}
         <View style={styles.detailsContainer}>
           <Text style={styles.detailsTitle}>
-            {DAYS[selectedDay]} - {selectedDay === new Date().getDay() ? 'Today' : 'Upcoming'}
+            {FULL_DAYS[selectedDay]} - {selectedDay === new Date().getDay() ? 'Today' : 'Upcoming'}
           </Text>
 
           {/* Workout for selected day */}
           {getDayWorkout(selectedDay) ? (
-            <View style={styles.workoutCard}>
+            <TouchableOpacity 
+              style={styles.workoutCard}
+              onPress={() => {
+                const workout = getDayWorkout(selectedDay);
+                if (workout) handleWorkoutPress(workout);
+              }}
+            >
               <View style={styles.cardHeader}>
                 <IconSymbol 
                   ios_icon_name="dumbbell.fill" 
@@ -156,6 +194,7 @@ export default function PlanScreen() {
                   <View key={exercise.id} style={styles.exerciseItem}>
                     <Text style={styles.exerciseNumber}>{idx + 1}</Text>
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseReps}>{exercise.sets}×{exercise.reps}</Text>
                   </View>
                 ))}
                 {(getDayWorkout(selectedDay)?.exercises.length || 0) > 3 && (
@@ -164,7 +203,18 @@ export default function PlanScreen() {
                   </Text>
                 )}
               </View>
-            </View>
+              <View style={styles.viewDetailsButton}>
+                <Text style={styles.viewDetailsText}>
+                  {selectedDay === new Date().getDay() ? 'Start Workout' : 'View Details'}
+                </Text>
+                <IconSymbol 
+                  ios_icon_name="chevron.right" 
+                  android_material_icon_name="chevron-right" 
+                  size={20} 
+                  color={colors.primary} 
+                />
+              </View>
+            </TouchableOpacity>
           ) : (
             <View style={styles.restCard}>
               <IconSymbol 
@@ -175,6 +225,27 @@ export default function PlanScreen() {
               />
               <Text style={styles.restText}>Rest Day</Text>
               <Text style={styles.restSubtext}>Recovery is important!</Text>
+              
+              {/* Show other workouts available */}
+              {workoutSplit.length > 0 && (
+                <View style={styles.otherWorkoutsSection}>
+                  <Text style={styles.otherWorkoutsTitle}>View Other Workouts:</Text>
+                  <View style={styles.otherWorkoutsList}>
+                    {workoutSplit.slice(0, 3).map((workout) => (
+                      <TouchableOpacity
+                        key={workout.dayIndex}
+                        style={styles.otherWorkoutChip}
+                        onPress={() => {
+                          setSelectedWorkout(workout);
+                          setShowWorkoutModal(true);
+                        }}
+                      >
+                        <Text style={styles.otherWorkoutText}>{workout.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
@@ -192,20 +263,29 @@ export default function PlanScreen() {
               </View>
               <View style={styles.tasksList}>
                 {getDayTasks(selectedDay).map((task) => (
-                  <View key={task.id} style={styles.taskItem}>
+                  <TouchableOpacity
+                    key={task.id}
+                    style={styles.taskItem}
+                    onPress={() => toggleTask(task.id)}
+                  >
                     <IconSymbol 
                       ios_icon_name={task.completed ? "checkmark.circle.fill" : "circle"}
                       android_material_icon_name={task.completed ? "check-circle" : "radio-button-unchecked"}
                       size={20} 
                       color={task.completed ? colors.primary : colors.textSecondary} 
                     />
-                    <Text style={[
-                      styles.taskText,
-                      task.completed && styles.taskCompleted
-                    ]}>
-                      {task.title}
-                    </Text>
-                  </View>
+                    <View style={styles.taskTextContainer}>
+                      <Text style={[
+                        styles.taskText,
+                        task.completed && styles.taskCompleted
+                      ]}>
+                        {task.title}
+                      </Text>
+                      {task.startTime && (
+                        <Text style={styles.taskTimeText}>{task.startTime}</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -251,6 +331,71 @@ export default function PlanScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Workout Details Modal */}
+      <Modal
+        visible={showWorkoutModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWorkoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedWorkout?.name}</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowWorkoutModal(false)}
+              >
+                <IconSymbol 
+                  ios_icon_name="xmark" 
+                  android_material_icon_name="close" 
+                  size={24} 
+                  color={colors.text} 
+                />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalSubtitle}>
+                {selectedWorkout?.exercises.length} exercises • {FULL_DAYS[selectedWorkout?.dayIndex || 0]}
+              </Text>
+              
+              <View style={styles.exerciseDetailsList}>
+                {selectedWorkout?.exercises.map((exercise, idx) => (
+                  <View key={exercise.id} style={styles.exerciseDetailCard}>
+                    <View style={styles.exerciseDetailHeader}>
+                      <Text style={styles.exerciseDetailNumber}>{idx + 1}</Text>
+                      <View style={styles.exerciseDetailInfo}>
+                        <Text style={styles.exerciseDetailName}>{exercise.name}</Text>
+                        <Text style={styles.exerciseDetailSets}>
+                          {exercise.sets} sets × {exercise.reps} reps
+                        </Text>
+                      </View>
+                    </View>
+                    {exercise.muscleGroups && exercise.muscleGroups.length > 0 && (
+                      <View style={styles.muscleGroupTags}>
+                        {exercise.muscleGroups.map((muscle, i) => (
+                          <View key={i} style={styles.muscleTag}>
+                            <Text style={styles.muscleTagText}>{muscle}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setShowWorkoutModal(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -366,6 +511,7 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     gap: 10,
+    marginBottom: 16,
   },
   exerciseItem: {
     flexDirection: 'row',
@@ -388,11 +534,30 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  exerciseReps: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
   moreText: {
     fontSize: 12,
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
   },
   restCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -413,6 +578,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
+    marginBottom: 20,
+  },
+  otherWorkoutsSection: {
+    width: '100%',
+    marginTop: 8,
+  },
+  otherWorkoutsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  otherWorkoutsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  otherWorkoutChip: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  otherWorkoutText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   tasksCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -429,14 +621,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  taskTextContainer: {
+    flex: 1,
+  },
   taskText: {
     fontSize: 14,
     color: colors.text,
-    flex: 1,
   },
   taskCompleted: {
     textDecorationLine: 'line-through',
     color: colors.textSecondary,
+  },
+  taskTimeText: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: 2,
+    fontWeight: '600',
   },
   summaryCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -467,5 +667,108 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 24,
+  },
+  modalScroll: {
+    maxHeight: '70%',
+  },
+  exerciseDetailsList: {
+    gap: 12,
+  },
+  exerciseDetailCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  exerciseDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  exerciseDetailNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  exerciseDetailInfo: {
+    flex: 1,
+  },
+  exerciseDetailName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  exerciseDetailSets: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  muscleGroupTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  muscleTag: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  muscleTagText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  closeModalButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  closeModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
