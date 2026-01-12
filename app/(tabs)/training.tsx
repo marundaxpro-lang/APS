@@ -34,10 +34,30 @@ export default function TrainingScreen() {
       const profileData: FitnessProfile = JSON.parse(storedProfile);
       setProfile(profileData);
 
-      const workout = getTodaysWorkout(profileData);
-      setTodaysWorkout(workout);
+      // Try to load today's workout from backend
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const today = new Date().toISOString().split('T')[0];
+        const backendWorkouts = await authenticatedGet(`/api/workouts?date=${today}`);
+        
+        if (backendWorkouts && Array.isArray(backendWorkouts) && backendWorkouts.length > 0) {
+          // Use workout from backend if available
+          const workoutData = backendWorkouts[0];
+          setTodaysWorkout(workoutData);
+          console.log('[Training] Workout loaded from backend');
+        } else {
+          // Fallback to generated workout
+          const workout = getTodaysWorkout(profileData);
+          setTodaysWorkout(workout);
+        }
+      } catch (error) {
+        console.log('[Training] Could not load workout from backend, using generated workout');
+        // Fallback to generated workout
+        const workout = getTodaysWorkout(profileData);
+        setTodaysWorkout(workout);
+      }
     } catch (error) {
-      console.error('Error loading workout:', error);
+      console.error('[Training] Error loading workout:', error);
     } finally {
       setLoading(false);
     }

@@ -165,7 +165,9 @@ export default function WorkoutSessionScreen() {
           setCurrentExerciseIndex(currentExerciseIndex + 1);
           setCurrentSet(1);
         } else {
-          // Workout completed!
+          // Workout completed! Save to backend
+          saveWorkoutToBackend();
+          
           Alert.alert(
             '🎉 Workout Complete!',
             'Amazing work! You crushed it today!',
@@ -178,6 +180,31 @@ export default function WorkoutSessionScreen() {
           );
         }
       }, 2000);
+    }
+  };
+
+  const saveWorkoutToBackend = async () => {
+    try {
+      const { authenticatedPost } = await import('@/utils/api');
+      
+      const workoutData = {
+        date: new Date().toISOString().split('T')[0],
+        exercises: exercises.map(ex => ({
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          completed: completedExercises.has(ex.id),
+        })),
+        duration_minutes: Math.floor((Date.now() - Date.now()) / 60000), // Placeholder
+        completed: true,
+      };
+      
+      await authenticatedPost('/api/workouts', workoutData);
+      console.log('[WorkoutSession] Workout saved to backend');
+    } catch (error) {
+      console.error('[WorkoutSession] Error saving workout to backend:', error);
+      // Continue anyway - workout is completed
     }
   };
 

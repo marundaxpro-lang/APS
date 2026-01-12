@@ -36,7 +36,20 @@ export default function OnboardingScreen() {
       ...profile,
       name: profile.name?.trim() || undefined,
     };
+    
+    // Save locally first
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
+    
+    // Try to save to backend
+    try {
+      const { authenticatedPost } = await import('@/utils/api');
+      await authenticatedPost('/api/fitness-profile', finalProfile);
+      console.log('[Onboarding] Profile saved to backend');
+    } catch (error) {
+      console.error('[Onboarding] Error saving profile to backend:', error);
+      // Continue anyway - profile is saved locally
+    }
+    
     router.replace('/(tabs)/(home)');
   };
 

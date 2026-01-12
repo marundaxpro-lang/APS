@@ -46,39 +46,77 @@ export default function ProgressScreen() {
         setProfile(JSON.parse(profileData));
       }
 
-      // Load measurements from AsyncStorage
-      const measurementsData = await AsyncStorage.getItem('measurements');
-      if (measurementsData) {
-        setMeasurements(JSON.parse(measurementsData));
-      } else {
-        // Initialize with profile data if available
-        if (profileData) {
-          const prof = JSON.parse(profileData);
-          const initialMeasurement: Measurement = {
-            id: Date.now().toString(),
-            weight: prof.weight || 70,
-            bodyFat: 18,
-            date: new Date().toISOString().split('T')[0],
-          };
-          setMeasurements([initialMeasurement]);
-          await AsyncStorage.setItem('measurements', JSON.stringify([initialMeasurement]));
+      // Try to load measurements from backend
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const backendMeasurements = await authenticatedGet('/api/measurements');
+        
+        if (backendMeasurements && Array.isArray(backendMeasurements)) {
+          setMeasurements(backendMeasurements);
+          await AsyncStorage.setItem('measurements', JSON.stringify(backendMeasurements));
+          console.log('[Progress] Measurements loaded from backend');
+        }
+      } catch (error) {
+        console.log('[Progress] Could not load measurements from backend, using local data');
+        // Fallback to local storage
+        const measurementsData = await AsyncStorage.getItem('measurements');
+        if (measurementsData) {
+          setMeasurements(JSON.parse(measurementsData));
+        } else {
+          // Initialize with profile data if available
+          if (profileData) {
+            const prof = JSON.parse(profileData);
+            const initialMeasurement: Measurement = {
+              id: Date.now().toString(),
+              weight: prof.weight || 70,
+              bodyFat: 18,
+              date: new Date().toISOString().split('T')[0],
+            };
+            setMeasurements([initialMeasurement]);
+            await AsyncStorage.setItem('measurements', JSON.stringify([initialMeasurement]));
+          }
         }
       }
       
-      // Load progress photos
-      const photosData = await AsyncStorage.getItem('progressPhotos');
-      if (photosData) {
-        setPhotos(JSON.parse(photosData));
-      } else {
-        setPhotos([]);
+      // Try to load progress photos from backend
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const backendPhotos = await authenticatedGet('/api/progress-photos');
+        
+        if (backendPhotos && Array.isArray(backendPhotos)) {
+          setPhotos(backendPhotos);
+          await AsyncStorage.setItem('progressPhotos', JSON.stringify(backendPhotos));
+          console.log('[Progress] Photos loaded from backend');
+        }
+      } catch (error) {
+        console.log('[Progress] Could not load photos from backend, using local data');
+        // Fallback to local storage
+        const photosData = await AsyncStorage.getItem('progressPhotos');
+        if (photosData) {
+          setPhotos(JSON.parse(photosData));
+        } else {
+          setPhotos([]);
+        }
       }
       
-      // Load achievements
-      setAchievements(achievementTemplates.slice(0, 6).map((ach, index) => ({
-        ...ach,
-        unlocked: index < 3,
-        unlocked_date: index < 3 ? new Date().toISOString() : null,
-      })));
+      // Try to load achievements from backend
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const backendAchievements = await authenticatedGet('/api/achievements');
+        
+        if (backendAchievements && Array.isArray(backendAchievements)) {
+          setAchievements(backendAchievements);
+          console.log('[Progress] Achievements loaded from backend');
+        }
+      } catch (error) {
+        console.log('[Progress] Could not load achievements from backend, using mock data');
+        // Fallback to mock data
+        setAchievements(achievementTemplates.slice(0, 6).map((ach, index) => ({
+          ...ach,
+          unlocked: index < 3,
+          unlocked_date: index < 3 ? new Date().toISOString() : null,
+        })));
+      }
     } catch (error) {
       console.error('[Progress] Error loading progress data:', error);
     } finally {
@@ -97,9 +135,24 @@ export default function ProgressScreen() {
         date: new Date().toISOString().split('T')[0],
       };
 
+      // Optimistically update UI
       const updated = [...measurements, measurement];
       setMeasurements(updated);
       await AsyncStorage.setItem('measurements', JSON.stringify(updated));
+      
+      // Save to backend
+      try {
+        const { authenticatedPost } = await import('@/utils/api');
+        await authenticatedPost('/api/measurements', {
+          weight: measurement.weight,
+          bodyFat: measurement.bodyFat,
+          date: measurement.date,
+        });
+        console.log('[Progress] Measurement saved to backend');
+      } catch (error) {
+        console.error('[Progress] Error saving measurement to backend:', error);
+        // Continue anyway - data is saved locally
+      }
       
       setShowAddModal(false);
       setNewWeight('');

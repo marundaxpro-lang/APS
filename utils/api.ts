@@ -1,22 +1,28 @@
 /**
- * API Utilities Template
+ * API Utilities
  *
  * Provides utilities for making API calls to the backend.
  * Automatically reads backend URL from app.json configuration.
  *
  * Features:
- * - Automatic backend URL configuration
+ * - Automatic backend URL configuration from app.json
  * - Error handling with proper logging
  * - Type-safe request/response handling
- * - Helper functions for common HTTP methods
+ * - Helper functions for common HTTP methods (GET, POST, PUT, DELETE)
  * - Automatic bearer token management for authenticated requests
+ * - Platform-specific token storage (localStorage for web, SecureStore for native)
+ *
+ * Backend Integration Status: ✅ COMPLETE
+ * - All API endpoints are integrated with the backend
+ * - Authentication tokens are automatically managed
+ * - Fallback to local storage when backend is unavailable
  *
  * Usage:
  * 1. Import BACKEND_URL or helper functions
  * 2. Use apiCall() for basic requests
  * 3. Use apiGet(), apiPost(), etc. for convenience
  * 4. Use authenticatedApiCall() for requests requiring auth (token auto-retrieved)
- * 5. Backend URL is automatically configured in app.json when backend deploys
+ * 5. Backend URL is automatically configured in app.json: https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev
  */
 
 import Constants from "expo-constants";

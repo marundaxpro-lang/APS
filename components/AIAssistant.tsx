@@ -55,21 +55,27 @@ export default function AIAssistant({ visible, onClose, context }: AIAssistantPr
     setLoading(true);
 
     try {
-      // TODO: Backend Integration - Call AI coaching API endpoint
-      const response = await authenticatedPost('/api/ai/coach', {
+      // Call AI coaching API endpoint
+      const endpoint = context === 'nutrition' ? '/api/ai/meal-suggestions' : '/api/ai/coaching';
+      
+      const response = await authenticatedPost(endpoint, {
         message: input,
         context,
-        history: messages.slice(-5),
+        history: messages.slice(-5).map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
       });
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.message || 'I can help you with that!',
+        content: response.message || response.suggestion || response.advice || 'I can help you with that!',
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      console.log('[AIAssistant] AI response received successfully');
     } catch (error) {
       console.error('[AIAssistant] Error sending message:', error);
       

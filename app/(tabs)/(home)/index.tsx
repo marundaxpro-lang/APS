@@ -43,12 +43,32 @@ export default function HomeScreen() {
       const profileData: FitnessProfile = JSON.parse(storedProfile);
       setProfile(profileData);
 
-      const storedStats = await AsyncStorage.getItem('dashboardStats');
-      if (storedStats) {
-        setStats(JSON.parse(storedStats));
+      // Try to load dashboard stats from backend
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const dashboardData = await authenticatedGet('/api/dashboard/home');
+        
+        if (dashboardData) {
+          const backendStats: DashboardStats = {
+            workoutsThisWeek: dashboardData.workoutsThisWeek || 0,
+            tasksCompleted: dashboardData.tasksCompleted || 0,
+            currentStreak: dashboardData.currentStreak || 0,
+            todaysCalories: dashboardData.todaysCalories || 0,
+          };
+          setStats(backendStats);
+          await AsyncStorage.setItem('dashboardStats', JSON.stringify(backendStats));
+          console.log('[Home] Dashboard stats loaded from backend');
+        }
+      } catch (error) {
+        console.log('[Home] Could not load stats from backend, using local data');
+        // Fallback to local storage
+        const storedStats = await AsyncStorage.getItem('dashboardStats');
+        if (storedStats) {
+          setStats(JSON.parse(storedStats));
+        }
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('[Home] Error loading profile:', error);
     } finally {
       setLoading(false);
     }
