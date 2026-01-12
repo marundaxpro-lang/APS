@@ -296,3 +296,75 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+/**
+ * Exercise: Store available exercises with metadata
+ */
+export const exercises = pgTable(
+  'exercises',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    muscleGroup: text('muscle_group').notNull(), // e.g., 'chest', 'back', 'legs', 'shoulders', 'arms'
+    equipmentType: text('equipment_type', { enum: ['gym', 'home', 'minimal'] }).notNull(),
+    description: text('description'),
+    isPremium: boolean('is_premium').default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('idx_muscle_group').on(table.muscleGroup)]
+);
+
+/**
+ * ExerciseVideo: Store video demonstrations for exercises
+ */
+export const exerciseVideos = pgTable(
+  'exercise_videos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'cascade' }),
+    videoUrl: text('video_url').notNull(), // YouTube URL or S3 storage key
+    videoType: text('video_type', { enum: ['youtube', 's3'] }).notNull(),
+    title: text('title').notNull(),
+    duration: integer('duration'), // in seconds
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('idx_exercise_videos').on(table.exerciseId)]
+);
+
+/**
+ * UserCaloricGoal: Store calculated caloric goals for users
+ */
+export const userCaloricGoals = pgTable(
+  'user_caloric_goals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+    dailyCalorieGoal: integer('daily_calorie_goal').notNull(),
+    basalMetabolicRate: integer('basal_metabolic_rate'), // BMR in calories
+    activityLevel: text('activity_level'), // sedentary, light, moderate, active, very_active
+    calculatedAt: timestamp('calculated_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_user_caloric_goals').on(table.userId)]
+);
+
+/**
+ * Relations for Exercises
+ */
+export const exercisesRelations = relations(exercises, ({ many }) => ({
+  videos: many(exerciseVideos),
+}));
+
+export const exerciseVideosRelations = relations(exerciseVideos, ({ one }) => ({
+  exercise: one(exercises, {
+    fields: [exerciseVideos.exerciseId],
+    references: [exercises.id],
+  }),
+}));
+
+export const userCaloricGoalsRelations = relations(userCaloricGoals, ({ one }) => ({
+  user: one(user, {
+    fields: [userCaloricGoals.userId],
+    references: [user.id],
+  }),
+}));
