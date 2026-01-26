@@ -21,19 +21,12 @@ import { useRouter } from 'expo-router';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Time slots for the day (24-hour format)
-const TIME_SLOTS = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-  '18:00', '19:00', '20:00', '21:00', '22:00'
-];
-
 interface ScheduledItem {
   id: string;
   type: 'workout' | 'task';
   title: string;
   time: string;
-  duration: number; // in minutes
+  duration: number;
   data?: any;
 }
 
@@ -45,8 +38,13 @@ export default function PlanScreen() {
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
   const [scheduledItems, setScheduledItems] = useState<{ [key: string]: ScheduledItem[] }>({});
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(null);
-  const [selectedTime, setSelectedTime] = useState('09:00');
+  const [selectedHour, setSelectedHour] = useState(9);
+  const [selectedMinute, setSelectedMinute] = useState(0);
+  const [editingItem, setEditingItem] = useState<ScheduledItem | null>(null);
+  const [editDuration, setEditDuration] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -104,6 +102,7 @@ export default function PlanScreen() {
   };
 
   const handleDayPress = (dayIndex: number) => {
+    console.log('User selected day:', FULL_DAYS[dayIndex]);
     setSelectedDay(dayIndex);
   };
 
@@ -120,14 +119,41 @@ export default function PlanScreen() {
     return scheduledItems[key] || [];
   };
 
+  const openScheduleModal = (workout: WorkoutDay) => {
+    console.log('User opened schedule modal for workout:', workout.name);
+    setSelectedWorkout(workout);
+    setSelectedHour(9);
+    setSelectedMinute(0);
+    setShowScheduleModal(true);
+  };
+
+  const openTimePicker = () => {
+    console.log('User opened time picker');
+    setShowTimePickerModal(true);
+  };
+
+  const confirmTime = () => {
+    const hourStr = selectedHour.toString().padStart(2, '0');
+    const minuteStr = selectedMinute.toString().padStart(2, '0');
+    const timeString = `${hourStr}:${minuteStr}`;
+    console.log('User selected time:', timeString);
+    
+    if (selectedWorkout) {
+      scheduleWorkout(selectedWorkout, timeString);
+    }
+    
+    setShowTimePickerModal(false);
+  };
+
   const scheduleWorkout = (workout: WorkoutDay, time: string) => {
+    console.log('Scheduling workout:', workout.name, 'at', time);
     const dayKey = `${workout.dayIndex}`;
     const newItem: ScheduledItem = {
       id: `workout-${Date.now()}`,
       type: 'workout',
       title: workout.name,
       time: time,
-      duration: 60, // Default 60 minutes
+      duration: 60,
       data: workout,
     };
 
@@ -140,14 +166,20 @@ export default function PlanScreen() {
     setShowScheduleModal(false);
   };
 
-  const scheduleTask = (task: WeeklyTask, time: string) => {
+  const scheduleTask = (task: WeeklyTask) => {
+    if (!task.startTime) {
+      console.log('Cannot schedule task without time');
+      return;
+    }
+    
+    console.log('Scheduling task:', task.title, 'at', task.startTime);
     const dayKey = `${task.dayOfWeek}`;
     const newItem: ScheduledItem = {
       id: `task-${Date.now()}`,
       type: 'task',
       title: task.title,
-      time: time,
-      duration: 30, // Default 30 minutes
+      time: task.startTime,
+      duration: task.duration || 30,
       data: task,
     };
 
@@ -159,7 +191,43 @@ export default function PlanScreen() {
     saveScheduledItems(updatedItems);
   };
 
+  const openEditModal = (item: ScheduledItem) => {
+    console.log('User opened edit modal for:', item.title);
+    setEditingItem(item);
+    setEditDuration(item.duration.toString());
+    const [hour, minute] = item.time.split(':').map(Number);
+    setSelectedHour(hour);
+    setSelectedMinute(minute);
+    setShowEditModal(true);
+  };
+
+  const saveEditedItem = () => {
+    if (!editingItem) return;
+    
+    const hourStr = selectedHour.toString().padStart(2, '0');
+    const minuteStr = selectedMinute.toString().padStart(2, '0');
+    const newTime = `${hourStr}:${minuteStr}`;
+    const newDuration = parseInt(editDuration) || editingItem.duration;
+    
+    console.log('Saving edited item:', editingItem.title, 'new time:', newTime, 'new duration:', newDuration);
+    
+    const dayKey = `${selectedDay}`;
+    const updatedItems = {
+      ...scheduledItems,
+      [dayKey]: (scheduledItems[dayKey] || []).map(item => 
+        item.id === editingItem.id 
+          ? { ...item, time: newTime, duration: newDuration }
+          : item
+      ).sort((a, b) => a.time.localeCompare(b.time)),
+    };
+    
+    saveScheduledItems(updatedItems);
+    setShowEditModal(false);
+    setEditingItem(null);
+  };
+
   const removeScheduledItem = (dayIndex: number, itemId: string) => {
+    console.log('User removed scheduled item:', itemId);
     const dayKey = `${dayIndex}`;
     const updatedItems = {
       ...scheduledItems,
@@ -168,15 +236,9 @@ export default function PlanScreen() {
     saveScheduledItems(updatedItems);
   };
 
-  const openScheduleModal = (workout: WorkoutDay) => {
-    setSelectedWorkout(workout);
-    setSelectedTime('09:00');
-    setShowScheduleModal(true);
-  };
-
   const handleItemPress = (item: ScheduledItem) => {
+    console.log('User tapped scheduled item:', item.title);
     if (item.type === 'workout' && item.data) {
-      // Navigate to workout session
       router.push('/(tabs)/training');
     }
   };
@@ -185,8 +247,17 @@ export default function PlanScreen() {
   const dayWorkout = getDayWorkout(selectedDay);
   const dayTasks = getDayTasks(selectedDay);
 
-  // Check if workout is already scheduled
   const isWorkoutScheduled = dayWorkout && dayItems.some(item => item.type === 'workout' && item.data?.name === dayWorkout.name);
+
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 0; hour < 24; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+  };
+
+  const TIME_SLOTS = generateTimeSlots();
 
   return (
     <View style={styles.container}>
@@ -201,7 +272,6 @@ export default function PlanScreen() {
           <Text style={styles.subtitle}>Schedule your workouts and tasks</Text>
         </View>
 
-        {/* Week Calendar */}
         <View style={styles.weekContainer}>
           {DAYS.map((day, index) => {
             const isToday = index === new Date().getDay();
@@ -235,7 +305,6 @@ export default function PlanScreen() {
           })}
         </View>
 
-        {/* Day View - Calendar Style */}
         <View style={styles.dayViewContainer}>
           <View style={styles.dayViewHeader}>
             <Text style={styles.dayViewTitle}>
@@ -246,7 +315,6 @@ export default function PlanScreen() {
             </Text>
           </View>
 
-          {/* Available Workout for this day */}
           {dayWorkout && !isWorkoutScheduled && (
             <View style={styles.availableWorkoutCard}>
               <View style={styles.availableWorkoutHeader}>
@@ -274,7 +342,6 @@ export default function PlanScreen() {
             </View>
           )}
 
-          {/* Timeline View */}
           <View style={styles.timeline}>
             {TIME_SLOTS.map((timeSlot) => {
               const itemsAtTime = dayItems.filter(item => item.time === timeSlot);
@@ -293,8 +360,7 @@ export default function PlanScreen() {
                             styles.scheduledItemCard,
                             item.type === 'workout' ? styles.workoutItemCard : styles.taskItemCard,
                           ]}
-                          onPress={() => handleItemPress(item)}
-                          onLongPress={() => removeScheduledItem(selectedDay, item.id)}
+                          onPress={() => openEditModal(item)}
                         >
                           <View style={styles.scheduledItemHeader}>
                             <IconSymbol 
@@ -304,6 +370,20 @@ export default function PlanScreen() {
                               color="#fff" 
                             />
                             <Text style={styles.scheduledItemTitle}>{item.title}</Text>
+                            <TouchableOpacity
+                              style={styles.removeItemButton}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                removeScheduledItem(selectedDay, item.id);
+                              }}
+                            >
+                              <IconSymbol 
+                                ios_icon_name="xmark.circle.fill" 
+                                android_material_icon_name="cancel" 
+                                size={18} 
+                                color="rgba(255,255,255,0.8)" 
+                              />
+                            </TouchableOpacity>
                           </View>
                           <Text style={styles.scheduledItemDuration}>{item.duration} min</Text>
                         </TouchableOpacity>
@@ -317,13 +397,11 @@ export default function PlanScreen() {
             })}
           </View>
 
-          {/* Unscheduled Tasks */}
           {dayTasks.length > 0 && (
             <View style={styles.unscheduledSection}>
-              <Text style={styles.unscheduledTitle}>Unscheduled Tasks</Text>
+              <Text style={styles.unscheduledTitle}>Tasks for this day</Text>
               {dayTasks.map((task) => {
                 const isScheduled = dayItems.some(item => item.type === 'task' && item.data?.id === task.id);
-                if (isScheduled) return null;
                 
                 return (
                   <View key={task.id} style={styles.unscheduledTaskCard}>
@@ -334,21 +412,31 @@ export default function PlanScreen() {
                         size={16} 
                         color={colors.textSecondary} 
                       />
-                      <Text style={styles.unscheduledTaskTitle}>{task.title}</Text>
+                      <View style={styles.unscheduledTaskTextContainer}>
+                        <Text style={styles.unscheduledTaskTitle}>{task.title}</Text>
+                        {task.startTime && (
+                          <Text style={styles.unscheduledTaskTime}>Scheduled for {task.startTime}</Text>
+                        )}
+                      </View>
                     </View>
-                    <TouchableOpacity
-                      style={styles.scheduleTaskButton}
-                      onPress={() => {
-                        // Quick schedule at next available time
-                        const nextTime = TIME_SLOTS.find(time => {
-                          const itemsAtTime = dayItems.filter(item => item.time === time);
-                          return itemsAtTime.length === 0;
-                        }) || '09:00';
-                        scheduleTask(task, nextTime);
-                      }}
-                    >
-                      <Text style={styles.scheduleTaskButtonText}>Schedule</Text>
-                    </TouchableOpacity>
+                    {!isScheduled && task.startTime && (
+                      <TouchableOpacity
+                        style={styles.scheduleTaskButton}
+                        onPress={() => scheduleTask(task)}
+                      >
+                        <Text style={styles.scheduleTaskButtonText}>Add to Plan</Text>
+                      </TouchableOpacity>
+                    )}
+                    {isScheduled && (
+                      <View style={styles.scheduledBadge}>
+                        <IconSymbol 
+                          ios_icon_name="checkmark.circle.fill" 
+                          android_material_icon_name="check-circle" 
+                          size={16} 
+                          color={colors.primary} 
+                        />
+                      </View>
+                    )}
                   </View>
                 );
               })}
@@ -389,42 +477,169 @@ export default function PlanScreen() {
                 </Text>
 
                 <Text style={styles.modalLabel}>Select Time</Text>
-                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                  {TIME_SLOTS.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[
-                        styles.timeOption,
-                        selectedTime === time && styles.timeOptionSelected,
-                      ]}
-                      onPress={() => setSelectedTime(time)}
-                    >
-                      <Text style={[
-                        styles.timeOptionText,
-                        selectedTime === time && styles.timeOptionTextSelected,
-                      ]}>
-                        {time}
-                      </Text>
-                      {selectedTime === time && (
-                        <IconSymbol 
-                          ios_icon_name="checkmark.circle.fill" 
-                          android_material_icon_name="check-circle" 
-                          size={20} 
-                          color={colors.primary} 
-                        />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
                 <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={() => selectedWorkout && scheduleWorkout(selectedWorkout, selectedTime)}
+                  style={styles.timePickerButton}
+                  onPress={openTimePicker}
                 >
-                  <Text style={styles.confirmButtonText}>Schedule Workout</Text>
+                  <IconSymbol 
+                    ios_icon_name="clock" 
+                    android_material_icon_name="access-time" 
+                    size={20} 
+                    color={colors.text} 
+                  />
+                  <Text style={styles.timePickerButtonText}>
+                    {`${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Item Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Schedule</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <IconSymbol 
+                  ios_icon_name="xmark" 
+                  android_material_icon_name="close" 
+                  size={24} 
+                  color={colors.text} 
+                />
+              </TouchableOpacity>
+            </View>
+            
+            {editingItem && (
+              <>
+                <Text style={styles.modalWorkoutName}>{editingItem.title}</Text>
+                <Text style={styles.modalWorkoutInfo}>
+                  {editingItem.type === 'workout' ? 'Workout' : 'Task'}
+                </Text>
+
+                <Text style={styles.modalLabel}>Time</Text>
+                <TouchableOpacity
+                  style={styles.timePickerButton}
+                  onPress={openTimePicker}
+                >
+                  <IconSymbol 
+                    ios_icon_name="clock" 
+                    android_material_icon_name="access-time" 
+                    size={20} 
+                    color={colors.text} 
+                  />
+                  <Text style={styles.timePickerButtonText}>
+                    {`${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`}
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={styles.modalLabel}>Duration (minutes)</Text>
+                <TextInput
+                  style={styles.durationInput}
+                  keyboardType="number-pad"
+                  placeholder="60"
+                  placeholderTextColor={colors.grey}
+                  value={editDuration}
+                  onChangeText={setEditDuration}
+                />
+
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={saveEditedItem}
+                >
+                  <Text style={styles.confirmButtonText}>Save Changes</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={showTimePickerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimePickerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.timePickerModal}>
+            <Text style={styles.modalTitle}>Select Time</Text>
+            
+            <View style={styles.timePickerContainer}>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.timePickerLabel}>Hour</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[
+                        styles.timePickerOption,
+                        selectedHour === hour && styles.timePickerOptionSelected,
+                      ]}
+                      onPress={() => setSelectedHour(hour)}
+                    >
+                      <Text style={[
+                        styles.timePickerOptionText,
+                        selectedHour === hour && styles.timePickerOptionTextSelected,
+                      ]}>
+                        {hour.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.timePickerSeparator}>:</Text>
+
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.timePickerLabel}>Minute</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                    <TouchableOpacity
+                      key={minute}
+                      style={[
+                        styles.timePickerOption,
+                        selectedMinute === minute && styles.timePickerOptionSelected,
+                      ]}
+                      onPress={() => setSelectedMinute(minute)}
+                    >
+                      <Text style={[
+                        styles.timePickerOptionText,
+                        selectedMinute === minute && styles.timePickerOptionTextSelected,
+                      ]}>
+                        {minute.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.confirmButton}
+              onPress={confirmTime}
+            >
+              <Text style={styles.confirmButtonText}>Confirm Time</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowTimePickerModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -621,6 +836,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     flex: 1,
   },
+  removeItemButton: {
+    padding: 4,
+  },
   scheduledItemDuration: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.8)',
@@ -653,10 +871,18 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  unscheduledTaskTextContainer: {
+    flex: 1,
+  },
   unscheduledTaskTitle: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
+  },
+  unscheduledTaskTime: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: 2,
   },
   scheduleTaskButton: {
     backgroundColor: 'rgba(69, 155, 155, 0.2)',
@@ -668,6 +894,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
+  },
+  scheduledBadge: {
+    padding: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -712,42 +941,104 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  timePickerScroll: {
-    maxHeight: 300,
-    marginBottom: 20,
-  },
-  timeOption: {
+  timePickerButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 20,
   },
-  timeOptionSelected: {
-    backgroundColor: 'rgba(69, 155, 155, 0.2)',
-    borderColor: colors.primary,
+  timePickerButtonText: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '700',
   },
-  timeOptionText: {
+  durationInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    color: colors.text,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 20,
+  },
+  timePickerModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  timePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timePickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  timePickerScroll: {
+    maxHeight: 200,
+    width: '100%',
+  },
+  timePickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+  },
+  timePickerOptionSelected: {
+    backgroundColor: colors.primary,
+  },
+  timePickerOptionText: {
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
   },
-  timeOptionTextSelected: {
-    color: colors.primary,
+  timePickerOptionTextSelected: {
+    color: '#fff',
+  },
+  timePickerSeparator: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginTop: 24,
   },
   confirmButton: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
+    marginBottom: 12,
   },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  cancelButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.grey,
   },
 });

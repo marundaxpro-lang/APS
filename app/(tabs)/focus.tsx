@@ -44,18 +44,20 @@ export default function FocusScreen() {
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [selectedTimer, setSelectedTimer] = useState<TimerType | null>(null);
   const [customMinutes, setCustomMinutes] = useState('');
   const [customHours, setCustomHours] = useState('');
+  const [selectedHour, setSelectedHour] = useState(9);
+  const [selectedMinute, setSelectedMinute] = useState(0);
   const [taskTime, setTaskTime] = useState('');
 
   useEffect(() => {
     loadTasks();
     loadTimerState();
 
-    // Handle app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
@@ -82,10 +84,8 @@ export default function FocusScreen() {
 
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState === 'active') {
-      // App came to foreground - recalculate timer
       await loadTimerState();
     } else if (nextAppState === 'background') {
-      // App went to background - save current state
       await saveTimerState(isTimerRunning, timeLeft);
     }
   };
@@ -111,14 +111,12 @@ export default function FocusScreen() {
       if (stateStr) {
         const state: TimerState = JSON.parse(stateStr);
         if (state.isRunning) {
-          // Calculate elapsed time since app was backgrounded
           const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
           const newTimeLeft = Math.max(0, state.timeLeft - elapsed);
           
           setTimeLeft(newTimeLeft);
           setIsTimerRunning(newTimeLeft > 0);
           
-          // Restore timer type
           const timer = TIMER_TYPES.find(t => t.id === state.timerType);
           if (timer) {
             setSelectedTimer({
@@ -152,15 +150,37 @@ export default function FocusScreen() {
   };
 
   const openTaskModal = () => {
+    console.log('User tapped Add Task button');
     setNewTask('');
     setTaskTime('');
     setSelectedDay(new Date().getDay());
     setSelectedCategory('study');
+    setSelectedHour(9);
+    setSelectedMinute(0);
     setShowTaskModal(true);
   };
 
+  const openTimePicker = () => {
+    console.log('User opened time picker');
+    setShowTimePickerModal(true);
+  };
+
+  const confirmTime = () => {
+    const hourStr = selectedHour.toString().padStart(2, '0');
+    const minuteStr = selectedMinute.toString().padStart(2, '0');
+    const timeString = `${hourStr}:${minuteStr}`;
+    console.log('User selected time:', timeString);
+    setTaskTime(timeString);
+    setShowTimePickerModal(false);
+  };
+
   const addTask = () => {
-    if (!newTask.trim()) return;
+    if (!newTask.trim() || !taskTime) {
+      console.log('Cannot add task - missing title or time');
+      return;
+    }
+    
+    console.log('Adding task:', { title: newTask, time: taskTime, day: DAYS[selectedDay] });
     
     const task: WeeklyTask = {
       id: Date.now().toString(),
@@ -168,7 +188,7 @@ export default function FocusScreen() {
       completed: false,
       category: selectedCategory,
       dayOfWeek: selectedDay,
-      startTime: taskTime || undefined,
+      startTime: taskTime,
     };
     
     saveTasks([...tasks, task]);
@@ -178,14 +198,17 @@ export default function FocusScreen() {
   };
 
   const toggleTask = (id: string) => {
+    console.log('User toggled task:', id);
     saveTasks(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
   };
 
   const deleteTask = (id: string) => {
+    console.log('User deleted task:', id);
     saveTasks(tasks.filter((t) => t.id !== id));
   };
 
   const startTimer = (timer: TimerType) => {
+    console.log('User started timer:', timer.name);
     if (timer.id === 'custom') {
       setShowTimerModal(false);
       setShowCustomModal(true);
@@ -207,6 +230,8 @@ export default function FocusScreen() {
       return;
     }
 
+    console.log('User started custom timer:', { hours, minutes });
+
     const totalSeconds = (hours * 3600) + (minutes * 60);
     const customTimer: TimerType = {
       id: 'custom',
@@ -225,6 +250,7 @@ export default function FocusScreen() {
   };
 
   const stopTimer = () => {
+    console.log('User stopped timer');
     setIsTimerRunning(false);
     saveTimerState(false, 0);
   };
@@ -237,13 +263,14 @@ export default function FocusScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Group tasks by day
   const tasksByDay = tasks.reduce((acc, task) => {
     const day = task.dayOfWeek ?? -1;
     if (!acc[day]) acc[day] = [];
     acc[day].push(task);
     return acc;
   }, {} as Record<number, WeeklyTask[]>);
+
+  const canAddTask = newTask.trim() && taskTime;
 
   return (
     <View style={styles.container}>
@@ -252,7 +279,6 @@ export default function FocusScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>Focus Hub</Text>
 
-        {/* Timer Section */}
         <View style={styles.timerCard}>
           {isTimerRunning ? (
             <>
@@ -279,13 +305,11 @@ export default function FocusScreen() {
           )}
         </View>
 
-        {/* Add Task Button */}
         <TouchableOpacity style={styles.addTaskButton} onPress={openTaskModal}>
           <IconSymbol ios_icon_name="plus.circle.fill" android_material_icon_name="add-circle" size={24} color="#fff" />
           <Text style={styles.addTaskButtonText}>Add Task to Weekly Plan</Text>
         </TouchableOpacity>
 
-        {/* Tasks by Day */}
         <View style={styles.tasksSection}>
           <Text style={styles.sectionTitle}>Weekly Tasks</Text>
           {Object.keys(tasksByDay).length === 0 ? (
@@ -385,14 +409,19 @@ export default function FocusScreen() {
               ))}
             </ScrollView>
 
-            <Text style={styles.inputLabel}>Time (Optional)</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g., 9:00 AM"
-              placeholderTextColor={colors.grey}
-              value={taskTime}
-              onChangeText={setTaskTime}
-            />
+            <Text style={styles.inputLabel}>
+              Time
+              <Text style={styles.requiredStar}> *</Text>
+            </Text>
+            <TouchableOpacity
+              style={styles.timePickerButton}
+              onPress={openTimePicker}
+            >
+              <IconSymbol ios_icon_name="clock" android_material_icon_name="access-time" size={20} color={colors.text} />
+              <Text style={styles.timePickerButtonText}>
+                {taskTime || 'Select time'}
+              </Text>
+            </TouchableOpacity>
 
             <Text style={styles.inputLabel}>Category</Text>
             <View style={styles.categorySelector}>
@@ -416,9 +445,9 @@ export default function FocusScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.addButton, !newTask.trim() && styles.addButtonDisabled]}
+              style={[styles.addButton, !canAddTask && styles.addButtonDisabled]}
               onPress={addTask}
-              disabled={!newTask.trim()}
+              disabled={!canAddTask}
             >
               <Text style={styles.buttonText}>Add Task</Text>
             </TouchableOpacity>
@@ -426,6 +455,84 @@ export default function FocusScreen() {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowTaskModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={showTimePickerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimePickerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.timePickerModal}>
+            <Text style={styles.modalTitle}>Select Time</Text>
+            
+            <View style={styles.timePickerContainer}>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.timePickerLabel}>Hour</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[
+                        styles.timePickerOption,
+                        selectedHour === hour && styles.timePickerOptionSelected,
+                      ]}
+                      onPress={() => setSelectedHour(hour)}
+                    >
+                      <Text style={[
+                        styles.timePickerOptionText,
+                        selectedHour === hour && styles.timePickerOptionTextSelected,
+                      ]}>
+                        {hour.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <Text style={styles.timePickerSeparator}>:</Text>
+
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.timePickerLabel}>Minute</Text>
+                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                  {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                    <TouchableOpacity
+                      key={minute}
+                      style={[
+                        styles.timePickerOption,
+                        selectedMinute === minute && styles.timePickerOptionSelected,
+                      ]}
+                      onPress={() => setSelectedMinute(minute)}
+                    >
+                      <Text style={[
+                        styles.timePickerOptionText,
+                        selectedMinute === minute && styles.timePickerOptionTextSelected,
+                      ]}>
+                        {minute.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.confirmTimeButton}
+              onPress={confirmTime}
+            >
+              <Text style={styles.buttonText}>Confirm Time</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowTimePickerModal(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -726,6 +833,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 12,
   },
+  requiredStar: {
+    color: '#ef4444',
+    fontSize: 16,
+  },
   textInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
@@ -759,6 +870,81 @@ const styles = StyleSheet.create({
   },
   dayChipTextActive: {
     color: '#fff',
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  timePickerButtonText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  timePickerModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+  },
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  timePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timePickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  timePickerScroll: {
+    maxHeight: 200,
+    width: '100%',
+  },
+  timePickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+  },
+  timePickerOptionSelected: {
+    backgroundColor: colors.primary,
+  },
+  timePickerOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  timePickerOptionTextSelected: {
+    color: '#fff',
+  },
+  timePickerSeparator: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginTop: 24,
+  },
+  confirmTimeButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   categorySelector: {
     flexDirection: 'row',
