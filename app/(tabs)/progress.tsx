@@ -178,9 +178,10 @@ export default function ProgressScreen() {
   const startBodyFat = measurements.length > 0 ? measurements[0].bodyFat || 18 : 18;
   const bodyFatChange = startBodyFat - (currentBodyFat || 18);
 
-  // Calculate BMI
-  const heightInMeters = (profile?.height || 175) / 100;
-  const bmi = currentWeight / (heightInMeters * heightInMeters);
+  // Calculate Lean Body Mass (more meaningful than BMI)
+  const leanBodyMass = currentWeight * (1 - (currentBodyFat || 18) / 100);
+  const startLeanBodyMass = startWeight * (1 - startBodyFat / 100);
+  const leanMassChange = leanBodyMass - startLeanBodyMass;
 
   return (
     <View style={styles.container}>
@@ -242,20 +243,22 @@ export default function ProgressScreen() {
           <View style={styles.statCard}>
             <View style={styles.statIcon}>
               <IconSymbol
-                ios_icon_name="chart.bar.fill"
-                android_material_icon_name="bar-chart"
+                ios_icon_name="figure.strengthtraining.traditional"
+                android_material_icon_name="fitness-center"
                 size={24}
                 color={colors.primary}
               />
             </View>
-            <Text style={styles.statValue}>{bmi.toFixed(1)}</Text>
-            <Text style={styles.statUnit}>BMI</Text>
-            <Text style={styles.statLabel}>Body Mass Index</Text>
-            <View style={styles.statBadge}>
-              <Text style={styles.statBadgeText}>
-                {bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese'}
-              </Text>
-            </View>
+            <Text style={styles.statValue}>{leanBodyMass.toFixed(1)}</Text>
+            <Text style={styles.statUnit}>kg</Text>
+            <Text style={styles.statLabel}>Lean Mass</Text>
+            {leanMassChange !== 0 && (
+              <View style={[styles.statBadge, leanMassChange > 0 && styles.statBadgePositive]}>
+                <Text style={styles.statBadgeText}>
+                  {leanMassChange > 0 ? '+' : ''}{leanMassChange.toFixed(1)} kg
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
