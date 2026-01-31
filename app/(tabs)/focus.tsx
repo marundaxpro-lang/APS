@@ -56,13 +56,54 @@ export default function FocusScreen() {
   const [taskTime, setTaskTime] = useState('');
   const [pulseAnim] = useState(new Animated.Value(1));
 
+  const saveTimerState = useCallback(async (running: boolean, time: number) => {
+    try {
+      const state: TimerState = {
+        isRunning: running,
+        timeLeft: time,
+        startTime: Date.now(),
+        timerType: selectedTimer?.id || '',
+        customDuration: selectedTimer?.duration || 0,
+      };
+      await AsyncStorage.setItem('timerState', JSON.stringify(state));
+    } catch (error) {
+      console.error('Error saving timer state:', error);
+    }
+  }, [selectedTimer]);
+
+  const loadTimerState = useCallback(async () => {
+    try {
+      const stateStr = await AsyncStorage.getItem('timerState');
+      if (stateStr) {
+        const state: TimerState = JSON.parse(stateStr);
+        if (state.isRunning) {
+          const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+          const newTimeLeft = Math.max(0, state.timeLeft - elapsed);
+          
+          setTimeLeft(newTimeLeft);
+          setIsTimerRunning(newTimeLeft > 0);
+          
+          const timer = TIMER_TYPES.find(t => t.id === state.timerType);
+          if (timer) {
+            setSelectedTimer({
+              ...timer,
+              duration: state.customDuration || timer.duration,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading timer state:', error);
+    }
+  }, []);
+
   const handleAppStateChange = useCallback(async (nextAppState: AppStateStatus) => {
     if (nextAppState === 'active') {
       await loadTimerState();
     } else if (nextAppState === 'background') {
       await saveTimerState(isTimerRunning, timeLeft);
     }
-  }, [isTimerRunning, timeLeft]);
+  }, [isTimerRunning, timeLeft, loadTimerState, saveTimerState]);
 
   useEffect(() => {
     loadTasks();
@@ -73,7 +114,7 @@ export default function FocusScreen() {
     return () => {
       subscription.remove();
     };
-  }, [handleAppStateChange]);
+  }, [handleAppStateChange, loadTimerState]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -112,47 +153,6 @@ export default function FocusScreen() {
       pulseAnim.setValue(1);
     }
   }, [isTimerRunning, pulseAnim]);
-
-  const saveTimerState = useCallback(async (running: boolean, time: number) => {
-    try {
-      const state: TimerState = {
-        isRunning: running,
-        timeLeft: time,
-        startTime: Date.now(),
-        timerType: selectedTimer?.id || '',
-        customDuration: selectedTimer?.duration || 0,
-      };
-      await AsyncStorage.setItem('timerState', JSON.stringify(state));
-    } catch (error) {
-      console.error('Error saving timer state:', error);
-    }
-  }, [selectedTimer]);
-
-  const loadTimerState = async () => {
-    try {
-      const stateStr = await AsyncStorage.getItem('timerState');
-      if (stateStr) {
-        const state: TimerState = JSON.parse(stateStr);
-        if (state.isRunning) {
-          const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
-          const newTimeLeft = Math.max(0, state.timeLeft - elapsed);
-          
-          setTimeLeft(newTimeLeft);
-          setIsTimerRunning(newTimeLeft > 0);
-          
-          const timer = TIMER_TYPES.find(t => t.id === state.timerType);
-          if (timer) {
-            setSelectedTimer({
-              ...timer,
-              duration: state.customDuration || timer.duration,
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading timer state:', error);
-    }
-  };
 
   const loadTasks = async () => {
     try {

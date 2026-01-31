@@ -59,7 +59,7 @@ export default function ProfileScreen() {
         loadProfile();
       }
     }
-  }, [user, authLoading, loadProfile]);
+  }, [user, authLoading, loadProfile, router]);
 
   const handleLogout = useCallback(() => {
     console.log('User tapped logout button');
