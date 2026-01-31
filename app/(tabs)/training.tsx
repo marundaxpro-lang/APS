@@ -8,20 +8,23 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import ParticleBackground from '@/components/ParticleBackground';
 import { colors } from '@/styles/commonStyles';
-import { getTodaysWorkout } from '@/data/workouts';
+import { getTodaysWorkout, generateWorkoutSplit } from '@/data/workouts';
 import { FitnessProfile, WorkoutDay } from '@/types/fitness';
 
 export default function TrainingScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [todaysWorkout, setTodaysWorkout] = useState<WorkoutDay | null>(null);
+  const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWeeklyModal, setShowWeeklyModal] = useState(false);
 
   const loadWorkout = useCallback(async () => {
     try {
@@ -33,6 +36,10 @@ export default function TrainingScreen() {
 
       const profileData: FitnessProfile = JSON.parse(storedProfile);
       setProfile(profileData);
+
+      // Generate weekly workout split
+      const weeklyWorkoutSplit = generateWorkoutSplit(profileData);
+      setWeeklyWorkouts(weeklyWorkoutSplit);
 
       // Try to load today's workout from backend
       try {
@@ -67,6 +74,17 @@ export default function TrainingScreen() {
     loadWorkout();
   }, [loadWorkout]);
 
+  const handleViewWeeklyWorkouts = () => {
+    console.log('[Training] User tapped View Weekly Workouts button');
+    setShowWeeklyModal(true);
+  };
+
+  const handleSelectWorkout = (workout: WorkoutDay) => {
+    console.log('[Training] User selected workout:', workout.name);
+    setTodaysWorkout(workout);
+    setShowWeeklyModal(false);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -93,11 +111,69 @@ export default function TrainingScreen() {
           </Text>
           <TouchableOpacity
             style={styles.planButton}
-            onPress={() => router.push('/(tabs)/plan')}
+            onPress={handleViewWeeklyWorkouts}
           >
-            <Text style={styles.planButtonText}>View Weekly Plan</Text>
+            <Text style={styles.planButtonText}>View All Workouts</Text>
           </TouchableOpacity>
         </View>
+
+        <Modal
+          visible={showWeeklyModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Weekly Workouts</Text>
+              <TouchableOpacity onPress={() => setShowWeeklyModal(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="close"
+                  size={28}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {weeklyWorkouts.map((workout, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.workoutCard}
+                  onPress={() => handleSelectWorkout(workout)}
+                >
+                  <View style={styles.workoutCardHeader}>
+                    <View>
+                      <Text style={styles.workoutDay}>{workout.day}</Text>
+                      <Text style={styles.workoutName}>{workout.name}</Text>
+                    </View>
+                    <View style={styles.workoutBadge}>
+                      <Text style={styles.workoutBadgeText}>
+                        {workout.exercises.length} exercises
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.exercisePreview}>
+                    {workout.exercises.slice(0, 3).map((exercise, idx) => (
+                      <Text key={idx} style={styles.exercisePreviewText}>
+                        • {exercise.name}
+                      </Text>
+                    ))}
+                    {workout.exercises.length > 3 && (
+                      <Text style={styles.exercisePreviewMore}>
+                        +{workout.exercises.length - 3} more
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -124,7 +200,10 @@ export default function TrainingScreen() {
 
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => router.push('/workout-session')}
+          onPress={() => {
+            console.log('[Training] User tapped Start Workout button');
+            router.push('/workout-session');
+          }}
         >
           <IconSymbol
             ios_icon_name="play.fill"
@@ -349,5 +428,77 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 22,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  workoutCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+  },
+  workoutCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  workoutDay: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  workoutName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  workoutBadge: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  workoutBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  exercisePreview: {
+    gap: 6,
+  },
+  exercisePreviewText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  exercisePreviewMore: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

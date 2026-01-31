@@ -31,6 +31,7 @@ export default function NutritionScreen() {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [grams, setGrams] = useState('100');
   const [loading, setLoading] = useState(true);
+  const [caloricGoalError, setCaloricGoalError] = useState(false);
 
   useEffect(() => {
     loadMeals();
@@ -55,7 +56,9 @@ export default function NutritionScreen() {
 
   const loadCaloricGoal = async () => {
     try {
+      console.log('[Nutrition] Fetching caloric goal from backend...');
       const goalData = await authenticatedGet('/api/dashboard/caloric-goal');
+      
       if (goalData && goalData.dailyCalorieGoal) {
         // Calculate macros from calorie goal
         // Protein: 30% of calories (4 cal per gram)
@@ -76,28 +79,25 @@ export default function NutritionScreen() {
         };
         
         setCaloricGoal(goal);
+        setCaloricGoalError(false);
         console.log('[Nutrition] Loaded caloric goal from backend:', goal);
       } else {
-        console.warn('[Nutrition] No caloric goal found - using default 2500 calories');
-        // User hasn't completed onboarding or calorie calculation failed
+        console.warn('[Nutrition] No caloric goal found in response');
+        setCaloricGoalError(true);
       }
     } catch (error) {
       console.error('[Nutrition] Error loading caloric goal:', error);
-      console.warn('[Nutrition] Falling back to default 2500 calories');
+      setCaloricGoalError(true);
     }
   };
 
+  // Use the caloric goal if available, otherwise show error state
   const goals = caloricGoal ? {
     calories: caloricGoal.dailyCalorieGoal,
     protein: caloricGoal.proteinGoal,
     carbs: caloricGoal.carbsGoal,
     fat: caloricGoal.fatGoal,
-  } : {
-    calories: 2500,
-    protein: 180,
-    carbs: 250,
-    fat: 70,
-  };
+  } : null;
 
   const consumed = meals.reduce(
     (acc, meal) => {
@@ -113,12 +113,14 @@ export default function NutritionScreen() {
   );
 
   const openFoodModal = (mealType: typeof selectedMealType) => {
+    console.log('[Nutrition] User tapped Add Food for', mealType);
     setSelectedMealType(mealType);
     setShowFoodModal(true);
   };
 
   const addFood = async () => {
     if (selectedFood) {
+      console.log('[Nutrition] Adding food:', selectedFood.name, grams, 'g');
       const newMeal: MealEntry = {
         id: Date.now().toString(),
         food_item: selectedFood,
@@ -169,6 +171,48 @@ export default function NutritionScreen() {
     );
   }
 
+  // Show error state if caloric goal is not set
+  if (caloricGoalError || !goals) {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Nutrition</Text>
+              <Text style={styles.subtitle}>Track your daily intake</Text>
+            </View>
+          </View>
+
+          <View style={styles.errorCard}>
+            <IconSymbol
+              ios_icon_name="exclamationmark.triangle.fill"
+              android_material_icon_name="warning"
+              size={48}
+              color={colors.warning}
+            />
+            <Text style={styles.errorTitle}>Calorie Goal Not Set</Text>
+            <Text style={styles.errorMessage}>
+              We need your profile information to calculate your daily calorie goal.
+              Please complete your profile setup.
+            </Text>
+            <TouchableOpacity
+              style={styles.setupButton}
+              onPress={() => {
+                console.log('[Nutrition] User tapped Complete Profile Setup');
+                router.push('/onboarding');
+              }}
+            >
+              <Text style={styles.setupButtonText}>Complete Profile Setup</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -183,7 +227,10 @@ export default function NutritionScreen() {
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => router.push('/meal-plans')}
+              onPress={() => {
+                console.log('[Nutrition] User tapped Meal Plans button');
+                router.push('/meal-plans');
+              }}
             >
               <IconSymbol
                 ios_icon_name="book.fill"
@@ -194,7 +241,10 @@ export default function NutritionScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setShowAIAssistant(true)}
+              onPress={() => {
+                console.log('[Nutrition] User tapped AI Assistant button');
+                setShowAIAssistant(true);
+              }}
             >
               <IconSymbol
                 ios_icon_name="sparkles"
@@ -411,6 +461,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  setupButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  setupButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   caloriesCard: {
     backgroundColor: colors.card,
