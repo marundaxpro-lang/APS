@@ -187,6 +187,11 @@ export const fitnessProfiles = pgTable(
     experienceLevel: text('experience_level', { enum: ['beginner', 'intermediate', 'advanced'] }).default('beginner'),
     goal: text('goal').notNull(), // e.g., 'weight_loss', 'muscle_gain', 'maintenance'
     trainingFrequency: integer('training_frequency').default(3), // times per week
+    gender: text('gender', { enum: ['male', 'female', 'other'] }),
+    weight: decimal('weight', { precision: 6, scale: 2 }), // in kg
+    height: decimal('height', { precision: 5, scale: 2 }), // in cm
+    age: integer('age'),
+    activityLevel: text('activity_level', { enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'] }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
   },
@@ -366,5 +371,75 @@ export const userCaloricGoalsRelations = relations(userCaloricGoals, ({ one }) =
   user: one(user, {
     fields: [userCaloricGoals.userId],
     references: [user.id],
+  }),
+}));
+
+/**
+ * MealPlan: Store user's meal plans
+ */
+export const mealPlans = pgTable(
+  'meal_plans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    totalCalories: integer('total_calories'),
+    totalProtein: integer('total_protein'),
+    totalCarbs: integer('total_carbs'),
+    totalFat: integer('total_fat'),
+    difficultyLevel: text('difficulty_level', { enum: ['easy', 'medium', 'hard'] }).default('medium'),
+    prepTimeMinutes: integer('prep_time_minutes'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_user_meal_plans').on(table.userId)]
+);
+
+/**
+ * MealPlanMeal: Store individual meals within a meal plan
+ */
+export const mealPlanMeals = pgTable(
+  'meal_plan_meals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    mealPlanId: uuid('meal_plan_id').notNull().references(() => mealPlans.id, { onDelete: 'cascade' }),
+    mealType: text('meal_type', { enum: ['breakfast', 'lunch', 'dinner', 'snack'] }).notNull(),
+    name: text('name').notNull(),
+    description: text('description'),
+    calories: integer('calories'),
+    protein: integer('protein'),
+    carbs: integer('carbs'),
+    fat: integer('fat'),
+    ingredients: jsonb('ingredients').$type<
+      Array<{
+        name: string;
+        quantity: string;
+        unit: string;
+      }>
+    >(),
+    instructions: jsonb('instructions').$type<Array<string>>(),
+    imageUrl: text('image_url'),
+    prepTimeMinutes: integer('prep_time_minutes'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('idx_meal_plan_meals').on(table.mealPlanId)]
+);
+
+/**
+ * Relations for Meal Plans
+ */
+export const mealPlansRelations = relations(mealPlans, ({ one, many }) => ({
+  user: one(user, {
+    fields: [mealPlans.userId],
+    references: [user.id],
+  }),
+  meals: many(mealPlanMeals),
+}));
+
+export const mealPlanMealsRelations = relations(mealPlanMeals, ({ one }) => ({
+  mealPlan: one(mealPlans, {
+    fields: [mealPlanMeals.mealPlanId],
+    references: [mealPlans.id],
   }),
 }));
