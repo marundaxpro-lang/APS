@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
+  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -23,12 +23,12 @@ export default function ProfileScreen() {
   const { user, signOut, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Try to load from backend first
       try {
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         if (backendProfile) {
@@ -41,7 +41,6 @@ export default function ProfileScreen() {
         console.log('[Profile] No profile in backend, checking local storage');
       }
       
-      // Fallback to local storage
       const profileData = await AsyncStorage.getItem('fitnessProfile');
       if (profileData) {
         setProfile(JSON.parse(profileData));
@@ -61,25 +60,38 @@ export default function ProfileScreen() {
         loadProfile();
       }
     }
-  }, [user, authLoading, loadProfile]);
+  }, [user, authLoading, loadProfile, router]);
 
   const handleLogout = useCallback(() => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          await AsyncStorage.clear();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    console.log('User tapped logout button');
+    setShowLogoutModal(true);
+  }, []);
+
+  const confirmLogout = useCallback(async () => {
+    console.log('User confirmed logout');
+    setShowLogoutModal(false);
+    try {
+      await signOut();
+      await AsyncStorage.clear();
+      router.replace('/auth');
+    } catch (error) {
+      console.error('[Profile] Error during logout:', error);
+    }
   }, [signOut, router]);
 
   const handleBack = useCallback(() => {
+    console.log('User tapped back button');
     router.back();
+  }, [router]);
+
+  const navigateToNotifications = useCallback(() => {
+    console.log('User tapped notifications');
+    router.push('/notifications');
+  }, [router]);
+
+  const navigateToEditProfile = useCallback(() => {
+    console.log('User tapped edit profile');
+    router.push('/edit-profile');
   }, [router]);
 
   if (authLoading || loading) {
@@ -160,7 +172,7 @@ export default function ProfileScreen() {
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={navigateToNotifications}>
             <IconSymbol
               ios_icon_name="bell.fill"
               android_material_icon_name="notifications"
@@ -176,7 +188,7 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={navigateToEditProfile}>
             <IconSymbol
               ios_icon_name="person.circle.fill"
               android_material_icon_name="account-circle"
@@ -253,6 +265,36 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>Version 1.0.0</Text>
       </ScrollView>
+
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Logout</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to logout?</Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalButtonConfirm}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.modalButtonConfirmText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -385,5 +427,60 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButtonCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+  },
+  modalButtonConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

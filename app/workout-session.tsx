@@ -61,7 +61,7 @@ function ConfettiExplosion() {
         ]),
       ]).start();
     });
-  }, []);
+  }, [confettiPieces]);
 
   return (
     <View style={styles.confettiContainer} pointerEvents="none">

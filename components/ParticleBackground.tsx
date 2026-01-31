@@ -55,7 +55,7 @@ const Particle = ({ index }: { index: number }) => {
       -1,
       true
     );
-  }, []);
+  }, [opacity, translateX, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

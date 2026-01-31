@@ -28,33 +28,58 @@ export default function OnboardingScreen() {
     AsyncStorage.getItem('fitnessProfile').then((data) => {
       if (data) router.replace('/(tabs)/(home)');
     });
-  }, []);
+  }, [router]);
 
   const saveProfile = async () => {
-    // If name is empty, don't include it (will default to "Athlete" in the UI)
     const finalProfile = {
       ...profile,
       name: profile.name?.trim() || undefined,
+      age: profile.age || 25,
     };
     
-    // Save locally first
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
     
-    // Try to save to backend
     try {
       const { authenticatedPost } = await import('@/utils/api');
-      await authenticatedPost('/api/fitness-profile', finalProfile);
-      console.log('[Onboarding] Profile saved to backend');
+      
+      // Save fitness profile
+      await authenticatedPost('/api/fitness-profile', {
+        experienceLevel: 'beginner',
+        goal: finalProfile.goal || 'muscle',
+        trainingFrequency: finalProfile.trainingDays || 3,
+      });
+      
+      // Calculate calorie goal
+      const activityLevel = finalProfile.trainingDays >= 5 ? 'active' : 
+                           finalProfile.trainingDays >= 3 ? 'moderate' : 'light';
+      
+      // Map frontend goal to backend goal format
+      let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
+      if (finalProfile.goal === 'weight-loss') {
+        backendGoal = 'weight_loss';
+      } else if (finalProfile.goal === 'muscle' || finalProfile.goal === 'strength') {
+        backendGoal = 'weight_gain';
+      }
+      
+      await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
+        age: finalProfile.age || 25,
+        gender: finalProfile.gender || 'male',
+        weight: finalProfile.weight || 70,
+        height: finalProfile.height || 175,
+        activityLevel,
+        goal: backendGoal,
+      });
+      
+      console.log('[Onboarding] Profile and calorie goal saved to backend');
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
-      // Continue anyway - profile is saved locally
     }
     
     router.replace('/(tabs)/(home)');
   };
 
   const canProceed = () => {
-    if (step === 1) return true; // Name is optional
+    if (step === 1) return true;
     if (step === 2) return profile.gender;
     if (step === 3) return profile.trainingDays;
     if (step === 4) return profile.focusAreas && profile.focusAreas.length > 0;
@@ -63,7 +88,6 @@ export default function OnboardingScreen() {
     return false;
   };
 
-  // Step 1: Name (Optional)
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your name?</Text>
@@ -83,7 +107,6 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 2: Gender
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your gender?</Text>
@@ -117,7 +140,6 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 3: Training Frequency
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>How many days can you train?</Text>
@@ -151,7 +173,6 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 4: Focus Areas
   const renderStep4 = () => {
     const areas = profile.gender === 'female'
       ? ['Glutes', 'Legs', 'Core', 'Upper Body', 'Full Body']
@@ -191,7 +212,6 @@ export default function OnboardingScreen() {
     );
   };
 
-  // Step 5: Equipment
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What equipment do you have?</Text>
@@ -199,9 +219,9 @@ export default function OnboardingScreen() {
       
       <View style={styles.optionsContainer}>
         {[
-          { id: 'gym', label: 'Full Gym', icon: 'dumbbell' },
-          { id: 'home', label: 'Home Equipment', icon: 'house' },
-          { id: 'minimal', label: 'Bodyweight Only', icon: 'figure.walk' },
+          { id: 'gym', label: 'Full Gym', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
+          { id: 'home', label: 'Home Equipment', iosIcon: 'house.fill', androidIcon: 'home' },
+          { id: 'minimal', label: 'Bodyweight Only', iosIcon: 'figure.walk', androidIcon: 'directions-walk' },
         ].map((option) => (
           <TouchableOpacity
             key={option.id}
@@ -212,8 +232,8 @@ export default function OnboardingScreen() {
             onPress={() => setProfile({ ...profile, equipmentType: option.id as any })}
           >
             <IconSymbol
-              ios_icon_name={option.icon}
-              android_material_icon_name="fitness-center"
+              ios_icon_name={option.iosIcon}
+              android_material_icon_name={option.androidIcon}
               size={50}
               color={profile.equipmentType === option.id ? colors.primary : colors.grey}
             />
@@ -229,7 +249,6 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  // Step 6: Goal + Body Stats
   const renderStep6 = () => (
     <ScrollView 
       style={styles.scrollContainer}
@@ -241,10 +260,10 @@ export default function OnboardingScreen() {
       
       <View style={styles.goalsContainer}>
         {[
-          { id: 'strength', label: 'Build Strength', icon: 'bolt' },
-          { id: 'muscle', label: 'Gain Muscle', icon: 'figure.strengthtraining.traditional' },
-          { id: 'endurance', label: 'Improve Endurance', icon: 'figure.run' },
-          { id: 'weight-loss', label: 'Lose Weight', icon: 'flame' },
+          { id: 'strength', label: 'Build Strength', iosIcon: 'bolt.fill', androidIcon: 'flash-on' },
+          { id: 'muscle', label: 'Gain Muscle', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
+          { id: 'endurance', label: 'Improve Endurance', iosIcon: 'figure.run', androidIcon: 'directions-run' },
+          { id: 'weight-loss', label: 'Lose Weight', iosIcon: 'flame.fill', androidIcon: 'local-fire-department' },
         ].map((goal) => (
           <TouchableOpacity
             key={goal.id}
@@ -255,8 +274,8 @@ export default function OnboardingScreen() {
             onPress={() => setProfile({ ...profile, goal: goal.id as any })}
           >
             <IconSymbol
-              ios_icon_name={goal.icon}
-              android_material_icon_name="fitness-center"
+              ios_icon_name={goal.iosIcon}
+              android_material_icon_name={goal.androidIcon}
               size={40}
               color={profile.goal === goal.id ? colors.primary : colors.grey}
             />
@@ -292,6 +311,18 @@ export default function OnboardingScreen() {
             placeholderTextColor={colors.grey}
             value={profile.height?.toString()}
             onChangeText={(text) => setProfile({ ...profile, height: parseFloat(text) || 0 })}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Age (years)</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            placeholder="25"
+            placeholderTextColor={colors.grey}
+            value={profile.age?.toString()}
+            onChangeText={(text) => setProfile({ ...profile, age: parseInt(text) || 0 })}
           />
         </View>
       </View>

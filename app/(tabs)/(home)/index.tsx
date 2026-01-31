@@ -243,6 +243,19 @@ export default function HomeScreen() {
               />
               <Text style={styles.actionText}>Community</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/meal-plans')}
+            >
+              <IconSymbol
+                ios_icon_name="fork.knife.circle.fill"
+                android_material_icon_name="restaurant-menu"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.actionText}>Meal Plans</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

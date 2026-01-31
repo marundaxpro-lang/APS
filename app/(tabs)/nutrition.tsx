@@ -12,15 +12,18 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { foodDatabase } from '@/data/foods';
-import { MealEntry, FoodItem } from '@/types/fitness';
+import { MealEntry, FoodItem, CaloricGoal } from '@/types/fitness';
 import { authenticatedPost, authenticatedGet } from '@/utils/api';
 import AIAssistant from '@/components/AIAssistant';
 
 export default function NutritionScreen() {
+  const router = useRouter();
   const [meals, setMeals] = useState<MealEntry[]>([]);
+  const [caloricGoal, setCaloricGoal] = useState<CaloricGoal | null>(null);
   const [showFoodModal, setShowFoodModal] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snacks'>('breakfast');
@@ -31,6 +34,7 @@ export default function NutritionScreen() {
 
   useEffect(() => {
     loadMeals();
+    loadCaloricGoal();
   }, []);
 
   const loadMeals = async () => {
@@ -49,7 +53,42 @@ export default function NutritionScreen() {
     }
   };
 
-  const goals = {
+  const loadCaloricGoal = async () => {
+    try {
+      const goalData = await authenticatedGet('/api/dashboard/caloric-goal');
+      if (goalData) {
+        // Calculate macros from calorie goal
+        // Protein: 30% of calories
+        // Fat: 25% of calories
+        // Carbs: 45% of calories
+        const calories = goalData.dailyCalorieGoal;
+        const proteinCalories = calories * 0.30;
+        const fatCalories = calories * 0.25;
+        const carbsCalories = calories * 0.45;
+        
+        const goal: CaloricGoal = {
+          dailyCalorieGoal: calories,
+          bmr: goalData.basalMetabolicRate || 0,
+          tdee: calories,
+          proteinGoal: Math.round(proteinCalories / 4), // 4 cal per gram
+          carbsGoal: Math.round(carbsCalories / 4), // 4 cal per gram
+          fatGoal: Math.round(fatCalories / 9), // 9 cal per gram
+        };
+        
+        setCaloricGoal(goal);
+        console.log('[Nutrition] Loaded caloric goal:', goal);
+      }
+    } catch (error) {
+      console.error('[Nutrition] Error loading caloric goal:', error);
+    }
+  };
+
+  const goals = caloricGoal ? {
+    calories: caloricGoal.dailyCalorieGoal,
+    protein: caloricGoal.proteinGoal,
+    carbs: caloricGoal.carbsGoal,
+    fat: caloricGoal.fatGoal,
+  } : {
     calories: 2500,
     protein: 180,
     carbs: 250,
@@ -83,10 +122,8 @@ export default function NutritionScreen() {
         meal_type: selectedMealType,
       };
       
-      // Optimistically update UI
       setMeals([...meals, newMeal]);
       
-      // Save to backend
       try {
         const mealData = {
           food_item_id: selectedFood.id,
@@ -139,17 +176,30 @@ export default function NutritionScreen() {
             <Text style={styles.title}>Nutrition</Text>
             <Text style={styles.subtitle}>Track your daily intake</Text>
           </View>
-          <TouchableOpacity
-            style={styles.aiButton}
-            onPress={() => setShowAIAssistant(true)}
-          >
-            <IconSymbol
-              ios_icon_name="sparkles"
-              android_material_icon_name="auto-awesome"
-              size={24}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push('/meal-plans')}
+            >
+              <IconSymbol
+                ios_icon_name="book.fill"
+                android_material_icon_name="menu-book"
+                size={24}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowAIAssistant(true)}
+            >
+              <IconSymbol
+                ios_icon_name="sparkles"
+                android_material_icon_name="auto-awesome"
+                size={24}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.caloriesCard}>
@@ -344,7 +394,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
-  aiButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
     width: 48,
     height: 48,
     borderRadius: 24,

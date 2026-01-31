@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   AppState,
   AppStateStatus,
   Platform,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WeeklyTask, TimerType } from '@/types/fitness';
@@ -53,6 +54,15 @@ export default function FocusScreen() {
   const [selectedHour, setSelectedHour] = useState(9);
   const [selectedMinute, setSelectedMinute] = useState(0);
   const [taskTime, setTaskTime] = useState('');
+  const [pulseAnim] = useState(new Animated.Value(1));
+
+  const handleAppStateChange = useCallback(async (nextAppState: AppStateStatus) => {
+    if (nextAppState === 'active') {
+      await loadTimerState();
+    } else if (nextAppState === 'background') {
+      await saveTimerState(isTimerRunning, timeLeft);
+    }
+  }, [isTimerRunning, timeLeft]);
 
   useEffect(() => {
     loadTasks();
@@ -63,7 +73,7 @@ export default function FocusScreen() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [handleAppStateChange]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -80,17 +90,30 @@ export default function FocusScreen() {
       saveTimerState(false, 0);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft, selectedTimer]);
+  }, [isTimerRunning, timeLeft, selectedTimer, saveTimerState]);
 
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    if (nextAppState === 'active') {
-      await loadTimerState();
-    } else if (nextAppState === 'background') {
-      await saveTimerState(isTimerRunning, timeLeft);
+  useEffect(() => {
+    if (isTimerRunning) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
     }
-  };
+  }, [isTimerRunning, pulseAnim]);
 
-  const saveTimerState = async (running: boolean, time: number) => {
+  const saveTimerState = useCallback(async (running: boolean, time: number) => {
     try {
       const state: TimerState = {
         isRunning: running,
@@ -103,7 +126,7 @@ export default function FocusScreen() {
     } catch (error) {
       console.error('Error saving timer state:', error);
     }
-  };
+  }, [selectedTimer]);
 
   const loadTimerState = async () => {
     try {
@@ -272,38 +295,81 @@ export default function FocusScreen() {
 
   const canAddTask = newTask.trim() && taskTime;
 
+  const completedTasksCount = tasks.filter(t => t.completed).length;
+  const totalTasksCount = tasks.length;
+  const progressPercentage = totalTasksCount > 0 ? (completedTasksCount / totalTasksCount) * 100 : 0;
+
   return (
     <View style={styles.container}>
       <ParticleBackground />
       
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.title}>Focus Hub</Text>
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>Focus Hub</Text>
+          <Text style={styles.subtitle}>Your productivity command center</Text>
+        </View>
 
-        <View style={styles.timerCard}>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check-circle" size={32} color={colors.primary} />
+            <Text style={styles.statValue}>{completedTasksCount}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <IconSymbol ios_icon_name="list.bullet" android_material_icon_name="list" size={32} color={colors.warning} />
+            <Text style={styles.statValue}>{totalTasksCount - completedTasksCount}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={32} color={colors.success} />
+            <Text style={styles.statValue}>{Math.round(progressPercentage)}%</Text>
+            <Text style={styles.statLabel}>Progress</Text>
+          </View>
+        </View>
+
+        <Animated.View style={[styles.timerCard, { transform: [{ scale: pulseAnim }] }]}>
           {isTimerRunning ? (
             <>
-              <Text style={styles.timerLabel}>{selectedTimer?.name}</Text>
+              <View style={styles.timerActiveHeader}>
+                <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={40} color={colors.primary} />
+                <Text style={styles.timerLabel}>{selectedTimer?.name}</Text>
+              </View>
               <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
+              <View style={styles.timerProgress}>
+                <View 
+                  style={[
+                    styles.timerProgressFill, 
+                    { width: `${((selectedTimer?.duration || 1) - timeLeft) / (selectedTimer?.duration || 1) * 100}%` }
+                  ]} 
+                />
+              </View>
               <TouchableOpacity
                 style={styles.stopButton}
                 onPress={stopTimer}
               >
-                <Text style={styles.buttonText}>Stop</Text>
+                <IconSymbol ios_icon_name="stop.fill" android_material_icon_name="stop" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Stop Session</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={60} color={colors.primary} />
-              <Text style={styles.timerLabel}>Ready to focus?</Text>
+              <View style={styles.timerIdleContent}>
+                <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={80} color={colors.primary} />
+                <Text style={styles.timerIdleTitle}>Ready to Focus?</Text>
+                <Text style={styles.timerIdleSubtitle}>Choose a timer to start your session</Text>
+              </View>
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={() => setShowTimerModal(true)}
               >
-                <Text style={styles.buttonText}>Choose Timer</Text>
+                <IconSymbol ios_icon_name="play.fill" android_material_icon_name="play-arrow" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Start Focus Session</Text>
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </Animated.View>
 
         <TouchableOpacity style={styles.addTaskButton} onPress={openTaskModal}>
           <IconSymbol ios_icon_name="plus.circle.fill" android_material_icon_name="add-circle" size={24} color="#fff" />
@@ -313,7 +379,11 @@ export default function FocusScreen() {
         <View style={styles.tasksSection}>
           <Text style={styles.sectionTitle}>Weekly Tasks</Text>
           {Object.keys(tasksByDay).length === 0 ? (
-            <Text style={styles.emptyText}>No tasks scheduled. Add one above!</Text>
+            <View style={styles.emptyState}>
+              <IconSymbol ios_icon_name="tray" android_material_icon_name="inbox" size={60} color={colors.grey} />
+              <Text style={styles.emptyText}>No tasks scheduled</Text>
+              <Text style={styles.emptySubtext}>Add your first task to get started!</Text>
+            </View>
           ) : (
             Object.entries(tasksByDay)
               .sort(([dayA], [dayB]) => parseInt(dayA) - parseInt(dayB))
@@ -656,41 +726,112 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 100,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
+  headerSection: {
     marginBottom: 24,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   timerCard: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 24,
-    padding: 40,
+    padding: 32,
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
+  timerActiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
   timerLabel: {
-    fontSize: 18,
-    color: colors.grey,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  timerDisplay: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 16,
+  },
+  timerProgress: {
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  timerProgressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
+  timerIdleContent: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  timerIdleTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
-  timerDisplay: {
-    fontSize: 64,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 24,
+  timerIdleSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   startButton: {
     backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,
   },
   stopButton: {
     backgroundColor: '#ef4444',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,
@@ -724,11 +865,20 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
   emptyText: {
-    color: colors.grey,
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 8,
   },
   daySection: {
     marginBottom: 24,

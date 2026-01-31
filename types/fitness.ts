@@ -1,7 +1,8 @@
 
 export interface FitnessProfile {
-  name?: string; // Optional name field
+  name?: string;
   gender: 'male' | 'female';
+  age?: number;
   trainingDays: number;
   focusAreas: string[];
   equipmentType: 'gym' | 'home' | 'minimal';
@@ -61,9 +62,9 @@ export interface Measurement {
 
 export interface MealEntry {
   id: string;
-  foodId: string;
+  food_item: FoodItem;
   grams: number;
-  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
 }
 
 export interface FoodItem {
@@ -73,7 +74,7 @@ export interface FoodItem {
   protein: number;
   carbs: number;
   fat: number;
-  per100g: boolean;
+  premium?: boolean;
 }
 
 export interface DashboardStats {
@@ -81,4 +82,41 @@ export interface DashboardStats {
   tasksCompleted: number;
   currentStreak: number;
   todaysCalories: number;
+}
+
+export interface MealPlan {
+  id: string;
+  name: string;
+  description: string;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  difficultyLevel: 'easy' | 'medium' | 'hard';
+  prepTimeMinutes: number;
+  meals: MealPlanMeal[];
+}
+
+export interface MealPlanMeal {
+  id: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  name: string;
+  description: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  ingredients: string[];
+  instructions: string[];
+  imageUrl?: string;
+  prepTimeMinutes: number;
+}
+
+export interface CaloricGoal {
+  dailyCalorieGoal: number;
+  bmr: number;
+  tdee: number;
+  proteinGoal: number;
+  carbsGoal: number;
+  fatGoal: number;
 }

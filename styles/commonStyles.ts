@@ -11,5 +11,6 @@ export const colors = {
   success: '#4ade80',
   error: '#ef4444',
   warning: '#fbbf24',
+  orange: '#f59e0b',
   grey: '#6b7280',
 };
