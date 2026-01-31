@@ -42,14 +42,16 @@ export default function OnboardingScreen() {
     try {
       const { authenticatedPost } = await import('@/utils/api');
       
-      // Save fitness profile
+      // Save fitness profile to backend
+      console.log('[Onboarding] Saving fitness profile to backend...');
       await authenticatedPost('/api/fitness-profile', {
         experienceLevel: 'beginner',
         goal: finalProfile.goal || 'muscle',
         trainingFrequency: finalProfile.trainingDays || 3,
       });
+      console.log('[Onboarding] Fitness profile saved successfully');
       
-      // Calculate calorie goal
+      // Calculate calorie goal based on user input
       const activityLevel = finalProfile.trainingDays >= 5 ? 'active' : 
                            finalProfile.trainingDays >= 3 ? 'moderate' : 'light';
       
@@ -61,7 +63,7 @@ export default function OnboardingScreen() {
         backendGoal = 'weight_gain';
       }
       
-      await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
+      console.log('[Onboarding] Calculating caloric goal with:', {
         age: finalProfile.age || 25,
         gender: finalProfile.gender || 'male',
         weight: finalProfile.weight || 70,
@@ -70,9 +72,21 @@ export default function OnboardingScreen() {
         goal: backendGoal,
       });
       
-      console.log('[Onboarding] Profile and calorie goal saved to backend');
+      const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
+        age: finalProfile.age || 25,
+        gender: finalProfile.gender || 'male',
+        weight: finalProfile.weight || 70,
+        height: finalProfile.height || 175,
+        activityLevel,
+        goal: backendGoal,
+      });
+      
+      console.log('[Onboarding] Caloric goal calculated:', caloricGoalResponse);
+      console.log('[Onboarding] Profile setup complete - daily calorie goal:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
+      // Continue to home screen even if backend save fails
+      // The local profile is already saved
     }
     
     router.replace('/(tabs)/(home)');

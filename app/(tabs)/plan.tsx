@@ -251,7 +251,9 @@ export default function PlanScreen() {
 
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 0; hour < 24; hour++) {
+    // Only show active hours (6 AM to 11 PM) to reduce scrolling
+    // Most tasks and workouts happen during daytime, not at night
+    for (let hour = 6; hour <= 23; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;

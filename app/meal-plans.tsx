@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -43,13 +44,15 @@ export default function MealPlansScreen() {
         authenticatedGet('/api/dashboard/caloric-goal'),
       ]);
       
-      if (plans) setMealPlans(plans);
+      if (plans && Array.isArray(plans)) {
+        setMealPlans(plans);
+      }
       
-      if (goalData) {
+      if (goalData && goalData.dailyCalorieGoal) {
         // Calculate macros from calorie goal
-        // Protein: 2g per kg bodyweight (estimate 30% of calories)
-        // Fat: 25% of calories
-        // Carbs: remaining calories
+        // Protein: 30% of calories (4 cal per gram)
+        // Fat: 25% of calories (9 cal per gram)
+        // Carbs: 45% of calories (4 cal per gram)
         const calories = goalData.dailyCalorieGoal;
         const proteinCalories = calories * 0.30;
         const fatCalories = calories * 0.25;
@@ -65,9 +68,12 @@ export default function MealPlansScreen() {
         };
         
         setCaloricGoal(goal);
+        console.log('[MealPlans] Loaded caloric goal:', goal);
+      } else {
+        console.warn('[MealPlans] No caloric goal found - user may need to complete onboarding');
       }
       
-      console.log('[MealPlans] Loaded meal plans and caloric goal');
+      console.log('[MealPlans] Loaded', plans?.length || 0, 'meal plans');
     } catch (error) {
       console.error('[MealPlans] Error loading data:', error);
     } finally {
@@ -77,7 +83,16 @@ export default function MealPlansScreen() {
 
   const generateMealPlan = async () => {
     if (!caloricGoal) {
-      console.log('[MealPlans] No caloric goal available');
+      console.warn('[MealPlans] No caloric goal available - cannot generate meal plan');
+      if (Platform.OS === 'web') {
+        alert('Please complete your profile setup first to calculate your caloric goal.');
+      } else {
+        Alert.alert(
+          'Caloric Goal Required',
+          'Please complete your profile setup first to calculate your caloric goal.',
+          [{ text: 'OK' }]
+        );
+      }
       return;
     }
     
@@ -85,17 +100,58 @@ export default function MealPlansScreen() {
       setGenerating(true);
       console.log('[MealPlans] Generating meal plan for', caloricGoal.dailyCalorieGoal, 'calories');
       
-      const newPlan = await authenticatedPost('/api/meal-plans/generate', {
+      const generatedPlan = await authenticatedPost('/api/meal-plans/generate', {
         calorieGoal: caloricGoal.dailyCalorieGoal,
         dietaryPreferences: [],
       });
       
-      if (newPlan) {
-        setMealPlans([newPlan, ...mealPlans]);
-        console.log('[MealPlans] Generated new meal plan');
+      if (generatedPlan && generatedPlan.meals) {
+        console.log('[MealPlans] Generated meal plan:', generatedPlan.name, 'with', generatedPlan.meals.length, 'meals');
+        
+        // Save the generated plan to the database using the correct endpoint
+        try {
+          const savedPlan = await authenticatedPost('/api/meal-plans/save', {
+            name: generatedPlan.name,
+            description: generatedPlan.description,
+            meals: generatedPlan.meals,
+            totalCalories: generatedPlan.totalCalories,
+            totalProtein: generatedPlan.totalProtein,
+            totalCarbs: generatedPlan.totalCarbs,
+            totalFat: generatedPlan.totalFat,
+            difficultyLevel: generatedPlan.difficultyLevel,
+            prepTimeMinutes: generatedPlan.prepTimeMinutes,
+          });
+          
+          if (savedPlan) {
+            console.log('[MealPlans] Successfully saved meal plan to database with ID:', savedPlan.id);
+            // Reload meal plans to show the newly saved one
+            await loadData();
+          }
+        } catch (saveError) {
+          console.error('[MealPlans] Error saving meal plan to database:', saveError);
+          // Still show the generated plan even if save fails
+          setMealPlans([generatedPlan, ...mealPlans]);
+          if (Platform.OS === 'web') {
+            alert('Meal plan generated but could not be saved. Please try again.');
+          } else {
+            Alert.alert('Warning', 'Meal plan generated but could not be saved. Please try again.');
+          }
+        }
+      } else {
+        console.error('[MealPlans] Generated plan is invalid or missing meals');
+        if (Platform.OS === 'web') {
+          alert('Failed to generate meal plan. Please try again.');
+        } else {
+          Alert.alert('Error', 'Failed to generate meal plan. Please try again.');
+        }
       }
     } catch (error) {
       console.error('[MealPlans] Error generating meal plan:', error);
+      if (Platform.OS === 'web') {
+        alert('Failed to generate meal plan. Please check your connection and try again.');
+      } else {
+        Alert.alert('Error', 'Failed to generate meal plan. Please check your connection and try again.');
+      }
     } finally {
       setGenerating(false);
     }

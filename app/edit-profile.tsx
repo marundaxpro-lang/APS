@@ -52,9 +52,11 @@ export default function EditProfileScreen() {
           goal: profile.goal || 'muscle',
           trainingFrequency: profile.trainingDays || 3,
         });
+        console.log('[EditProfile] Fitness profile saved to backend');
         
         // Recalculate calorie goal if weight/height/age changed
         if (profile.weight && profile.height && profile.age && profile.gender) {
+          console.log('[EditProfile] Recalculating caloric goal based on updated profile...');
           const activityLevel = (profile.trainingDays || 3) >= 5 ? 'active' : 
                                (profile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
           
@@ -65,7 +67,7 @@ export default function EditProfileScreen() {
             backendGoal = 'weight_gain';
           }
           
-          await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
+          const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
             age: profile.age,
             gender: profile.gender,
             weight: profile.weight,
@@ -73,18 +75,28 @@ export default function EditProfileScreen() {
             activityLevel,
             goal: backendGoal,
           });
+          
+          console.log('[EditProfile] Caloric goal recalculated:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
         }
         
-        console.log('[EditProfile] Profile saved to backend');
+        console.log('[EditProfile] Profile and caloric goal saved successfully');
       } catch (error) {
         console.error('[EditProfile] Error saving to backend:', error);
       }
       
-      Alert.alert('Success', 'Profile updated successfully');
+      if (Platform.OS === 'web') {
+        alert('Profile updated successfully! Your caloric goal has been recalculated.');
+      } else {
+        Alert.alert('Success', 'Profile updated successfully! Your caloric goal has been recalculated.');
+      }
       router.back();
     } catch (error) {
       console.error('[EditProfile] Error saving profile:', error);
-      Alert.alert('Error', 'Failed to save profile');
+      if (Platform.OS === 'web') {
+        alert('Failed to save profile. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to save profile. Please try again.');
+      }
     }
   };
 
@@ -143,6 +155,18 @@ export default function EditProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Body Stats</Text>
+          
+          <View style={styles.infoCard}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.infoText}>
+              Updating your body stats will automatically recalculate your daily caloric goal
+            </Text>
+          </View>
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Weight (kg)</Text>
@@ -227,6 +251,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
   },
   inputGroup: {
     marginBottom: 16,

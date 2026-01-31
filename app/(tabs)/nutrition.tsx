@@ -56,11 +56,11 @@ export default function NutritionScreen() {
   const loadCaloricGoal = async () => {
     try {
       const goalData = await authenticatedGet('/api/dashboard/caloric-goal');
-      if (goalData) {
+      if (goalData && goalData.dailyCalorieGoal) {
         // Calculate macros from calorie goal
-        // Protein: 30% of calories
-        // Fat: 25% of calories
-        // Carbs: 45% of calories
+        // Protein: 30% of calories (4 cal per gram)
+        // Fat: 25% of calories (9 cal per gram)
+        // Carbs: 45% of calories (4 cal per gram)
         const calories = goalData.dailyCalorieGoal;
         const proteinCalories = calories * 0.30;
         const fatCalories = calories * 0.25;
@@ -76,10 +76,14 @@ export default function NutritionScreen() {
         };
         
         setCaloricGoal(goal);
-        console.log('[Nutrition] Loaded caloric goal:', goal);
+        console.log('[Nutrition] Loaded caloric goal from backend:', goal);
+      } else {
+        console.warn('[Nutrition] No caloric goal found - using default 2500 calories');
+        // User hasn't completed onboarding or calorie calculation failed
       }
     } catch (error) {
       console.error('[Nutrition] Error loading caloric goal:', error);
+      console.warn('[Nutrition] Falling back to default 2500 calories');
     }
   };
 
