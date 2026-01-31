@@ -656,10 +656,10 @@ Format the response as a JSON object with this structure:
   });
 
   /**
-   * POST /api/meal-plans/:id/save - Save a generated meal plan
+   * POST /api/meal-plans/save - Save a generated meal plan
    */
-  app.fastify.post('/api/meal-plans/:id/save', async (
-    request: FastifyRequest<{ Body: any; Params: { id: string } }>,
+  app.fastify.post('/api/meal-plans/save', async (
+    request: FastifyRequest<{ Body: any }>,
     reply: FastifyReply
   ): Promise<any> => {
     const session = await requireAuth(request, reply);
