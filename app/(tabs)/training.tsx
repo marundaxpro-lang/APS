@@ -79,10 +79,34 @@ export default function TrainingScreen() {
     setShowWeeklyModal(true);
   };
 
-  const handleSelectWorkout = (workout: WorkoutDay) => {
+  const handleSelectWorkout = async (workout: WorkoutDay) => {
     console.log('[Training] User selected workout:', workout.name);
     setTodaysWorkout(workout);
     setShowWeeklyModal(false);
+    
+    // Save the selected workout to AsyncStorage so workout-session can load it
+    try {
+      await AsyncStorage.setItem('selectedWorkout', JSON.stringify(workout));
+      console.log('[Training] Selected workout saved to AsyncStorage');
+    } catch (error) {
+      console.error('[Training] Error saving selected workout:', error);
+    }
+  };
+
+  const handleStartWorkout = async () => {
+    console.log('[Training] User tapped Start Workout button');
+    
+    if (todaysWorkout) {
+      // Save the workout to AsyncStorage before navigating
+      try {
+        await AsyncStorage.setItem('selectedWorkout', JSON.stringify(todaysWorkout));
+        console.log('[Training] Workout saved to AsyncStorage before starting session');
+      } catch (error) {
+        console.error('[Training] Error saving workout:', error);
+      }
+    }
+    
+    router.push('/workout-session');
   };
 
   if (loading) {
@@ -200,10 +224,7 @@ export default function TrainingScreen() {
 
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => {
-            console.log('[Training] User tapped Start Workout button');
-            router.push('/workout-session');
-          }}
+          onPress={handleStartWorkout}
         >
           <IconSymbol
             ios_icon_name="play.fill"

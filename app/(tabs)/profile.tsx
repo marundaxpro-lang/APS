@@ -103,6 +103,8 @@ export default function ProfileScreen() {
   }
 
   const displayName = profile?.name || user?.name || 'Athlete';
+  const genderText = profile?.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : 'Not set';
+  const goalText = profile?.goal ? profile.goal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Not set';
 
   return (
     <View style={styles.container}>
@@ -140,20 +142,18 @@ export default function ProfileScreen() {
             <Text style={styles.cardTitle}>Your Profile</Text>
             <View style={styles.profileRow}>
               <Text style={styles.profileLabel}>Gender</Text>
-              <Text style={styles.profileValue}>
-                {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
-              </Text>
+              <Text style={styles.profileValue}>{genderText}</Text>
             </View>
             <View style={styles.profileRow}>
               <Text style={styles.profileLabel}>Primary Goal</Text>
-              <Text style={styles.profileValue}>
-                {profile.goal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-              </Text>
+              <Text style={styles.profileValue}>{goalText}</Text>
             </View>
-            <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Training Frequency</Text>
-              <Text style={styles.profileValue}>{profile.trainingDays} days/week</Text>
-            </View>
+            {profile.trainingDays && (
+              <View style={styles.profileRow}>
+                <Text style={styles.profileLabel}>Training Frequency</Text>
+                <Text style={styles.profileValue}>{profile.trainingDays} days/week</Text>
+              </View>
+            )}
             {profile.weight && (
               <View style={styles.profileRow}>
                 <Text style={styles.profileLabel}>Weight</Text>

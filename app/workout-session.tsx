@@ -16,8 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import { FitnessProfile, Exercise } from '@/types/fitness';
-import { getTodaysWorkout } from '@/data/workouts';
+import { Exercise, WorkoutDay } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
 
 // Confetti component
@@ -103,6 +102,7 @@ export default function WorkoutSessionScreen() {
   const [completedExercises, setCompletedExercises] = useState<Set<string>>(
     new Set()
   );
+  const [loading, setLoading] = useState(true);
 
   // Video player for exercise demonstrations
   const currentExercise = exercises[currentExerciseIndex];
@@ -131,16 +131,24 @@ export default function WorkoutSessionScreen() {
 
   const loadWorkout = async () => {
     try {
-      const stored = await AsyncStorage.getItem('fitnessProfile');
-      if (stored) {
-        const profile: FitnessProfile = JSON.parse(stored);
-        const workout = getTodaysWorkout(profile);
-        if (workout) {
-          setExercises(workout.exercises);
-        }
+      console.log('[WorkoutSession] Loading workout from AsyncStorage');
+      
+      // Try to load the selected workout first
+      const selectedWorkoutData = await AsyncStorage.getItem('selectedWorkout');
+      
+      if (selectedWorkoutData) {
+        const workout: WorkoutDay = JSON.parse(selectedWorkoutData);
+        console.log('[WorkoutSession] Loaded selected workout:', workout.name);
+        setExercises(workout.exercises);
+        setLoading(false);
+        return;
       }
+      
+      console.log('[WorkoutSession] No selected workout found');
+      setLoading(false);
     } catch (error) {
-      console.error('Error loading workout:', error);
+      console.error('[WorkoutSession] Error loading workout:', error);
+      setLoading(false);
     }
   };
 
@@ -223,13 +231,40 @@ export default function WorkoutSessionScreen() {
     player.pause();
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ParticleBackground />
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>Loading workout...</Text>
+        </View>
+      </View>
+    );
+  }
+
   if (exercises.length === 0) {
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ headerShown: false }} />
         <ParticleBackground />
         <View style={styles.centered}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle"
+            android_material_icon_name="warning"
+            size={64}
+            color={colors.textSecondary}
+          />
           <Text style={styles.emptyText}>No workout loaded</Text>
+          <Text style={styles.emptySubtext}>
+            Please select a workout from the Training screen
+          </Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -433,10 +468,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 20,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
     color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  backButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   progressContainer: {
     marginBottom: 24,
