@@ -1,12 +1,12 @@
 
 import "react-native-reanimated";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert } from "react-native";
+import { useColorScheme } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -17,6 +17,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import Modal from "@/components/ui/Modal";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -31,6 +32,7 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
 
   useEffect(() => {
     if (loaded) {
@@ -43,10 +45,7 @@ export default function RootLayout() {
       !networkState.isConnected &&
       networkState.isInternetReachable === false
     ) {
-      Alert.alert(
-        "🔌 You are offline",
-        "You can keep using the app! Your changes will be saved locally and synced when you are back online."
-      );
+      setShowOfflineModal(true);
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
@@ -126,6 +125,15 @@ export default function RootLayout() {
           </WidgetProvider>
         </AuthProvider>
       </ThemeProvider>
+
+      <Modal
+        visible={showOfflineModal}
+        onClose={() => setShowOfflineModal(false)}
+        type="warning"
+        title="🔌 You are offline"
+        message="You can keep using the app! Your changes will be saved locally and synced when you are back online."
+        confirmText="OK"
+      />
     </>
   );
 }

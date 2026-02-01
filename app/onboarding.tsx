@@ -42,19 +42,31 @@ export default function OnboardingScreen() {
     try {
       const { authenticatedPost } = await import('@/utils/api');
       
-      // Save fitness profile to backend
-      console.log('[Onboarding] Saving fitness profile to backend...');
-      await authenticatedPost('/api/fitness-profile', {
+      // Calculate activity level based on training days
+      const activityLevel = (finalProfile.trainingDays || 3) >= 5 ? 'active' : 
+                           (finalProfile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
+      
+      // Save complete fitness profile to backend with ALL fields
+      console.log('[Onboarding] Saving complete fitness profile to backend...');
+      const profilePayload = {
         experienceLevel: 'beginner',
         goal: finalProfile.goal || 'muscle',
         trainingFrequency: finalProfile.trainingDays || 3,
-      });
-      console.log('[Onboarding] Fitness profile saved successfully');
+        gender: finalProfile.gender || 'male',
+        age: finalProfile.age || 25,
+        weight: finalProfile.weight || 70,
+        height: finalProfile.height || 175,
+        activityLevel,
+        focusAreas: finalProfile.focusAreas || [],
+        equipmentType: finalProfile.equipmentType || 'gym',
+        name: finalProfile.name || undefined,
+      };
+      
+      console.log('[Onboarding] Profile payload:', profilePayload);
+      await authenticatedPost('/api/fitness-profile', profilePayload);
+      console.log('[Onboarding] Complete fitness profile saved successfully');
       
       // Calculate calorie goal based on user input
-      const activityLevel = finalProfile.trainingDays >= 5 ? 'active' : 
-                           finalProfile.trainingDays >= 3 ? 'moderate' : 'light';
-      
       // Map frontend goal to backend goal format
       let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
       if (finalProfile.goal === 'weight-loss') {

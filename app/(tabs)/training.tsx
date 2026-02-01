@@ -28,6 +28,67 @@ export default function TrainingScreen() {
 
   const loadWorkout = useCallback(async () => {
     try {
+      // First try to load from backend to get the latest profile
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const backendProfile = await authenticatedGet('/api/fitness-profile');
+        
+        if (backendProfile) {
+          console.log('[Training] Raw backend profile:', backendProfile);
+          
+          // Map backend field names to frontend field names
+          // Backend uses: trainingFrequency, activityLevel, focusAreas, equipmentType
+          // Frontend uses: trainingDays, activityLevel, focusAreas, equipmentType
+          
+          // Provide sensible defaults based on gender if fields are missing
+          const defaultFocusAreas = backendProfile.gender === 'female' 
+            ? ['Glutes', 'Legs', 'Core'] 
+            : ['Chest', 'Back', 'Arms'];
+          
+          const mappedProfile: FitnessProfile = {
+            name: backendProfile.name || undefined,
+            gender: backendProfile.gender || 'male',
+            age: backendProfile.age || 25,
+            trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays || 3,
+            focusAreas: Array.isArray(backendProfile.focusAreas) && backendProfile.focusAreas.length > 0
+              ? backendProfile.focusAreas 
+              : defaultFocusAreas,
+            equipmentType: backendProfile.equipmentType || 'gym',
+            goal: backendProfile.goal || 'muscle',
+            weight: backendProfile.weight || 70,
+            height: backendProfile.height || 175,
+          };
+          
+          console.log('[Training] Mapped profile for workout generation:', mappedProfile);
+          console.log('[Training] Profile has required fields:', {
+            gender: mappedProfile.gender,
+            trainingDays: mappedProfile.trainingDays,
+            focusAreas: mappedProfile.focusAreas,
+            equipmentType: mappedProfile.equipmentType,
+          });
+          
+          setProfile(mappedProfile);
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
+          
+          // Generate weekly workout split with the complete profile
+          const weeklyWorkoutSplit = generateWorkoutSplit(mappedProfile);
+          console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
+          setWeeklyWorkouts(weeklyWorkoutSplit);
+          
+          // Get today's workout
+          const workout = getTodaysWorkout(mappedProfile);
+          console.log('[Training] Today\'s workout:', workout);
+          setTodaysWorkout(workout);
+          
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('[Training] Error loading profile from backend:', error);
+        console.log('[Training] Falling back to local storage');
+      }
+      
+      // Fallback to local storage
       const storedProfile = await AsyncStorage.getItem('fitnessProfile');
       if (!storedProfile) {
         router.replace('/onboarding');
@@ -35,34 +96,18 @@ export default function TrainingScreen() {
       }
 
       const profileData: FitnessProfile = JSON.parse(storedProfile);
+      console.log('[Training] Profile from local storage:', profileData);
       setProfile(profileData);
 
       // Generate weekly workout split
       const weeklyWorkoutSplit = generateWorkoutSplit(profileData);
+      console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
       setWeeklyWorkouts(weeklyWorkoutSplit);
 
-      // Try to load today's workout from backend
-      try {
-        const { authenticatedGet } = await import('@/utils/api');
-        const today = new Date().toISOString().split('T')[0];
-        const backendWorkouts = await authenticatedGet(`/api/workouts?date=${today}`);
-        
-        if (backendWorkouts && Array.isArray(backendWorkouts) && backendWorkouts.length > 0) {
-          // Use workout from backend if available
-          const workoutData = backendWorkouts[0];
-          setTodaysWorkout(workoutData);
-          console.log('[Training] Workout loaded from backend');
-        } else {
-          // Fallback to generated workout
-          const workout = getTodaysWorkout(profileData);
-          setTodaysWorkout(workout);
-        }
-      } catch (error) {
-        console.log('[Training] Could not load workout from backend, using generated workout');
-        // Fallback to generated workout
-        const workout = getTodaysWorkout(profileData);
-        setTodaysWorkout(workout);
-      }
+      // Get today's workout
+      const workout = getTodaysWorkout(profileData);
+      console.log('[Training] Today\'s workout:', workout);
+      setTodaysWorkout(workout);
     } catch (error) {
       console.error('[Training] Error loading workout:', error);
     } finally {

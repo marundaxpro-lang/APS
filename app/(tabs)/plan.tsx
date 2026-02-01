@@ -54,17 +54,51 @@ export default function PlanScreen() {
 
   const loadProfile = async () => {
     try {
+      // First try to load from backend to get the latest profile
+      try {
+        const { authenticatedGet } = await import('@/utils/api');
+        const backendProfile = await authenticatedGet('/api/fitness-profile');
+        
+        if (backendProfile) {
+          console.log('[Plan] Raw backend profile:', backendProfile);
+          
+          // Map backend field names to frontend field names
+          const mappedProfile: FitnessProfile = {
+            ...backendProfile,
+            trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays || 3,
+            equipmentType: backendProfile.equipmentType || 'gym',
+            focusAreas: backendProfile.focusAreas || [],
+            gender: backendProfile.gender || 'male',
+            weight: backendProfile.weight || 70,
+            height: backendProfile.height || 175,
+            age: backendProfile.age || 25,
+          };
+          
+          console.log('[Plan] Mapped profile:', mappedProfile);
+          setProfile(mappedProfile);
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
+          
+          const split = generateWorkoutSplit(mappedProfile);
+          console.log('[Plan] Generated split:', split);
+          setWorkoutSplit(split);
+          return;
+        }
+      } catch (error) {
+        console.log('[Plan] Could not load profile from backend, using local storage');
+      }
+      
+      // Fallback to local storage
       const stored = await AsyncStorage.getItem('fitnessProfile');
       if (stored) {
         const profileData = JSON.parse(stored);
-        console.log('Loaded profile in plan screen:', profileData);
+        console.log('[Plan] Loaded profile from local storage:', profileData);
         setProfile(profileData);
         const split = generateWorkoutSplit(profileData);
-        console.log('Generated split in plan screen:', split);
+        console.log('[Plan] Generated split:', split);
         setWorkoutSplit(split);
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('[Plan] Error loading profile:', error);
     }
   };
 

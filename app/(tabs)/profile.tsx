@@ -32,8 +32,19 @@ export default function ProfileScreen() {
       try {
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         if (backendProfile) {
-          setProfile(backendProfile);
-          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(backendProfile));
+          console.log('[Profile] Raw backend profile:', backendProfile);
+          
+          // Map backend field names to frontend field names
+          const mappedProfile = {
+            ...backendProfile,
+            trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays,
+            equipmentType: backendProfile.equipmentType || 'gym',
+            focusAreas: backendProfile.focusAreas || [],
+          };
+          
+          console.log('[Profile] Mapped profile:', mappedProfile);
+          setProfile(mappedProfile);
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
           console.log('[Profile] Profile loaded from backend');
           return;
         }

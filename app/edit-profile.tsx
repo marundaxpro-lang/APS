@@ -7,8 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Platform,
-  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,11 +15,14 @@ import { colors } from '@/styles/commonStyles';
 import ParticleBackground from '@/components/ParticleBackground';
 import { FitnessProfile } from '@/types/fitness';
 import { authenticatedPost } from '@/utils/api';
+import Modal from '@/components/ui/Modal';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
   const [loading, setLoading] = useState(true);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -46,19 +47,32 @@ export default function EditProfileScreen() {
       await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
       
       try {
-        // Save to backend with correct format
-        await authenticatedPost('/api/fitness-profile', {
+        // Calculate activity level based on training days
+        const activityLevel = (profile.trainingDays || 3) >= 5 ? 'active' : 
+                             (profile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
+        
+        // Save complete profile to backend with ALL fields
+        const profilePayload = {
           experienceLevel: 'beginner',
           goal: profile.goal || 'muscle',
           trainingFrequency: profile.trainingDays || 3,
-        });
-        console.log('[EditProfile] Fitness profile saved to backend');
+          gender: profile.gender || 'male',
+          age: profile.age || 25,
+          weight: profile.weight || 70,
+          height: profile.height || 175,
+          activityLevel,
+          focusAreas: profile.focusAreas || [],
+          equipmentType: profile.equipmentType || 'gym',
+          name: profile.name || undefined,
+        };
+        
+        console.log('[EditProfile] Saving complete profile payload:', profilePayload);
+        await authenticatedPost('/api/fitness-profile', profilePayload);
+        console.log('[EditProfile] Complete fitness profile saved to backend');
         
         // Recalculate calorie goal if weight/height/age changed
         if (profile.weight && profile.height && profile.age && profile.gender) {
           console.log('[EditProfile] Recalculating caloric goal based on updated profile...');
-          const activityLevel = (profile.trainingDays || 3) >= 5 ? 'active' : 
-                               (profile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
           
           let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
           if (profile.goal === 'weight-loss') {
@@ -84,19 +98,10 @@ export default function EditProfileScreen() {
         console.error('[EditProfile] Error saving to backend:', error);
       }
       
-      if (Platform.OS === 'web') {
-        alert('Profile updated successfully! Your caloric goal has been recalculated.');
-      } else {
-        Alert.alert('Success', 'Profile updated successfully! Your caloric goal has been recalculated.');
-      }
-      router.back();
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('[EditProfile] Error saving profile:', error);
-      if (Platform.OS === 'web') {
-        alert('Failed to save profile. Please try again.');
-      } else {
-        Alert.alert('Error', 'Failed to save profile. Please try again.');
-      }
+      setShowErrorModal(true);
     }
   };
 
@@ -227,6 +232,27 @@ export default function EditProfileScreen() {
           <Text style={styles.saveButtonText}>Save Changes</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          router.back();
+        }}
+        type="success"
+        title="Success"
+        message="Profile updated successfully! Your caloric goal has been recalculated."
+        confirmText="OK"
+      />
+
+      <Modal
+        visible={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        type="error"
+        title="Error"
+        message="Failed to save profile. Please try again."
+        confirmText="OK"
+      />
     </View>
   );
 }
