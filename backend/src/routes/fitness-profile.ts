@@ -5,14 +5,17 @@ import * as schema from '../db/schema.js';
 import { z } from 'zod';
 
 const fitnessProfileSchema = z.object({
+  name: z.string().optional(),
   experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   goal: z.string(),
-  trainingFrequency: z.number().optional(),
+  trainingFrequency: z.number().int().optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
   weight: z.number().positive().optional(), // in kg
   height: z.number().positive().optional(), // in cm
   age: z.number().int().positive().optional(),
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']).optional(),
+  equipmentType: z.enum(['gym', 'home', 'minimal']).optional(),
+  focusAreas: z.array(z.string()).optional(), // e.g., ['chest', 'back', 'legs']
 });
 
 const calculateCaloriesSchema = z.object({
@@ -96,11 +99,36 @@ export function registerFitnessProfileRoutes(app: App) {
     try {
       const validation = fitnessProfileSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid fitness profile request body');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
-      const { experienceLevel, goal, trainingFrequency } = validation.data;
+      const {
+        name,
+        experienceLevel,
+        goal,
+        trainingFrequency,
+        gender,
+        weight,
+        height,
+        age,
+        activityLevel,
+        equipmentType,
+        focusAreas,
+      } = validation.data;
       const userId = session.user.id;
+
+      app.logger.info(
+        {
+          userId,
+          goal,
+          trainingFrequency,
+          gender,
+          equipmentType,
+          focusAreasCount: focusAreas?.length || 0,
+        },
+        'Saving fitness profile'
+      );
 
       // Check if profile exists
       const existingProfile = await app.db
@@ -114,18 +142,36 @@ export function registerFitnessProfileRoutes(app: App) {
         const [updated] = await app.db
           .update(schema.fitnessProfiles)
           .set({
+            name: name ?? existingProfile[0].name,
             experienceLevel: experienceLevel || existingProfile[0].experienceLevel,
             goal,
             trainingFrequency: trainingFrequency ?? existingProfile[0].trainingFrequency,
+            gender: gender ?? existingProfile[0].gender,
+            weight: weight ? (weight.toString() as any) : existingProfile[0].weight,
+            height: height ? (height.toString() as any) : existingProfile[0].height,
+            age: age ?? existingProfile[0].age,
+            activityLevel: activityLevel ?? existingProfile[0].activityLevel,
+            equipmentType: equipmentType ?? existingProfile[0].equipmentType,
+            focusAreas: focusAreas ?? existingProfile[0].focusAreas,
           })
           .where(eq(schema.fitnessProfiles.userId, userId))
           .returning();
 
+        app.logger.info({ profileId: updated.id }, 'Fitness profile updated successfully');
+
         return {
           id: updated.id,
+          name: updated.name,
           experienceLevel: updated.experienceLevel,
           goal: updated.goal,
           trainingFrequency: updated.trainingFrequency,
+          gender: updated.gender,
+          weight: updated.weight,
+          height: updated.height,
+          age: updated.age,
+          activityLevel: updated.activityLevel,
+          equipmentType: updated.equipmentType,
+          focusAreas: updated.focusAreas,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };
@@ -135,23 +181,41 @@ export function registerFitnessProfileRoutes(app: App) {
           .insert(schema.fitnessProfiles)
           .values({
             userId,
+            name: name || null,
             experienceLevel: experienceLevel || 'beginner',
             goal,
             trainingFrequency: trainingFrequency || 3,
+            gender: gender || null,
+            weight: weight ? (weight.toString() as any) : null,
+            height: height ? (height.toString() as any) : null,
+            age: age || null,
+            activityLevel: activityLevel || null,
+            equipmentType: equipmentType || null,
+            focusAreas: focusAreas || [],
           })
           .returning();
 
+        app.logger.info({ profileId: profile.id }, 'Fitness profile created successfully');
+
         return {
           id: profile.id,
+          name: profile.name,
           experienceLevel: profile.experienceLevel,
           goal: profile.goal,
           trainingFrequency: profile.trainingFrequency,
+          gender: profile.gender,
+          weight: profile.weight,
+          height: profile.height,
+          age: profile.age,
+          activityLevel: profile.activityLevel,
+          equipmentType: profile.equipmentType,
+          focusAreas: profile.focusAreas,
           createdAt: profile.createdAt,
           updatedAt: profile.updatedAt,
         };
       }
     } catch (error) {
-      app.logger.error(error, 'Error saving fitness profile');
+      app.logger.error({ err: error }, 'Error saving fitness profile');
       return reply.status(500).send({ error: 'Failed to save fitness profile' });
     }
   });
@@ -169,6 +233,8 @@ export function registerFitnessProfileRoutes(app: App) {
     try {
       const userId = session.user.id;
 
+      app.logger.info({ userId }, 'Retrieving fitness profile');
+
       const profile = await app.db
         .select()
         .from(schema.fitnessProfiles)
@@ -176,12 +242,20 @@ export function registerFitnessProfileRoutes(app: App) {
         .limit(1);
 
       if (profile.length === 0) {
+        app.logger.warn({ userId }, 'Fitness profile not found');
         return reply.status(404).send({ error: 'Fitness profile not found' });
       }
 
       const p = profile[0];
+
+      app.logger.info(
+        { profileId: p.id, goal: p.goal, equipmentType: p.equipmentType },
+        'Fitness profile retrieved successfully'
+      );
+
       return {
         id: p.id,
+        name: p.name,
         experienceLevel: p.experienceLevel,
         goal: p.goal,
         trainingFrequency: p.trainingFrequency,
@@ -190,11 +264,13 @@ export function registerFitnessProfileRoutes(app: App) {
         height: p.height,
         age: p.age,
         activityLevel: p.activityLevel,
+        equipmentType: p.equipmentType,
+        focusAreas: p.focusAreas || [],
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error retrieving fitness profile');
+      app.logger.error({ err: error }, 'Error retrieving fitness profile');
       return reply.status(500).send({ error: 'Failed to retrieve fitness profile' });
     }
   });
@@ -212,11 +288,17 @@ export function registerFitnessProfileRoutes(app: App) {
     try {
       const validation = calculateCaloriesSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid calculate calories request body');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
       const { gender, weight, height, age, activityLevel, goal } = validation.data;
       const userId = session.user.id;
+
+      app.logger.info(
+        { gender, weight, height, age, activityLevel, goal },
+        'Calculating caloric needs'
+      );
 
       // Calculate BMR and TDEE
       const bmr = calculateBMR(weight, height, age, gender);
@@ -236,6 +318,8 @@ export function registerFitnessProfileRoutes(app: App) {
         })
         .where(eq(schema.fitnessProfiles.userId, userId));
 
+      app.logger.info({ userId }, 'Updated fitness profile with biometric data');
+
       // Check if caloric goal exists
       const existingGoal = await app.db
         .select()
@@ -253,6 +337,11 @@ export function registerFitnessProfileRoutes(app: App) {
             activityLevel,
           })
           .where(eq(schema.userCaloricGoals.userId, userId));
+
+        app.logger.info(
+          { dailyCalorieGoal: Math.round(dailyCalorieGoal) },
+          'Updated user caloric goal'
+        );
       } else {
         // Create new goal
         await app.db.insert(schema.userCaloricGoals).values({
@@ -261,7 +350,24 @@ export function registerFitnessProfileRoutes(app: App) {
           basalMetabolicRate: Math.round(bmr),
           activityLevel,
         });
+
+        app.logger.info(
+          { dailyCalorieGoal: Math.round(dailyCalorieGoal) },
+          'Created new user caloric goal'
+        );
       }
+
+      app.logger.info(
+        {
+          bmr: Math.round(bmr),
+          tdee: Math.round(tdee),
+          dailyCalorieGoal: Math.round(dailyCalorieGoal),
+          proteinGoal: macros.protein,
+          carbsGoal: macros.carbs,
+          fatGoal: macros.fat,
+        },
+        'Caloric calculation completed'
+      );
 
       return {
         dailyCalorieGoal: Math.round(dailyCalorieGoal),
@@ -272,7 +378,7 @@ export function registerFitnessProfileRoutes(app: App) {
         fatGoal: macros.fat,
       };
     } catch (error) {
-      app.logger.error(error, 'Error calculating calories');
+      app.logger.error({ err: error }, 'Error calculating calories');
       return reply.status(500).send({ error: 'Failed to calculate calories' });
     }
   });

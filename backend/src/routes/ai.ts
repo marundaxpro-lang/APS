@@ -38,10 +38,16 @@ export function registerAiRoutes(app: App) {
     try {
       const validation = coachingChatSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid coaching chat request');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
       const { messages } = validation.data;
+
+      app.logger.info(
+        { messageCount: messages.length, userId: session.user.id },
+        'Starting AI coaching chat'
+      );
 
       const result = await streamText({
         model: gateway('openai/gpt-5.2'),
@@ -63,8 +69,10 @@ Provide evidence-based recommendations and encourage healthy habits.`,
       }
 
       reply.raw.end();
+
+      app.logger.info({ userId: session.user.id }, 'AI coaching chat completed');
     } catch (error) {
-      app.logger.error(error, 'Error in AI coaching chat');
+      app.logger.error({ err: error, userId: session.user.id }, 'Error in AI coaching chat');
       return reply.status(500).send({ error: 'Failed to generate coaching response' });
     }
   });
@@ -82,8 +90,11 @@ Provide evidence-based recommendations and encourage healthy habits.`,
     try {
       const validation = mealSuggestionsSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid meal suggestions request');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
+
+      app.logger.info({ userId: session.user.id }, 'Generating AI meal suggestions');
 
       const {
         targetCalories = 2000,
@@ -140,6 +151,15 @@ Always respond with valid JSON that can be parsed. Return an array of meal objec
         meals = text;
       }
 
+      app.logger.info(
+        {
+          userId: session.user.id,
+          mealCount: Array.isArray(meals) ? meals.length : 0,
+          targetCalories,
+        },
+        'AI meal suggestions generated'
+      );
+
       return {
         meals,
         targetMacros: {
@@ -150,7 +170,7 @@ Always respond with valid JSON that can be parsed. Return an array of meal objec
         },
       };
     } catch (error) {
-      app.logger.error(error, 'Error generating meal suggestions');
+      app.logger.error({ err: error, userId: session.user.id }, 'Error generating meal suggestions');
       return reply.status(500).send({ error: 'Failed to generate meal suggestions' });
     }
   });

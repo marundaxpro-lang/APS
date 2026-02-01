@@ -184,6 +184,7 @@ export const fitnessProfiles = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name'), // user's name/profile name
     experienceLevel: text('experience_level', { enum: ['beginner', 'intermediate', 'advanced'] }).default('beginner'),
     goal: text('goal').notNull(), // e.g., 'weight_loss', 'muscle_gain', 'maintenance'
     trainingFrequency: integer('training_frequency').default(3), // times per week
@@ -192,8 +193,10 @@ export const fitnessProfiles = pgTable(
     height: decimal('height', { precision: 5, scale: 2 }), // in cm
     age: integer('age'),
     activityLevel: text('activity_level', { enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'] }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+    equipmentType: text('equipment_type', { enum: ['gym', 'home', 'minimal'] }), // available equipment for workouts
+    focusAreas: jsonb('focus_areas').$type<string[]>().default([]), // e.g., ['chest', 'back', 'legs']
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (table) => [index('idx_user_profile').on(table.userId)]
 );

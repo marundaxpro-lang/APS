@@ -36,10 +36,14 @@ export function registerExerciseRoutes(app: App) {
     reply: FastifyReply
   ): Promise<any> => {
     try {
+      app.logger.info('Retrieving all exercises');
+
       const exercises = await app.db
         .select()
         .from(schema.exercises)
         .limit(1000);
+
+      app.logger.info({ exerciseCount: exercises.length }, 'Exercises retrieved successfully');
 
       return exercises.map((ex) => ({
         id: ex.id,
@@ -51,7 +55,7 @@ export function registerExerciseRoutes(app: App) {
         createdAt: ex.createdAt,
       }));
     } catch (error) {
-      app.logger.error(error, 'Error retrieving exercises');
+      app.logger.error({ err: error }, 'Error retrieving exercises');
       return reply.status(500).send({ error: 'Failed to retrieve exercises' });
     }
   });
@@ -66,6 +70,8 @@ export function registerExerciseRoutes(app: App) {
     try {
       const { id } = request.params;
 
+      app.logger.info({ exerciseId: id }, 'Retrieving exercise');
+
       const exercise = await app.db
         .select()
         .from(schema.exercises)
@@ -73,6 +79,7 @@ export function registerExerciseRoutes(app: App) {
         .limit(1);
 
       if (exercise.length === 0) {
+        app.logger.warn({ exerciseId: id }, 'Exercise not found');
         return reply.status(404).send({ error: 'Exercise not found' });
       }
 
@@ -102,7 +109,7 @@ export function registerExerciseRoutes(app: App) {
         createdAt: ex.createdAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error retrieving exercise');
+      app.logger.error({ err: error }, 'Error retrieving exercise');
       return reply.status(500).send({ error: 'Failed to retrieve exercise' });
     }
   });
@@ -120,10 +127,13 @@ export function registerExerciseRoutes(app: App) {
     try {
       const validation = createExerciseSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid create exercise request');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
       const { name, muscleGroup, equipmentType, description, isPremium } = validation.data;
+
+      app.logger.info({ name, muscleGroup, equipmentType }, 'Creating exercise');
 
       const [exercise] = await app.db
         .insert(schema.exercises)
@@ -146,7 +156,7 @@ export function registerExerciseRoutes(app: App) {
         createdAt: exercise.createdAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error creating exercise');
+      app.logger.error({ err: error }, 'Error creating exercise');
       return reply.status(500).send({ error: 'Failed to create exercise' });
     }
   });

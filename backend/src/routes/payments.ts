@@ -57,6 +57,7 @@ export function registerPaymentRoutes(app: App) {
     try {
       const validation = createCheckoutSchema.safeParse(request.body);
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid checkout request');
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
@@ -64,8 +65,12 @@ export function registerPaymentRoutes(app: App) {
       const userId = session.user.id;
       const userEmail = session.user.email;
 
+      app.logger.info({ userId, planType: plan_type }, 'Creating checkout session');
+
       // Free plan doesn't require checkout
       if (plan_type === 'free') {
+        app.logger.info({ userId }, 'Setting user to free plan');
+
         // Update subscription to free
         const existingSubscription = await app.db
           .select()
@@ -91,6 +96,8 @@ export function registerPaymentRoutes(app: App) {
             status: 'active',
           });
         }
+
+        app.logger.info({ userId }, 'User set to free plan successfully');
 
         return { checkoutUrl: success_url };
       }
@@ -182,16 +189,21 @@ export function registerPaymentRoutes(app: App) {
             .where(eq(schema.subscriptions.userId, userId));
         }
 
+        app.logger.info(
+          { userId, sessionId: checkoutSession.id, planType: plan_type },
+          'Checkout session created successfully'
+        );
+
         return {
           checkoutUrl: checkoutSession.url,
           sessionId: checkoutSession.id,
         };
       } catch (stripeError) {
-        app.logger.error(stripeError, 'Stripe checkout creation failed');
+        app.logger.error({ err: stripeError, userId }, 'Stripe checkout creation failed');
         return reply.status(500).send({ error: 'Failed to create checkout session' });
       }
     } catch (error) {
-      app.logger.error(error, 'Error creating checkout');
+      app.logger.error({ err: error }, 'Error creating checkout');
       return reply.status(500).send({ error: 'Failed to create checkout' });
     }
   });
@@ -204,9 +216,12 @@ export function registerPaymentRoutes(app: App) {
     reply: FastifyReply
   ): Promise<any> => {
     try {
+      app.logger.info('Processing Stripe webhook');
+
       // Verify webhook signature
       const signature = request.headers['stripe-signature'];
       if (!signature) {
+        app.logger.warn('Missing Stripe signature in webhook');
         return reply.status(400).send({ error: 'Missing signature' });
       }
 
@@ -220,9 +235,11 @@ export function registerPaymentRoutes(app: App) {
           getWebhookSecret()
         );
       } catch (err) {
-        app.logger.error(err, 'Webhook signature verification failed');
+        app.logger.error({ err }, 'Webhook signature verification failed');
         return reply.status(400).send({ error: 'Invalid signature' });
       }
+
+      app.logger.info({ eventType: event.type }, 'Processing Stripe event');
 
       // Handle specific events
       switch (event.type) {
@@ -314,9 +331,11 @@ export function registerPaymentRoutes(app: App) {
           break;
       }
 
+      app.logger.info('Stripe webhook processed successfully');
+
       return { received: true };
     } catch (error) {
-      app.logger.error(error, 'Webhook processing error');
+      app.logger.error({ err: error }, 'Webhook processing error');
       return reply.status(500).send({ error: 'Webhook processing failed' });
     }
   });
@@ -334,6 +353,8 @@ export function registerPaymentRoutes(app: App) {
     try {
       const userId = session.user.id;
 
+      app.logger.info({ userId }, 'Retrieving subscription status');
+
       // Get or create default subscription
       let subscription = await app.db
         .select()
@@ -342,6 +363,8 @@ export function registerPaymentRoutes(app: App) {
         .limit(1);
 
       if (subscription.length === 0) {
+        app.logger.info({ userId }, 'Creating default free subscription');
+
         // Create default free subscription
         const [newSub] = await app.db
           .insert(schema.subscriptions)
@@ -357,6 +380,11 @@ export function registerPaymentRoutes(app: App) {
 
       const sub = subscription[0];
 
+      app.logger.info(
+        { userId, planType: sub.planType, status: sub.status },
+        'Subscription status retrieved'
+      );
+
       return {
         id: sub.id,
         planType: sub.planType,
@@ -368,7 +396,7 @@ export function registerPaymentRoutes(app: App) {
         updatedAt: sub.updatedAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error retrieving subscription status');
+      app.logger.error({ err: error }, 'Error retrieving subscription status');
       return reply.status(500).send({ error: 'Failed to retrieve subscription status' });
     }
   });
@@ -389,6 +417,8 @@ export function registerPaymentRoutes(app: App) {
 
       const userId = session.user.id;
 
+      app.logger.info({ userId, immediate }, 'Cancelling subscription');
+
       // Get subscription
       const subscription = await app.db
         .select()
@@ -397,6 +427,7 @@ export function registerPaymentRoutes(app: App) {
         .limit(1);
 
       if (subscription.length === 0 || !subscription[0].stripeSubscriptionId) {
+        app.logger.warn({ userId }, 'No active subscription found for cancellation');
         return reply.status(400).send({ error: 'No active subscription found' });
       }
 
@@ -422,6 +453,8 @@ export function registerPaymentRoutes(app: App) {
           })
           .where(eq(schema.subscriptions.userId, userId));
 
+        app.logger.info({ userId, immediate }, 'Subscription cancelled successfully');
+
         return {
           success: true,
           message: immediate
@@ -429,11 +462,11 @@ export function registerPaymentRoutes(app: App) {
             : 'Subscription will be cancelled at the end of the billing period',
         };
       } catch (stripeError) {
-        app.logger.error(stripeError, 'Stripe cancellation failed');
+        app.logger.error({ err: stripeError, userId }, 'Stripe cancellation failed');
         return reply.status(500).send({ error: 'Failed to cancel subscription with Stripe' });
       }
     } catch (error) {
-      app.logger.error(error, 'Error cancelling subscription');
+      app.logger.error({ err: error }, 'Error cancelling subscription');
       return reply.status(500).send({ error: 'Failed to cancel subscription' });
     }
   });

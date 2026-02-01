@@ -31,8 +31,11 @@ export function registerProgressPhotoRoutes(app: App) {
     const userId = session.user.id;
 
     try {
+      app.logger.info({ userId }, 'Uploading progress photo');
+
       const data = await request.file();
       if (!data) {
+        app.logger.warn({ userId }, 'No file provided for progress photo upload');
         return reply.status(400).send({ error: 'No file provided' });
       }
 
@@ -76,6 +79,8 @@ export function registerProgressPhotoRoutes(app: App) {
         })
         .returning();
 
+      app.logger.info({ photoId: progressPhoto.id, userId }, 'Progress photo uploaded successfully');
+
       return {
         id: progressPhoto.id,
         photoUrl: url,
@@ -85,7 +90,7 @@ export function registerProgressPhotoRoutes(app: App) {
         createdAt: progressPhoto.createdAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error uploading progress photo');
+      app.logger.error({ err: error, userId }, 'Error uploading progress photo');
       return reply.status(500).send({ error: 'Failed to upload photo' });
     }
   });
@@ -100,16 +105,20 @@ export function registerProgressPhotoRoutes(app: App) {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
+    const userId = session.user.id;
+
     try {
       const query = request.query as Record<string, any>;
       const validation = getProgressPhotosSchema.safeParse(query);
 
       if (!validation.success) {
+        app.logger.warn({ errors: validation.error.issues }, 'Invalid progress photos query parameters');
         return reply.status(400).send({ error: 'Invalid query parameters' });
       }
 
       const { startDate, endDate } = validation.data;
-      const userId = session.user.id;
+
+      app.logger.info({ userId }, 'Retrieving progress photos');
 
       let conditions: any[] = [eq(schema.progressPhotos.userId, userId)];
 
@@ -154,9 +163,11 @@ export function registerProgressPhotoRoutes(app: App) {
         })
       );
 
+      app.logger.info({ photoCount: photosWithUrls.length, userId }, 'Progress photos retrieved successfully');
+
       return photosWithUrls;
     } catch (error) {
-      app.logger.error(error, 'Error retrieving progress photos');
+      app.logger.error({ err: error, userId }, 'Error retrieving progress photos');
       return reply.status(500).send({ error: 'Failed to retrieve photos' });
     }
   });
