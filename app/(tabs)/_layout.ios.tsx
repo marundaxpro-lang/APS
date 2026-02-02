@@ -5,6 +5,10 @@ import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 export default function TabLayout() {
   return (
     <NativeTabs>
+      <NativeTabs.Trigger key="(home)" name="(home)">
+        <Icon sf="house.fill" drawable="home" />
+        <Label>Home</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger key="training" name="training">
         <Icon sf="figure.strengthtraining.traditional" drawable="fitness-center" />
         <Label>Training</Label>
