@@ -90,6 +90,7 @@ export default function HomeScreen() {
   const caloriesConsumed = stats?.caloriesConsumed || 0;
   const caloriesRemaining = stats?.caloriesRemaining || stats?.dailyCalorieGoal || 2500;
   const dailyCalorieGoal = stats?.dailyCalorieGoal || 2500;
+  const mealsLogged = stats?.mealsLogged || 0;
 
   return (
     <View style={styles.container}>
@@ -113,38 +114,100 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.calorieCard}>
-          <Text style={styles.cardTitle}>Today&apos;s Calories</Text>
-          
-          <View style={styles.calorieCircle}>
-            <View style={styles.calorieCircleInner}>
-              <Text style={styles.calorieNumber}>{caloriesConsumed}</Text>
-              <Text style={styles.calorieLabel}>consumed</Text>
-            </View>
-          </View>
-
-          <View style={styles.calorieStats}>
-            <View style={styles.calorieStat}>
-              <Text style={styles.calorieStatValue}>{dailyCalorieGoal}</Text>
-              <Text style={styles.calorieStatLabel}>Goal</Text>
-            </View>
-            <View style={styles.calorieStat}>
-              <Text style={styles.calorieStatValue}>{caloriesRemaining}</Text>
-              <Text style={styles.calorieStatLabel}>Remaining</Text>
-            </View>
-          </View>
-
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { width: `${Math.min(percentageConsumed, 100)}%` }
-              ]} 
+        {/* Compact Calorie Overview */}
+        <View style={styles.calorieOverview}>
+          <View style={styles.calorieHeader}>
+            <IconSymbol
+              ios_icon_name="flame.fill"
+              android_material_icon_name="local-fire-department"
+              size={24}
+              color={colors.primary}
             />
+            <Text style={styles.calorieTitle}>Today&apos;s Nutrition</Text>
           </View>
-          <Text style={styles.progressText}>{Math.round(percentageConsumed)}% of daily goal</Text>
+          
+          <View style={styles.calorieRow}>
+            <View style={styles.calorieMainStat}>
+              <Text style={styles.calorieMainNumber}>{caloriesConsumed}</Text>
+              <Text style={styles.calorieMainLabel}>consumed</Text>
+            </View>
+            
+            <View style={styles.calorieDivider} />
+            
+            <View style={styles.calorieSecondaryStat}>
+              <Text style={styles.calorieSecondaryNumber}>{caloriesRemaining}</Text>
+              <Text style={styles.calorieSecondaryLabel}>remaining</Text>
+            </View>
+            
+            <View style={styles.calorieDivider} />
+            
+            <View style={styles.calorieSecondaryStat}>
+              <Text style={styles.calorieSecondaryNumber}>{dailyCalorieGoal}</Text>
+              <Text style={styles.calorieSecondaryLabel}>goal</Text>
+            </View>
+          </View>
+
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressBarFill, 
+                  { width: `${Math.min(percentageConsumed, 100)}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.progressText}>{Math.round(percentageConsumed)}%</Text>
+          </View>
         </View>
 
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <IconSymbol
+              ios_icon_name="figure.strengthtraining.traditional"
+              android_material_icon_name="fitness-center"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>Workouts</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <IconSymbol
+              ios_icon_name="fork.knife"
+              android_material_icon_name="restaurant"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.statValue}>{mealsLogged}</Text>
+            <Text style={styles.statLabel}>Meals Logged</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <IconSymbol
+              ios_icon_name="flame.fill"
+              android_material_icon_name="local-fire-department"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>Day Streak</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <IconSymbol
+              ios_icon_name="chart.line.uptrend.xyaxis"
+              android_material_icon_name="trending-up"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.statValue}>0%</Text>
+            <Text style={styles.statLabel}>Progress</Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
@@ -153,12 +216,14 @@ export default function HomeScreen() {
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/training')}
             >
-              <IconSymbol
-                ios_icon_name="figure.strengthtraining.traditional"
-                android_material_icon_name="fitness-center"
-                size={32}
-                color={colors.primary}
-              />
+              <View style={styles.actionIconContainer}>
+                <IconSymbol
+                  ios_icon_name="figure.strengthtraining.traditional"
+                  android_material_icon_name="fitness-center"
+                  size={28}
+                  color={colors.primary}
+                />
+              </View>
               <Text style={styles.actionText}>Start Workout</Text>
             </TouchableOpacity>
 
@@ -166,12 +231,14 @@ export default function HomeScreen() {
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/nutrition')}
             >
-              <IconSymbol
-                ios_icon_name="fork.knife"
-                android_material_icon_name="restaurant"
-                size={32}
-                color={colors.primary}
-              />
+              <View style={styles.actionIconContainer}>
+                <IconSymbol
+                  ios_icon_name="fork.knife"
+                  android_material_icon_name="restaurant"
+                  size={28}
+                  color={colors.primary}
+                />
+              </View>
               <Text style={styles.actionText}>Log Meal</Text>
             </TouchableOpacity>
 
@@ -179,12 +246,14 @@ export default function HomeScreen() {
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/progress')}
             >
-              <IconSymbol
-                ios_icon_name="chart.line.uptrend.xyaxis"
-                android_material_icon_name="show-chart"
-                size={32}
-                color={colors.primary}
-              />
+              <View style={styles.actionIconContainer}>
+                <IconSymbol
+                  ios_icon_name="chart.line.uptrend.xyaxis"
+                  android_material_icon_name="show-chart"
+                  size={28}
+                  color={colors.primary}
+                />
+              </View>
               <Text style={styles.actionText}>View Progress</Text>
             </TouchableOpacity>
 
@@ -192,12 +261,14 @@ export default function HomeScreen() {
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/plan')}
             >
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={32}
-                color={colors.primary}
-              />
+              <View style={styles.actionIconContainer}>
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={28}
+                  color={colors.primary}
+                />
+              </View>
               <Text style={styles.actionText}>Weekly Plan</Text>
             </TouchableOpacity>
           </View>
@@ -252,74 +323,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  calorieCard: {
+  calorieOverview: {
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1,
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 20,
   },
-  calorieCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-    alignSelf: 'center',
+  calorieHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+    gap: 8,
   },
-  calorieCircleInner: {
+  calorieTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  calorieRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  calorieMainStat: {
+    flex: 1,
     alignItems: 'center',
   },
-  calorieNumber: {
-    fontSize: 48,
+  calorieMainNumber: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: colors.primary,
   },
-  calorieLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  calorieStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  calorieStat: {
-    alignItems: 'center',
-  },
-  calorieStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  calorieStatLabel: {
+  calorieMainLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  calorieDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.cardBorder,
+    marginHorizontal: 8,
+  },
+  calorieSecondaryStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  calorieSecondaryNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  calorieSecondaryLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  progressBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   progressBar: {
-    height: 8,
+    flex: 1,
+    height: 6,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: 8,
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
@@ -345,9 +454,17 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderWidth: 1,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+  },
+  actionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionText: {
     fontSize: 14,
