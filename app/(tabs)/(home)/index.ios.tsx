@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { authenticatedGet } from '@/utils/api';
+import { WeeklyTask } from '@/types/fitness';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -29,6 +30,7 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Athlete');
+  const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
 
   useEffect(() => {
     loadData();
@@ -45,6 +47,16 @@ export default function HomeScreen() {
         if (profile.name) {
           setUserName(profile.name);
         }
+      }
+      
+      // Load today's tasks
+      const tasksData = await AsyncStorage.getItem('focusTasks');
+      if (tasksData) {
+        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
+        const today = new Date().getDay();
+        const tasksForToday = allTasks.filter(task => task.dayOfWeek === today);
+        setTodayTasks(tasksForToday);
+        console.log('[Home iOS] Loaded tasks for today:', tasksForToday.length);
       }
       
       // Load dashboard stats from backend
@@ -72,6 +84,27 @@ export default function HomeScreen() {
     }
   };
 
+  const toggleTask = async (taskId: string) => {
+    console.log('[Home iOS] User toggled task:', taskId);
+    try {
+      const tasksData = await AsyncStorage.getItem('focusTasks');
+      if (tasksData) {
+        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
+        const updatedTasks = allTasks.map(task => 
+          task.id === taskId ? { ...task, completed: !task.completed } : task
+        );
+        await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
+        
+        // Update local state
+        const today = new Date().getDay();
+        const tasksForToday = updatedTasks.filter(task => task.dayOfWeek === today);
+        setTodayTasks(tasksForToday);
+      }
+    } catch (error) {
+      console.error('[Home iOS] Error toggling task:', error);
+    }
+  };
+
   const handleNavigateToProfile = () => {
     console.log('[Home iOS] User tapped profile button');
     router.push('/(tabs)/profile');
@@ -90,6 +123,9 @@ export default function HomeScreen() {
   const caloriesRemaining = stats?.caloriesRemaining || stats?.dailyCalorieGoal || 2500;
   const dailyCalorieGoal = stats?.dailyCalorieGoal || 2500;
   const mealsLogged = stats?.mealsLogged || 0;
+
+  const completedTasksCount = todayTasks.filter(t => t.completed).length;
+  const totalTasksCount = todayTasks.length;
 
   return (
     <View style={styles.container}>
@@ -113,49 +149,143 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Compact Calorie Overview */}
-        <View style={styles.calorieOverview}>
-          <View style={styles.calorieHeader}>
+        {/* Today's Tasks - Highlighted Section */}
+        <View style={styles.tasksHighlight}>
+          <View style={styles.tasksHeader}>
+            <View style={styles.tasksHeaderLeft}>
+              <IconSymbol
+                ios_icon_name="checkmark.circle.fill"
+                android_material_icon_name="check-circle"
+                size={28}
+                color={colors.primary}
+              />
+              <View>
+                <Text style={styles.tasksTitle}>Today&apos;s Tasks</Text>
+                <Text style={styles.tasksSubtitle}>
+                  {completedTasksCount} of {totalTasksCount} completed
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => router.push('/(tabs)/focus')}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={16}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {todayTasks.length === 0 ? (
+            <View style={styles.noTasksContainer}>
+              <IconSymbol
+                ios_icon_name="tray"
+                android_material_icon_name="inbox"
+                size={40}
+                color={colors.grey}
+              />
+              <Text style={styles.noTasksText}>No tasks for today</Text>
+              <TouchableOpacity 
+                style={styles.addTaskButton}
+                onPress={() => router.push('/(tabs)/focus')}
+              >
+                <IconSymbol
+                  ios_icon_name="plus"
+                  android_material_icon_name="add"
+                  size={16}
+                  color="#fff"
+                />
+                <Text style={styles.addTaskButtonText}>Add Task</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.tasksList}>
+              {todayTasks.slice(0, 3).map((task) => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskItem}
+                  onPress={() => toggleTask(task.id)}
+                >
+                  <View style={[
+                    styles.taskCheckbox,
+                    task.completed && styles.taskCheckboxCompleted,
+                  ]}>
+                    {task.completed && (
+                      <IconSymbol
+                        ios_icon_name="checkmark"
+                        android_material_icon_name="check"
+                        size={14}
+                        color="#fff"
+                      />
+                    )}
+                  </View>
+                  <View style={styles.taskInfo}>
+                    <Text style={[
+                      styles.taskTitle,
+                      task.completed && styles.taskTitleCompleted,
+                    ]}>
+                      {task.title}
+                    </Text>
+                    {task.startTime && (
+                      <Text style={styles.taskTime}>{task.startTime}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {todayTasks.length > 3 && (
+                <TouchableOpacity 
+                  style={styles.moreTasksButton}
+                  onPress={() => router.push('/(tabs)/focus')}
+                >
+                  <Text style={styles.moreTasksText}>
+                    +{todayTasks.length - 3} more tasks
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Compact Nutrition Overview */}
+        <View style={styles.nutritionCard}>
+          <View style={styles.nutritionHeader}>
             <IconSymbol
               ios_icon_name="flame.fill"
               android_material_icon_name="local-fire-department"
-              size={24}
+              size={20}
               color={colors.primary}
             />
-            <Text style={styles.calorieTitle}>Today&apos;s Nutrition</Text>
+            <Text style={styles.nutritionTitle}>Nutrition</Text>
           </View>
           
-          <View style={styles.calorieRow}>
-            <View style={styles.calorieMainStat}>
-              <Text style={styles.calorieMainNumber}>{caloriesConsumed}</Text>
-              <Text style={styles.calorieMainLabel}>consumed</Text>
+          <View style={styles.nutritionStats}>
+            <View style={styles.nutritionStat}>
+              <Text style={styles.nutritionValue}>{caloriesConsumed}</Text>
+              <Text style={styles.nutritionLabel}>consumed</Text>
             </View>
-            
-            <View style={styles.calorieDivider} />
-            
-            <View style={styles.calorieSecondaryStat}>
-              <Text style={styles.calorieSecondaryNumber}>{caloriesRemaining}</Text>
-              <Text style={styles.calorieSecondaryLabel}>remaining</Text>
+            <View style={styles.nutritionDivider} />
+            <View style={styles.nutritionStat}>
+              <Text style={styles.nutritionValue}>{caloriesRemaining}</Text>
+              <Text style={styles.nutritionLabel}>remaining</Text>
             </View>
-            
-            <View style={styles.calorieDivider} />
-            
-            <View style={styles.calorieSecondaryStat}>
-              <Text style={styles.calorieSecondaryNumber}>{dailyCalorieGoal}</Text>
-              <Text style={styles.calorieSecondaryLabel}>goal</Text>
+            <View style={styles.nutritionDivider} />
+            <View style={styles.nutritionStat}>
+              <Text style={styles.nutritionValue}>{dailyCalorieGoal}</Text>
+              <Text style={styles.nutritionLabel}>goal</Text>
             </View>
           </View>
 
-          <View style={styles.progressBarContainer}>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressBarFill, 
-                  { width: `${Math.min(percentageConsumed, 100)}%` }
-                ]} 
-              />
-            </View>
-            <Text style={styles.progressText}>{Math.round(percentageConsumed)}%</Text>
+          <View style={styles.nutritionProgressBar}>
+            <View 
+              style={[
+                styles.nutritionProgressFill, 
+                { width: `${Math.min(percentageConsumed, 100)}%` }
+              ]} 
+            />
           </View>
         </View>
 
@@ -322,88 +452,179 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  calorieOverview: {
+  tasksHighlight: {
     backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
+    borderColor: colors.primary,
+    borderWidth: 2,
     borderRadius: 20,
     padding: 20,
-    marginBottom: 20,
-  },
-  calorieHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 16,
-    gap: 8,
   },
-  calorieTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  calorieRow: {
+  tasksHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  calorieMainStat: {
-    flex: 1,
+  tasksHeaderLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  calorieMainNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  calorieMainLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  calorieDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.cardBorder,
-    marginHorizontal: 8,
-  },
-  calorieSecondaryStat: {
+    gap: 12,
     flex: 1,
-    alignItems: 'center',
   },
-  calorieSecondaryNumber: {
-    fontSize: 20,
+  tasksTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
   },
-  calorieSecondaryLabel: {
+  tasksSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 12,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  noTasksContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  noTasksText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  addTaskButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  addTaskButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  tasksList: {
+    gap: 10,
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 12,
+    borderRadius: 12,
+  },
+  taskCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.grey,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskCheckboxCompleted: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  taskInfo: {
+    flex: 1,
+  },
+  taskTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  taskTitleCompleted: {
+    textDecorationLine: 'line-through',
+    color: colors.grey,
+  },
+  taskTime: {
+    fontSize: 12,
+    color: colors.primary,
+    marginTop: 2,
+  },
+  moreTasksButton: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  moreTasksText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  nutritionCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  nutritionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  nutritionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  nutritionStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  nutritionStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  nutritionValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  nutritionLabel: {
     fontSize: 11,
     color: colors.textSecondary,
     marginTop: 2,
   },
-  progressBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  nutritionDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.cardBorder,
+    marginHorizontal: 8,
   },
-  progressBar: {
-    flex: 1,
-    height: 6,
+  nutritionProgressBar: {
+    height: 4,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  nutritionProgressFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    minWidth: 40,
-    textAlign: 'right',
+    borderRadius: 2,
   },
   statsGrid: {
     flexDirection: 'row',
