@@ -105,6 +105,21 @@ export default function ProfileScreen() {
     router.push('/edit-profile');
   }, [router]);
 
+  const navigateToPrivacySecurity = useCallback(() => {
+    console.log('User tapped privacy & security');
+    router.push('/privacy-security');
+  }, [router]);
+
+  const navigateToHelpSupport = useCallback(() => {
+    console.log('User tapped help & support');
+    router.push('/help-support');
+  }, [router]);
+
+  const navigateToAbout = useCallback(() => {
+    console.log('User tapped about');
+    router.push('/about');
+  }, [router]);
+
   if (authLoading || loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -215,7 +230,7 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={navigateToPrivacySecurity}>
             <IconSymbol
               ios_icon_name="lock.fill"
               android_material_icon_name="lock"
@@ -231,7 +246,7 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={navigateToHelpSupport}>
             <IconSymbol
               ios_icon_name="questionmark.circle.fill"
               android_material_icon_name="help"
@@ -247,7 +262,7 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={navigateToAbout}>
             <IconSymbol
               ios_icon_name="info.circle.fill"
               android_material_icon_name="info"

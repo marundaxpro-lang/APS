@@ -16,6 +16,7 @@ import { FitnessProfile } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
+import { authenticatedPost } from '@/utils/api';
 
 const { height } = Dimensions.get('window');
 
@@ -35,13 +36,15 @@ export default function OnboardingScreen() {
       ...profile,
       name: profile.name?.trim() || undefined,
       age: profile.age || 25,
+      gender: profile.gender || 'male',
+      weight: profile.weight || 70,
+      height: profile.height || 175,
     };
     
+    console.log('[Onboarding] Final profile before saving:', finalProfile);
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
     
     try {
-      const { authenticatedPost } = await import('@/utils/api');
-      
       // Calculate activity level based on training days
       const activityLevel = (finalProfile.trainingDays || 3) >= 5 ? 'active' : 
                            (finalProfile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
@@ -52,18 +55,19 @@ export default function OnboardingScreen() {
         experienceLevel: 'beginner',
         goal: finalProfile.goal || 'muscle',
         trainingFrequency: finalProfile.trainingDays || 3,
-        gender: finalProfile.gender || 'male',
-        age: finalProfile.age || 25,
-        weight: finalProfile.weight || 70,
-        height: finalProfile.height || 175,
+        gender: finalProfile.gender,
+        age: finalProfile.age,
+        weight: finalProfile.weight,
+        height: finalProfile.height,
         activityLevel,
         focusAreas: finalProfile.focusAreas || [],
         equipmentType: finalProfile.equipmentType || 'gym',
-        name: finalProfile.name || undefined,
+        name: finalProfile.name || null,
       };
       
-      console.log('[Onboarding] Profile payload:', profilePayload);
-      await authenticatedPost('/api/fitness-profile', profilePayload);
+      console.log('[Onboarding] Profile payload being sent to backend:', profilePayload);
+      const savedProfile = await authenticatedPost('/api/fitness-profile', profilePayload);
+      console.log('[Onboarding] Backend response:', savedProfile);
       console.log('[Onboarding] Complete fitness profile saved successfully');
       
       // Calculate calorie goal based on user input
@@ -76,19 +80,19 @@ export default function OnboardingScreen() {
       }
       
       console.log('[Onboarding] Calculating caloric goal with:', {
-        age: finalProfile.age || 25,
-        gender: finalProfile.gender || 'male',
-        weight: finalProfile.weight || 70,
-        height: finalProfile.height || 175,
+        age: finalProfile.age,
+        gender: finalProfile.gender,
+        weight: finalProfile.weight,
+        height: finalProfile.height,
         activityLevel,
         goal: backendGoal,
       });
       
       const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
-        age: finalProfile.age || 25,
-        gender: finalProfile.gender || 'male',
-        weight: finalProfile.weight || 70,
-        height: finalProfile.height || 175,
+        age: finalProfile.age,
+        gender: finalProfile.gender,
+        weight: finalProfile.weight,
+        height: finalProfile.height,
         activityLevel,
         goal: backendGoal,
       });
@@ -146,7 +150,10 @@ export default function OnboardingScreen() {
               styles.genderCard,
               profile.gender === gender && styles.selectedCard,
             ]}
-            onPress={() => setProfile({ ...profile, gender })}
+            onPress={() => {
+              console.log('[Onboarding] Gender selected:', gender);
+              setProfile({ ...profile, gender });
+            }}
           >
             <IconSymbol
               ios_icon_name={gender === 'male' ? 'figure.stand' : 'figure.stand.dress'}

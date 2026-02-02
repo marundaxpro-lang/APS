@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,253 +7,197 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { IconSymbol } from '@/components/IconSymbol';
-import ParticleBackground from '@/components/ParticleBackground';
 import { colors } from '@/styles/commonStyles';
-import { useAuth } from '@/contexts/AuthContext';
-import { FitnessProfile, DashboardStats } from '@/types/fitness';
+import { IconSymbol } from '@/components/IconSymbol';
+import { authenticatedGet } from '@/utils/api';
 
-const { width } = Dimensions.get('window');
+interface DashboardStats {
+  dailyCalorieGoal: number;
+  caloriesConsumed: number;
+  caloriesRemaining: number;
+  percentageConsumed: number;
+  goalMet: boolean;
+  mealsLogged: number;
+  lastUpdated: string;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<FitnessProfile | null>(null);
-  const [stats, setStats] = useState<DashboardStats>({
-    workoutsThisWeek: 0,
-    tasksCompleted: 0,
-    currentStreak: 0,
-    todaysCalories: 0,
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('Athlete');
 
-  const checkProfile = useCallback(async () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
     try {
-      const storedProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (!storedProfile) {
-        router.replace('/onboarding');
-        return;
-      }
-
-      const profileData: FitnessProfile = JSON.parse(storedProfile);
-      setProfile(profileData);
-
-      // Try to load dashboard stats from backend
-      try {
-        const { authenticatedGet } = await import('@/utils/api');
-        const dashboardData = await authenticatedGet('/api/dashboard/home');
-        
-        if (dashboardData) {
-          const backendStats: DashboardStats = {
-            workoutsThisWeek: dashboardData.workoutsThisWeek || 0,
-            tasksCompleted: dashboardData.tasksCompleted || 0,
-            currentStreak: dashboardData.currentStreak || 0,
-            todaysCalories: dashboardData.todaysCalories || 0,
-          };
-          setStats(backendStats);
-          await AsyncStorage.setItem('dashboardStats', JSON.stringify(backendStats));
-          console.log('[Home iOS] Dashboard stats loaded from backend');
+      setLoading(true);
+      
+      // Load user name from profile
+      const profileData = await AsyncStorage.getItem('fitnessProfile');
+      if (profileData) {
+        const profile = JSON.parse(profileData);
+        if (profile.name) {
+          setUserName(profile.name);
         }
+      }
+      
+      // Load dashboard stats from backend
+      try {
+        const dashboardStats = await authenticatedGet('/api/dashboard/home');
+        setStats(dashboardStats);
+        console.log('[Home iOS] Dashboard stats loaded from backend');
       } catch (error) {
         console.log('[Home iOS] Could not load stats from backend, using local data');
-        // Fallback to local storage
-        const storedStats = await AsyncStorage.getItem('dashboardStats');
-        if (storedStats) {
-          setStats(JSON.parse(storedStats));
-        }
+        // Fallback to local data
+        setStats({
+          dailyCalorieGoal: 2500,
+          caloriesConsumed: 0,
+          caloriesRemaining: 2500,
+          percentageConsumed: 0,
+          goalMet: false,
+          mealsLogged: 0,
+          lastUpdated: new Date().toISOString(),
+        });
       }
     } catch (error) {
-      console.error('[Home iOS] Error loading profile:', error);
+      console.error('[Home iOS] Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  };
 
-  useEffect(() => {
-    if (!authLoading) {
-      checkProfile();
-    }
-  }, [authLoading, checkProfile]);
+  const handleNavigateToProfile = () => {
+    console.log('[Home iOS] User tapped profile button');
+    router.push('/(tabs)/profile');
+  };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ParticleBackground />
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
-  const displayName = profile?.name || 'Athlete';
+  const percentageConsumed = stats?.percentageConsumed || 0;
+  const caloriesConsumed = stats?.caloriesConsumed || 0;
+  const caloriesRemaining = stats?.caloriesRemaining || stats?.dailyCalorieGoal || 2500;
+  const dailyCalorieGoal = stats?.dailyCalorieGoal || 2500;
 
   return (
     <View style={styles.container}>
-      <ParticleBackground />
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.userName}>{userName}</Text>
+        </View>
+        <TouchableOpacity style={styles.profileButton} onPress={handleNavigateToProfile}>
+          <IconSymbol
+            ios_icon_name="person.circle.fill"
+            android_material_icon_name="account-circle"
+            size={40}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{displayName}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => router.push('/(tabs)/profile')}
-          >
-            <IconSymbol
-              ios_icon_name="person.circle.fill"
-              android_material_icon_name="account-circle"
-              size={40}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="flame.fill"
-              android_material_icon_name="local-fire-department"
-              size={32}
-              color="#f59e0b"
-            />
-            <Text style={styles.statValue}>{stats.currentStreak}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
+        <View style={styles.calorieCard}>
+          <Text style={styles.cardTitle}>Today&apos;s Calories</Text>
+          
+          <View style={styles.calorieCircle}>
+            <View style={styles.calorieCircleInner}>
+              <Text style={styles.calorieNumber}>{caloriesConsumed}</Text>
+              <Text style={styles.calorieLabel}>consumed</Text>
+            </View>
           </View>
 
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="figure.strengthtraining.traditional"
-              android_material_icon_name="fitness-center"
-              size={32}
-              color={colors.primary}
-            />
-            <Text style={styles.statValue}>{stats.workoutsThisWeek}</Text>
-            <Text style={styles.statLabel}>This Week</Text>
+          <View style={styles.calorieStats}>
+            <View style={styles.calorieStat}>
+              <Text style={styles.calorieStatValue}>{dailyCalorieGoal}</Text>
+              <Text style={styles.calorieStatLabel}>Goal</Text>
+            </View>
+            <View style={styles.calorieStat}>
+              <Text style={styles.calorieStatValue}>{caloriesRemaining}</Text>
+              <Text style={styles.calorieStatLabel}>Remaining</Text>
+            </View>
           </View>
 
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="checkmark.circle.fill"
-              android_material_icon_name="check-circle"
-              size={32}
-              color={colors.success}
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { width: `${Math.min(percentageConsumed, 100)}%` }
+              ]} 
             />
-            <Text style={styles.statValue}>{stats.tasksCompleted}</Text>
-            <Text style={styles.statLabel}>Tasks Done</Text>
           </View>
-
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="flame.fill"
-              android_material_icon_name="local-fire-department"
-              size={32}
-              color="#ec4899"
-            />
-            <Text style={styles.statValue}>{stats.todaysCalories}</Text>
-            <Text style={styles.statLabel}>Calories</Text>
-          </View>
+          <Text style={styles.progressText}>{Math.round(percentageConsumed)}% of daily goal</Text>
         </View>
 
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity
+          
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/training')}
             >
               <IconSymbol
-                ios_icon_name="dumbbell.fill"
+                ios_icon_name="figure.strengthtraining.traditional"
                 android_material_icon_name="fitness-center"
-                size={28}
+                size={32}
                 color={colors.primary}
               />
-              <Text style={styles.actionText}>Start Training</Text>
+              <Text style={styles.actionText}>Start Workout</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/plan')}
-            >
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={28}
-                color={colors.primary}
-              />
-              <Text style={styles.actionText}>Weekly Plan</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/nutrition')}
             >
               <IconSymbol
                 ios_icon_name="fork.knife"
                 android_material_icon_name="restaurant"
-                size={28}
+                size={32}
                 color={colors.primary}
               />
-              <Text style={styles.actionText}>Nutrition</Text>
+              <Text style={styles.actionText}>Log Meal</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/focus')}
-            >
-              <IconSymbol
-                ios_icon_name="brain.head.profile"
-                android_material_icon_name="psychology"
-                size={28}
-                color={colors.primary}
-              />
-              <Text style={styles.actionText}>Focus Hub</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.actionCard}
               onPress={() => router.push('/(tabs)/progress')}
             >
               <IconSymbol
                 ios_icon_name="chart.line.uptrend.xyaxis"
-                android_material_icon_name="trending-up"
-                size={28}
+                android_material_icon_name="show-chart"
+                size={32}
                 color={colors.primary}
               />
-              <Text style={styles.actionText}>Progress</Text>
+              <Text style={styles.actionText}>View Progress</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/community')}
+              onPress={() => router.push('/(tabs)/plan')}
             >
               <IconSymbol
-                ios_icon_name="person.3.fill"
-                android_material_icon_name="group"
-                size={28}
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={32}
                 color={colors.primary}
               />
-              <Text style={styles.actionText}>Community</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push('/meal-plans')}
-            >
-              <IconSymbol
-                ios_icon_name="fork.knife.circle.fill"
-                android_material_icon_name="restaurant-menu"
-                size={28}
-                color={colors.primary}
-              />
-              <Text style={styles.actionText}>Meal Plans</Text>
+              <Text style={styles.actionText}>Weekly Plan</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -267,14 +211,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-  },
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -283,51 +219,106 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerLeft: {
+    flex: 1,
   },
   greeting: {
     fontSize: 16,
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  name: {
-    fontSize: 32,
-    fontWeight: '800',
+  userName: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: colors.text,
   },
   profileButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
+  calorieCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 24,
   },
-  statCard: {
-    flex: 1,
-    minWidth: (width - 52) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    gap: 8,
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 20,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '800',
+  calorieCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  calorieCircleInner: {
+    alignItems: 'center',
+  },
+  calorieNumber: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  calorieLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  calorieStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  calorieStat: {
+    alignItems: 'center',
+  },
+  calorieStatValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: colors.text,
   },
-  statLabel: {
+  calorieStatLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+  },
+  progressText: {
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
@@ -341,19 +332,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
-  actionGrid: {
+  actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
   },
   actionCard: {
     flex: 1,
-    minWidth: (width - 52) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    padding: 20,
+    minWidth: '47%',
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
     gap: 12,
   },
