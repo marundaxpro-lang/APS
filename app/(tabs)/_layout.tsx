@@ -1,29 +1,39 @@
 
 import React from 'react';
-import { Stack } from 'expo-router';
-import TopMenu from '@/components/TopMenu';
+import FloatingTabBar from '@/components/FloatingTabBar';
 import { View } from 'react-native';
 
 export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
-      <TopMenu />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-        }}
-      >
-        <Stack.Screen name="(home)" />
-        <Stack.Screen name="training" />
-        <Stack.Screen name="plan" />
-        <Stack.Screen name="nutrition" />
-        <Stack.Screen name="focus" />
-        <Stack.Screen name="progress" />
-        <Stack.Screen name="community" />
-        <Stack.Screen name="shop" />
-        <Stack.Screen name="profile" />
-      </Stack>
+      <FloatingTabBar
+        tabs={[
+          {
+            name: 'training',
+            route: '/(tabs)/training',
+            icon: 'fitness-center',
+            label: 'Training',
+          },
+          {
+            name: 'nutrition',
+            route: '/(tabs)/nutrition',
+            icon: 'restaurant',
+            label: 'Nutrition',
+          },
+          {
+            name: 'progress',
+            route: '/(tabs)/progress',
+            icon: 'show-chart',
+            label: 'Progress',
+          },
+          {
+            name: 'profile',
+            route: '/(tabs)/profile',
+            icon: 'person',
+            label: 'Profile',
+          },
+        ]}
+      />
     </View>
   );
 }

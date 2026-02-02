@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Modal,
   AppState,
   AppStateStatus,
@@ -14,47 +13,55 @@ import {
   Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WeeklyTask, TimerType } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
-const TIMER_TYPES: TimerType[] = [
-  { id: 'pomodoro', name: 'Pomodoro', duration: 25 * 60, description: '25 min focus + 5 min break' },
-  { id: 'short', name: 'Short Focus', duration: 15 * 60, description: '15 minutes' },
-  { id: 'long', name: 'Deep Work', duration: 90 * 60, description: '90 minutes' },
-  { id: 'stopwatch', name: 'Stopwatch', duration: 0, description: 'Count up from zero' },
-  { id: 'custom', name: 'Custom Timer', duration: 0, description: 'Set your own duration' },
+interface FitnessTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  type: 'workout' | 'meals' | 'steps' | 'mobility';
+  icon: string;
+  color: string;
+}
+
+interface TimerPreset {
+  id: string;
+  name: string;
+  duration: number;
+  description: string;
+  icon: string;
+}
+
+const FITNESS_TASKS: Omit<FitnessTask, 'id' | 'completed'>[] = [
+  { title: 'Complete Today\'s Workout', type: 'workout', icon: 'fitness-center', color: colors.primary },
+  { title: 'Log All Meals', type: 'meals', icon: 'restaurant', color: '#f59e0b' },
+  { title: 'Hit 10,000 Steps', type: 'steps', icon: 'directions-walk', color: '#10b981' },
+  { title: '10 Min Mobility Work', type: 'mobility', icon: 'self-improvement', color: '#8b5cf6' },
 ];
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const TIMER_PRESETS: TimerPreset[] = [
+  { id: 'rest', name: 'Workout Rest Timer', duration: 90, description: '90 seconds', icon: 'timer' },
+  { id: 'meal-prep', name: 'Meal Prep', duration: 25 * 60, description: '25 minutes', icon: 'restaurant' },
+  { id: 'mobility', name: 'Mobility', duration: 10 * 60, description: '10 minutes', icon: 'self-improvement' },
+];
 
 interface TimerState {
   isRunning: boolean;
   timeLeft: number;
   startTime: number;
-  timerType: string;
-  customDuration: number;
+  presetId: string;
 }
 
-export default function FocusScreen() {
-  const [tasks, setTasks] = useState<WeeklyTask[]>([]);
-  const [newTask, setNewTask] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'study' | 'work' | 'personal'>('study');
-  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
+export default function DisciplineModeScreen() {
+  const [tasks, setTasks] = useState<FitnessTask[]>([]);
   const [showTimerModal, setShowTimerModal] = useState(false);
-  const [showCustomModal, setShowCustomModal] = useState(false);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [selectedTimer, setSelectedTimer] = useState<TimerType | null>(null);
-  const [customMinutes, setCustomMinutes] = useState('');
-  const [customHours, setCustomHours] = useState('');
-  const [selectedHour, setSelectedHour] = useState(9);
-  const [selectedMinute, setSelectedMinute] = useState(0);
-  const [taskTime, setTaskTime] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<TimerPreset | null>(null);
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [streak, setStreak] = useState(0);
 
   const saveTimerState = useCallback(async (running: boolean, time: number) => {
     try {
@@ -62,18 +69,17 @@ export default function FocusScreen() {
         isRunning: running,
         timeLeft: time,
         startTime: Date.now(),
-        timerType: selectedTimer?.id || '',
-        customDuration: selectedTimer?.duration || 0,
+        presetId: selectedPreset?.id || '',
       };
-      await AsyncStorage.setItem('timerState', JSON.stringify(state));
+      await AsyncStorage.setItem('disciplineTimerState', JSON.stringify(state));
     } catch (error) {
-      console.error('Error saving timer state:', error);
+      console.error('[Discipline] Error saving timer state:', error);
     }
-  }, [selectedTimer]);
+  }, [selectedPreset]);
 
   const loadTimerState = useCallback(async () => {
     try {
-      const stateStr = await AsyncStorage.getItem('timerState');
+      const stateStr = await AsyncStorage.getItem('disciplineTimerState');
       if (stateStr) {
         const state: TimerState = JSON.parse(stateStr);
         if (state.isRunning) {
@@ -83,17 +89,14 @@ export default function FocusScreen() {
           setTimeLeft(newTimeLeft);
           setIsTimerRunning(newTimeLeft > 0);
           
-          const timer = TIMER_TYPES.find(t => t.id === state.timerType);
-          if (timer) {
-            setSelectedTimer({
-              ...timer,
-              duration: state.customDuration || timer.duration,
-            });
+          const preset = TIMER_PRESETS.find(p => p.id === state.presetId);
+          if (preset) {
+            setSelectedPreset(preset);
           }
         }
       }
     } catch (error) {
-      console.error('Error loading timer state:', error);
+      console.error('[Discipline] Error loading timer state:', error);
     }
   }, []);
 
@@ -107,6 +110,7 @@ export default function FocusScreen() {
 
   useEffect(() => {
     loadTasks();
+    loadStreak();
     loadTimerState();
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -126,12 +130,12 @@ export default function FocusScreen() {
           return newTime;
         });
       }, 1000);
-    } else if (timeLeft === 0 && isTimerRunning && selectedTimer?.id !== 'stopwatch') {
+    } else if (timeLeft === 0 && isTimerRunning) {
       setIsTimerRunning(false);
       saveTimerState(false, 0);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft, selectedTimer, saveTimerState]);
+  }, [isTimerRunning, timeLeft, saveTimerState]);
 
   useEffect(() => {
     if (isTimerRunning) {
@@ -156,144 +160,112 @@ export default function FocusScreen() {
 
   const loadTasks = async () => {
     try {
-      const data = await AsyncStorage.getItem('focusTasks');
-      if (data) setTasks(JSON.parse(data));
+      const today = new Date().toDateString();
+      const stored = await AsyncStorage.getItem('disciplineTasks');
+      
+      if (stored) {
+        const data = JSON.parse(stored);
+        
+        // Reset tasks if it's a new day
+        if (data.date !== today) {
+          const newTasks = FITNESS_TASKS.map((task, index) => ({
+            ...task,
+            id: `task-${index}`,
+            completed: false,
+          }));
+          await AsyncStorage.setItem('disciplineTasks', JSON.stringify({ date: today, tasks: newTasks }));
+          setTasks(newTasks);
+        } else {
+          setTasks(data.tasks);
+        }
+      } else {
+        const newTasks = FITNESS_TASKS.map((task, index) => ({
+          ...task,
+          id: `task-${index}`,
+          completed: false,
+        }));
+        await AsyncStorage.setItem('disciplineTasks', JSON.stringify({ date: today, tasks: newTasks }));
+        setTasks(newTasks);
+      }
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error('[Discipline] Error loading tasks:', error);
     }
   };
 
-  const saveTasks = async (updatedTasks: WeeklyTask[]) => {
+  const loadStreak = async () => {
     try {
-      await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
-      setTasks(updatedTasks);
+      const stored = await AsyncStorage.getItem('disciplineStreak');
+      if (stored) {
+        const data = JSON.parse(stored);
+        const today = new Date().toDateString();
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
+        
+        if (data.lastCompletedDate === today) {
+          setStreak(data.streak);
+        } else if (data.lastCompletedDate === yesterday) {
+          setStreak(data.streak);
+        } else {
+          setStreak(0);
+        }
+      }
     } catch (error) {
-      console.error('Error saving tasks:', error);
+      console.error('[Discipline] Error loading streak:', error);
     }
   };
 
-  const openTaskModal = () => {
-    console.log('User tapped Add Task button');
-    setNewTask('');
-    setTaskTime('');
-    setSelectedDay(new Date().getDay());
-    setSelectedCategory('study');
-    setSelectedHour(9);
-    setSelectedMinute(0);
-    setShowTaskModal(true);
-  };
-
-  const openTimePicker = () => {
-    console.log('User opened time picker');
-    setShowTimePickerModal(true);
-  };
-
-  const confirmTime = () => {
-    const hourStr = selectedHour.toString().padStart(2, '0');
-    const minuteStr = selectedMinute.toString().padStart(2, '0');
-    const timeString = `${hourStr}:${minuteStr}`;
-    console.log('User selected time:', timeString);
-    setTaskTime(timeString);
-    setShowTimePickerModal(false);
-  };
-
-  const addTask = () => {
-    if (!newTask.trim() || !taskTime) {
-      console.log('Cannot add task - missing title or time');
-      return;
+  const saveTasks = async (updatedTasks: FitnessTask[]) => {
+    try {
+      const today = new Date().toDateString();
+      await AsyncStorage.setItem('disciplineTasks', JSON.stringify({ date: today, tasks: updatedTasks }));
+      setTasks(updatedTasks);
+      
+      // Update streak if all tasks completed
+      const allCompleted = updatedTasks.every(t => t.completed);
+      if (allCompleted) {
+        const stored = await AsyncStorage.getItem('disciplineStreak');
+        const data = stored ? JSON.parse(stored) : { streak: 0, lastCompletedDate: '' };
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
+        
+        if (data.lastCompletedDate === yesterday) {
+          data.streak += 1;
+        } else if (data.lastCompletedDate !== today) {
+          data.streak = 1;
+        }
+        
+        data.lastCompletedDate = today;
+        await AsyncStorage.setItem('disciplineStreak', JSON.stringify(data));
+        setStreak(data.streak);
+      }
+    } catch (error) {
+      console.error('[Discipline] Error saving tasks:', error);
     }
-    
-    console.log('Adding task:', { title: newTask, time: taskTime, day: DAYS[selectedDay] });
-    
-    const task: WeeklyTask = {
-      id: Date.now().toString(),
-      title: newTask,
-      completed: false,
-      category: selectedCategory,
-      dayOfWeek: selectedDay,
-      startTime: taskTime,
-    };
-    
-    saveTasks([...tasks, task]);
-    setShowTaskModal(false);
-    setNewTask('');
-    setTaskTime('');
   };
 
   const toggleTask = (id: string) => {
-    console.log('User toggled task:', id);
+    console.log('[Discipline] User toggled task:', id);
     saveTasks(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
   };
 
-  const deleteTask = (id: string) => {
-    console.log('User deleted task:', id);
-    saveTasks(tasks.filter((t) => t.id !== id));
-  };
-
-  const startTimer = (timer: TimerType) => {
-    console.log('User started timer:', timer.name);
-    if (timer.id === 'custom') {
-      setShowTimerModal(false);
-      setShowCustomModal(true);
-      return;
-    }
-
-    setSelectedTimer(timer);
-    setTimeLeft(timer.duration);
+  const startTimer = (preset: TimerPreset) => {
+    console.log('[Discipline] User started timer:', preset.name);
+    setSelectedPreset(preset);
+    setTimeLeft(preset.duration);
     setIsTimerRunning(true);
     setShowTimerModal(false);
-    saveTimerState(true, timer.duration);
-  };
-
-  const startCustomTimer = () => {
-    const hours = parseInt(customHours) || 0;
-    const minutes = parseInt(customMinutes) || 0;
-    
-    if (hours === 0 && minutes === 0) {
-      return;
-    }
-
-    console.log('User started custom timer:', { hours, minutes });
-
-    const totalSeconds = (hours * 3600) + (minutes * 60);
-    const customTimer: TimerType = {
-      id: 'custom',
-      name: 'Custom Timer',
-      duration: totalSeconds,
-      description: `${hours > 0 ? hours + 'h ' : ''}${minutes}min`,
-    };
-
-    setSelectedTimer(customTimer);
-    setTimeLeft(totalSeconds);
-    setIsTimerRunning(true);
-    setShowCustomModal(false);
-    setCustomHours('');
-    setCustomMinutes('');
-    saveTimerState(true, totalSeconds);
+    saveTimerState(true, preset.duration);
   };
 
   const stopTimer = () => {
-    console.log('User stopped timer');
+    console.log('[Discipline] User stopped timer');
     setIsTimerRunning(false);
     saveTimerState(false, 0);
   };
 
   const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
+    const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const tasksByDay = tasks.reduce((acc, task) => {
-    const day = task.dayOfWeek ?? -1;
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(task);
-    return acc;
-  }, {} as Record<number, WeeklyTask[]>);
-
-  const canAddTask = newTask.trim() && taskTime;
 
   const completedTasksCount = tasks.filter(t => t.completed).length;
   const totalTasksCount = tasks.length;
@@ -305,43 +277,65 @@ export default function FocusScreen() {
       
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <View style={styles.headerSection}>
-          <Text style={styles.title}>Focus Hub</Text>
-          <Text style={styles.subtitle}>Your productivity command center</Text>
+          <Text style={styles.title}>Discipline Mode</Text>
+          <Text style={styles.subtitle}>Build unstoppable fitness habits</Text>
         </View>
 
+        {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check-circle" size={32} color={colors.primary} />
-            <Text style={styles.statValue}>{completedTasksCount}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <IconSymbol 
+              ios_icon_name="flame.fill" 
+              android_material_icon_name="local-fire-department" 
+              size={32} 
+              color="#ef4444" 
+            />
+            <Text style={styles.statValue}>{streak}</Text>
+            <Text style={styles.statLabel}>Day Streak</Text>
           </View>
           
           <View style={styles.statCard}>
-            <IconSymbol ios_icon_name="list.bullet" android_material_icon_name="list" size={32} color={colors.warning} />
-            <Text style={styles.statValue}>{totalTasksCount - completedTasksCount}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+            <IconSymbol 
+              ios_icon_name="checkmark.circle.fill" 
+              android_material_icon_name="check-circle" 
+              size={32} 
+              color={colors.primary} 
+            />
+            <Text style={styles.statValue}>{completedTasksCount}/{totalTasksCount}</Text>
+            <Text style={styles.statLabel}>Today</Text>
           </View>
           
           <View style={styles.statCard}>
-            <IconSymbol ios_icon_name="chart.bar.fill" android_material_icon_name="bar-chart" size={32} color={colors.success} />
+            <IconSymbol 
+              ios_icon_name="chart.bar.fill" 
+              android_material_icon_name="bar-chart" 
+              size={32} 
+              color="#10b981" 
+            />
             <Text style={styles.statValue}>{Math.round(progressPercentage)}%</Text>
             <Text style={styles.statLabel}>Progress</Text>
           </View>
         </View>
 
+        {/* Timer Card */}
         <Animated.View style={[styles.timerCard, { transform: [{ scale: pulseAnim }] }]}>
           {isTimerRunning ? (
             <>
               <View style={styles.timerActiveHeader}>
-                <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={40} color={colors.primary} />
-                <Text style={styles.timerLabel}>{selectedTimer?.name}</Text>
+                <IconSymbol 
+                  ios_icon_name="timer" 
+                  android_material_icon_name="timer" 
+                  size={40} 
+                  color={colors.primary} 
+                />
+                <Text style={styles.timerLabel}>{selectedPreset?.name}</Text>
               </View>
               <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
               <View style={styles.timerProgress}>
                 <View 
                   style={[
                     styles.timerProgressFill, 
-                    { width: `${((selectedTimer?.duration || 1) - timeLeft) / (selectedTimer?.duration || 1) * 100}%` }
+                    { width: `${((selectedPreset?.duration || 1) - timeLeft) / (selectedPreset?.duration || 1) * 100}%` }
                   ]} 
                 />
               </View>
@@ -349,266 +343,107 @@ export default function FocusScreen() {
                 style={styles.stopButton}
                 onPress={stopTimer}
               >
-                <IconSymbol ios_icon_name="stop.fill" android_material_icon_name="stop" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Stop Session</Text>
+                <IconSymbol 
+                  ios_icon_name="stop.fill" 
+                  android_material_icon_name="stop" 
+                  size={20} 
+                  color="#fff" 
+                />
+                <Text style={styles.buttonText}>Stop Timer</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
               <View style={styles.timerIdleContent}>
-                <IconSymbol ios_icon_name="timer" android_material_icon_name="timer" size={80} color={colors.primary} />
+                <IconSymbol 
+                  ios_icon_name="timer" 
+                  android_material_icon_name="timer" 
+                  size={64} 
+                  color={colors.primary} 
+                />
                 <Text style={styles.timerIdleTitle}>Ready to Focus?</Text>
-                <Text style={styles.timerIdleSubtitle}>Choose a timer to start your session</Text>
+                <Text style={styles.timerIdleSubtitle}>Choose a timer preset to begin</Text>
               </View>
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={() => setShowTimerModal(true)}
               >
-                <IconSymbol ios_icon_name="play.fill" android_material_icon_name="play-arrow" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Start Focus Session</Text>
+                <IconSymbol 
+                  ios_icon_name="play.fill" 
+                  android_material_icon_name="play-arrow" 
+                  size={20} 
+                  color="#fff" 
+                />
+                <Text style={styles.buttonText}>Start Timer</Text>
               </TouchableOpacity>
             </>
           )}
         </Animated.View>
 
-        <TouchableOpacity style={styles.addTaskButton} onPress={openTaskModal}>
-          <IconSymbol ios_icon_name="plus.circle.fill" android_material_icon_name="add-circle" size={24} color="#fff" />
-          <Text style={styles.addTaskButtonText}>Add Task to Weekly Plan</Text>
-        </TouchableOpacity>
-
+        {/* Fitness Checklist */}
         <View style={styles.tasksSection}>
-          <Text style={styles.sectionTitle}>Weekly Tasks</Text>
-          {Object.keys(tasksByDay).length === 0 ? (
-            <View style={styles.emptyState}>
-              <IconSymbol ios_icon_name="tray" android_material_icon_name="inbox" size={60} color={colors.grey} />
-              <Text style={styles.emptyText}>No tasks scheduled</Text>
-              <Text style={styles.emptySubtext}>Add your first task to get started!</Text>
-            </View>
-          ) : (
-            Object.entries(tasksByDay)
-              .sort(([dayA], [dayB]) => parseInt(dayA) - parseInt(dayB))
-              .map(([day, dayTasks]) => {
-                const dayIndex = parseInt(day);
-                if (dayIndex === -1) return null;
-                
-                return (
-                  <View key={day} style={styles.daySection}>
-                    <Text style={styles.dayTitle}>{DAYS[dayIndex]}</Text>
-                    {dayTasks.map((task) => (
-                      <View key={task.id} style={styles.taskCard}>
-                        <TouchableOpacity
-                          style={styles.taskMain}
-                          onPress={() => toggleTask(task.id)}
-                        >
-                          <View style={[
-                            styles.checkbox,
-                            task.completed && styles.checkboxChecked,
-                          ]}>
-                            {task.completed && (
-                              <IconSymbol ios_icon_name="checkmark" android_material_icon_name="check" size={16} color="#fff" />
-                            )}
-                          </View>
-                          <View style={styles.taskContent}>
-                            <Text style={[
-                              styles.taskTitle,
-                              task.completed && styles.taskTitleCompleted,
-                            ]}>
-                              {task.title}
-                            </Text>
-                            <View style={styles.taskMeta}>
-                              <Text style={styles.taskCategory}>{task.category}</Text>
-                              {task.startTime && (
-                                <Text style={styles.taskTime}>• {task.startTime}</Text>
-                              )}
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => deleteTask(task.id)}
-                        >
-                          <IconSymbol ios_icon_name="trash" android_material_icon_name="delete" size={20} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })
-          )}
+          <Text style={styles.sectionTitle}>Today&apos;s Fitness Checklist</Text>
+          {tasks.map((task) => (
+            <TouchableOpacity
+              key={task.id}
+              style={styles.taskCard}
+              onPress={() => toggleTask(task.id)}
+            >
+              <View style={[
+                styles.checkbox,
+                task.completed && styles.checkboxChecked,
+                { borderColor: task.color, backgroundColor: task.completed ? task.color : 'transparent' },
+              ]}>
+                {task.completed && (
+                  <IconSymbol 
+                    ios_icon_name="checkmark" 
+                    android_material_icon_name="check" 
+                    size={16} 
+                    color="#fff" 
+                  />
+                )}
+              </View>
+              <View style={styles.taskContent}>
+                <Text style={[
+                  styles.taskTitle,
+                  task.completed && styles.taskTitleCompleted,
+                ]}>
+                  {task.title}
+                </Text>
+                <View style={styles.taskMeta}>
+                  <IconSymbol 
+                    ios_icon_name={task.icon} 
+                    android_material_icon_name={task.icon} 
+                    size={14} 
+                    color={task.color} 
+                  />
+                  <Text style={[styles.taskType, { color: task.color }]}>
+                    {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Motivation Card */}
+        <View style={styles.motivationCard}>
+          <IconSymbol 
+            ios_icon_name="bolt.fill" 
+            android_material_icon_name="flash-on" 
+            size={32} 
+            color={colors.primary} 
+          />
+          <View style={styles.motivationContent}>
+            <Text style={styles.motivationTitle}>Keep Going!</Text>
+            <Text style={styles.motivationText}>
+              {completedTasksCount === 0 && "Start your day strong. Complete your first task!"}
+              {completedTasksCount > 0 && completedTasksCount < totalTasksCount && `${totalTasksCount - completedTasksCount} more to go. You've got this!`}
+              {completedTasksCount === totalTasksCount && "Perfect day! All tasks completed. 🎉"}
+            </Text>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Add Task Modal */}
-      <Modal
-        visible={showTaskModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTaskModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Task</Text>
-            
-            <Text style={styles.inputLabel}>Task Description</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="What do you need to do?"
-              placeholderTextColor={colors.grey}
-              value={newTask}
-              onChangeText={setNewTask}
-            />
-
-            <Text style={styles.inputLabel}>Day</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daySelector}>
-              {DAYS.map((day, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.dayChip,
-                    selectedDay === index && styles.dayChipActive,
-                  ]}
-                  onPress={() => setSelectedDay(index)}
-                >
-                  <Text style={[
-                    styles.dayChipText,
-                    selectedDay === index && styles.dayChipTextActive,
-                  ]}>
-                    {day}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.inputLabel}>
-              Time
-              <Text style={styles.requiredStar}> *</Text>
-            </Text>
-            <TouchableOpacity
-              style={styles.timePickerButton}
-              onPress={openTimePicker}
-            >
-              <IconSymbol ios_icon_name="clock" android_material_icon_name="access-time" size={20} color={colors.text} />
-              <Text style={styles.timePickerButtonText}>
-                {taskTime || 'Select time'}
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.inputLabel}>Category</Text>
-            <View style={styles.categorySelector}>
-              {(['study', 'work', 'personal'] as const).map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryChip,
-                    selectedCategory === cat && styles.categoryChipActive,
-                  ]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
-                  <Text style={[
-                    styles.categoryText,
-                    selectedCategory === cat && styles.categoryTextActive,
-                  ]}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.addButton, !canAddTask && styles.addButtonDisabled]}
-              onPress={addTask}
-              disabled={!canAddTask}
-            >
-              <Text style={styles.buttonText}>Add Task</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowTaskModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Time Picker Modal */}
-      <Modal
-        visible={showTimePickerModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTimePickerModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.timePickerModal}>
-            <Text style={styles.modalTitle}>Select Time</Text>
-            
-            <View style={styles.timePickerContainer}>
-              <View style={styles.timePickerColumn}>
-                <Text style={styles.timePickerLabel}>Hour</Text>
-                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
-                    <TouchableOpacity
-                      key={hour}
-                      style={[
-                        styles.timePickerOption,
-                        selectedHour === hour && styles.timePickerOptionSelected,
-                      ]}
-                      onPress={() => setSelectedHour(hour)}
-                    >
-                      <Text style={[
-                        styles.timePickerOptionText,
-                        selectedHour === hour && styles.timePickerOptionTextSelected,
-                      ]}>
-                        {hour.toString().padStart(2, '0')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <Text style={styles.timePickerSeparator}>:</Text>
-
-              <View style={styles.timePickerColumn}>
-                <Text style={styles.timePickerLabel}>Minute</Text>
-                <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
-                    <TouchableOpacity
-                      key={minute}
-                      style={[
-                        styles.timePickerOption,
-                        selectedMinute === minute && styles.timePickerOptionSelected,
-                      ]}
-                      onPress={() => setSelectedMinute(minute)}
-                    >
-                      <Text style={[
-                        styles.timePickerOptionText,
-                        selectedMinute === minute && styles.timePickerOptionTextSelected,
-                      ]}>
-                        {minute.toString().padStart(2, '0')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.confirmTimeButton}
-              onPress={confirmTime}
-            >
-              <Text style={styles.buttonText}>Confirm Time</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowTimePickerModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Timer Selection Modal */}
       <Modal
@@ -619,90 +454,36 @@ export default function FocusScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Timer Type</Text>
-            {TIMER_TYPES.map((timer) => (
+            <Text style={styles.modalTitle}>Choose Timer Preset</Text>
+            {TIMER_PRESETS.map((preset) => (
               <TouchableOpacity
-                key={timer.id}
+                key={preset.id}
                 style={styles.timerOption}
-                onPress={() => startTimer(timer)}
+                onPress={() => startTimer(preset)}
               >
-                <View>
-                  <Text style={styles.timerOptionName}>{timer.name}</Text>
-                  <Text style={styles.timerOptionDesc}>{timer.description}</Text>
+                <View style={styles.timerOptionLeft}>
+                  <IconSymbol 
+                    ios_icon_name={preset.icon} 
+                    android_material_icon_name={preset.icon} 
+                    size={24} 
+                    color={colors.primary} 
+                  />
+                  <View>
+                    <Text style={styles.timerOptionName}>{preset.name}</Text>
+                    <Text style={styles.timerOptionDesc}>{preset.description}</Text>
+                  </View>
                 </View>
-                <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={20} color={colors.grey} />
+                <IconSymbol 
+                  ios_icon_name="chevron.right" 
+                  android_material_icon_name="chevron-right" 
+                  size={20} 
+                  color={colors.grey} 
+                />
               </TouchableOpacity>
             ))}
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowTimerModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Custom Timer Modal */}
-      <Modal
-        visible={showCustomModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCustomModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Custom Timer</Text>
-            <Text style={styles.modalSubtitle}>Set your own duration</Text>
-            
-            <View style={styles.customInputContainer}>
-              <View style={styles.customInputGroup}>
-                <Text style={styles.customInputLabel}>Hours</Text>
-                <TextInput
-                  style={styles.customInput}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.grey}
-                  value={customHours}
-                  onChangeText={setCustomHours}
-                  maxLength={2}
-                />
-              </View>
-
-              <Text style={styles.customInputSeparator}>:</Text>
-
-              <View style={styles.customInputGroup}>
-                <Text style={styles.customInputLabel}>Minutes</Text>
-                <TextInput
-                  style={styles.customInput}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.grey}
-                  value={customMinutes}
-                  onChangeText={setCustomMinutes}
-                  maxLength={2}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.startCustomButton,
-                (!customHours && !customMinutes) && styles.startCustomButtonDisabled,
-              ]}
-              onPress={startCustomTimer}
-              disabled={!customHours && !customMinutes}
-            >
-              <Text style={styles.buttonText}>Start Timer</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                setShowCustomModal(false);
-                setCustomHours('');
-                setCustomMinutes('');
-              }}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -724,13 +505,13 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingTop: Platform.OS === 'android' ? 48 : 60,
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   headerSection: {
     marginBottom: 24,
   },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '800',
     color: colors.text,
     marginBottom: 4,
@@ -780,12 +561,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   timerLabel: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
   },
   timerDisplay: {
-    fontSize: 72,
+    fontSize: 64,
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 16,
@@ -807,14 +588,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   timerIdleTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   timerIdleSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -841,82 +622,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  addTaskButton: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-  },
-  addTaskButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   tasksSection: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
-  },
-  daySection: {
-    marginBottom: 24,
-  },
-  dayTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 12,
   },
   taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  taskMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.grey,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    borderWidth: 0,
   },
   taskContent: {
     flex: 1,
@@ -925,7 +660,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
@@ -934,19 +669,34 @@ const styles = StyleSheet.create({
   taskMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  taskCategory: {
+  taskType: {
     fontSize: 12,
-    color: colors.grey,
-  },
-  taskTime: {
-    fontSize: 12,
-    color: colors.primary,
     fontWeight: '600',
   },
-  deleteButton: {
-    padding: 8,
+  motivationCard: {
+    flexDirection: 'row',
+    gap: 16,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(69, 155, 155, 0.3)',
+  },
+  motivationContent: {
+    flex: 1,
+  },
+  motivationTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  motivationText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -961,7 +711,6 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
-    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: 24,
@@ -969,167 +718,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 20,
     textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: colors.grey,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  requiredStar: {
-    color: '#ef4444',
-    fontSize: 16,
-  },
-  textInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 16,
-    color: colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  daySelector: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  dayChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    marginRight: 8,
-  },
-  dayChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayChipText: {
-    color: colors.grey,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dayChipTextActive: {
-    color: '#fff',
-  },
-  timePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  timePickerButtonText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  timePickerModal: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 24,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-  },
-  timePickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
-  timePickerColumn: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  timePickerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  timePickerScroll: {
-    maxHeight: 200,
-    width: '100%',
-  },
-  timePickerOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 4,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-  },
-  timePickerOptionSelected: {
-    backgroundColor: colors.primary,
-  },
-  timePickerOptionText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  timePickerOptionTextSelected: {
-    color: '#fff',
-  },
-  timePickerSeparator: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 24,
-  },
-  confirmTimeButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categorySelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryText: {
-    color: colors.grey,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#fff',
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
   },
   timerOption: {
     flexDirection: 'row',
@@ -1140,63 +728,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
+  timerOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
   timerOptionName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
   },
   timerOptionDesc: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.grey,
-    marginTop: 4,
-  },
-  customInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
-  customInputGroup: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  customInputLabel: {
-    fontSize: 14,
-    color: colors.grey,
-    fontWeight: '600',
-  },
-  customInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
-    padding: 16,
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-    textAlign: 'center',
-    width: 100,
-  },
-  customInputSeparator: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 24,
-  },
-  startCustomButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  startCustomButtonDisabled: {
-    opacity: 0.5,
+    marginTop: 2,
   },
   cancelButton: {
     padding: 16,
     alignItems: 'center',
+    marginTop: 8,
   },
   cancelButtonText: {
     color: colors.grey,

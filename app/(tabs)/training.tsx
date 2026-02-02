@@ -25,9 +25,15 @@ export default function TrainingScreen() {
   const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWeeklyModal, setShowWeeklyModal] = useState(false);
+  const [hasWorkoutsLogged, setHasWorkoutsLogged] = useState(false);
 
   const loadWorkout = useCallback(async () => {
     try {
+      // Check if user has logged workouts
+      const workoutHistory = await AsyncStorage.getItem('workoutHistory');
+      const hasHistory = workoutHistory && JSON.parse(workoutHistory).length > 0;
+      setHasWorkoutsLogged(hasHistory);
+
       // First try to load from backend to get the latest profile
       try {
         const { authenticatedGet } = await import('@/utils/api');
@@ -36,11 +42,6 @@ export default function TrainingScreen() {
         if (backendProfile) {
           console.log('[Training] Raw backend profile:', backendProfile);
           
-          // Map backend field names to frontend field names
-          // Backend uses: trainingFrequency, activityLevel, focusAreas, equipmentType
-          // Frontend uses: trainingDays, activityLevel, focusAreas, equipmentType
-          
-          // Provide sensible defaults based on gender if fields are missing
           const defaultFocusAreas = backendProfile.gender === 'female' 
             ? ['Glutes', 'Legs', 'Core'] 
             : ['Chest', 'Back', 'Arms'];
@@ -60,22 +61,14 @@ export default function TrainingScreen() {
           };
           
           console.log('[Training] Mapped profile for workout generation:', mappedProfile);
-          console.log('[Training] Profile has required fields:', {
-            gender: mappedProfile.gender,
-            trainingDays: mappedProfile.trainingDays,
-            focusAreas: mappedProfile.focusAreas,
-            equipmentType: mappedProfile.equipmentType,
-          });
           
           setProfile(mappedProfile);
           await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
           
-          // Generate weekly workout split with the complete profile
           const weeklyWorkoutSplit = generateWorkoutSplit(mappedProfile);
           console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
           setWeeklyWorkouts(weeklyWorkoutSplit);
           
-          // Get today's workout
           const workout = getTodaysWorkout(mappedProfile);
           console.log('[Training] Today\'s workout:', workout);
           setTodaysWorkout(workout);
@@ -99,12 +92,10 @@ export default function TrainingScreen() {
       console.log('[Training] Profile from local storage:', profileData);
       setProfile(profileData);
 
-      // Generate weekly workout split
       const weeklyWorkoutSplit = generateWorkoutSplit(profileData);
       console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
       setWeeklyWorkouts(weeklyWorkoutSplit);
 
-      // Get today's workout
       const workout = getTodaysWorkout(profileData);
       console.log('[Training] Today\'s workout:', workout);
       setTodaysWorkout(workout);
@@ -129,7 +120,6 @@ export default function TrainingScreen() {
     setTodaysWorkout(workout);
     setShowWeeklyModal(false);
     
-    // Save the selected workout to AsyncStorage so workout-session can load it
     try {
       await AsyncStorage.setItem('selectedWorkout', JSON.stringify(workout));
       console.log('[Training] Selected workout saved to AsyncStorage');
@@ -142,7 +132,6 @@ export default function TrainingScreen() {
     console.log('[Training] User tapped Start Workout button');
     
     if (todaysWorkout) {
-      // Save the workout to AsyncStorage before navigating
       try {
         await AsyncStorage.setItem('selectedWorkout', JSON.stringify(todaysWorkout));
         console.log('[Training] Workout saved to AsyncStorage before starting session');
@@ -154,11 +143,109 @@ export default function TrainingScreen() {
     router.push('/workout-session');
   };
 
+  const handleCreateWeeklyPlan = () => {
+    console.log('[Training] User tapped Create Weekly Plan');
+    router.push('/(tabs)/plan');
+  };
+
+  // Get context-aware tips based on workout type
+  const getWorkoutTips = () => {
+    if (!todaysWorkout) return [];
+    
+    const workoutName = todaysWorkout.name.toLowerCase();
+    const exercises = todaysWorkout.exercises.map(e => e.name.toLowerCase());
+    
+    const tips = [];
+    
+    // Chest/Push tips
+    if (workoutName.includes('push') || workoutName.includes('chest') || 
+        exercises.some(e => e.includes('bench') || e.includes('press'))) {
+      tips.push('Retract your shoulder blades for better chest activation');
+      tips.push('Control the eccentric (lowering) phase for 2-3 seconds');
+    }
+    
+    // Pull/Back tips
+    if (workoutName.includes('pull') || workoutName.includes('back') ||
+        exercises.some(e => e.includes('row') || e.includes('pull'))) {
+      tips.push('Focus on pulling with your elbows, not your hands');
+      tips.push('Squeeze your shoulder blades together at peak contraction');
+    }
+    
+    // Leg tips
+    if (workoutName.includes('leg') || workoutName.includes('lower') ||
+        exercises.some(e => e.includes('squat') || e.includes('leg'))) {
+      tips.push('Keep your core braced throughout the movement');
+      tips.push('Drive through your heels, not your toes');
+    }
+    
+    // General tips
+    tips.push('Warm up with 5-10 minutes of light cardio');
+    tips.push('Rest 60-90 seconds between sets for hypertrophy');
+    tips.push('Stay hydrated - drink water between sets');
+    
+    return tips.slice(0, 5);
+  };
+
+  const workoutTips = getWorkoutTips();
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ParticleBackground />
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Empty state for users with no workouts logged
+  if (!hasWorkoutsLogged && !todaysWorkout) {
+    return (
+      <View style={styles.container}>
+        <ParticleBackground />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.emptyContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.emptyStateContainer}>
+            <IconSymbol
+              ios_icon_name="figure.strengthtraining.traditional"
+              android_material_icon_name="fitness-center"
+              size={80}
+              color={colors.primary}
+            />
+            <Text style={styles.emptyTitle}>Ready to Start Your Fitness Journey?</Text>
+            <Text style={styles.emptySubtitle}>
+              Begin with today&apos;s workout or create a custom weekly training plan
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.primaryCTA}
+              onPress={handleStartWorkout}
+            >
+              <IconSymbol
+                ios_icon_name="play.fill"
+                android_material_icon_name="play-arrow"
+                size={24}
+                color="#fff"
+              />
+              <Text style={styles.primaryCTAText}>Start Today&apos;s Workout</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.secondaryCTA}
+              onPress={handleCreateWeeklyPlan}
+            >
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.secondaryCTAText}>Create Weekly Plan</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -308,24 +395,27 @@ export default function TrainingScreen() {
           ))}
         </View>
 
-        <View style={styles.tipsCard}>
-          <View style={styles.tipsHeader}>
-            <IconSymbol
-              ios_icon_name="lightbulb.fill"
-              android_material_icon_name="lightbulb"
-              size={24}
-              color="#f59e0b"
-            />
-            <Text style={styles.tipsTitle}>Workout Tips</Text>
+        {workoutTips.length > 0 && (
+          <View style={styles.tipsCard}>
+            <View style={styles.tipsHeader}>
+              <IconSymbol
+                ios_icon_name="lightbulb.fill"
+                android_material_icon_name="lightbulb"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={styles.tipsTitle}>Workout Tips</Text>
+            </View>
+            <View style={styles.tipsContent}>
+              {workoutTips.map((tip, index) => (
+                <View key={index} style={styles.tipRow}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-          <Text style={styles.tipText}>
-            • Warm up for 5-10 minutes before starting{'\n'}
-            • Focus on proper form over heavy weight{'\n'}
-            • Rest 60-90 seconds between sets{'\n'}
-            • Stay hydrated throughout your workout{'\n'}
-            • Cool down and stretch after finishing
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -344,6 +434,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
+  emptyContent: {
+    flexGrow: 1,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -354,18 +450,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
   emptyTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: colors.text,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
+    lineHeight: 24,
+  },
+  primaryCTA: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    marginBottom: 16,
+  },
+  primaryCTAText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  secondaryCTA: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  secondaryCTAText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
   planButton: {
     backgroundColor: colors.primary,
@@ -473,11 +614,11 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   tipsCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(69, 155, 155, 0.3)',
   },
   tipsHeader: {
     flexDirection: 'row',
@@ -490,10 +631,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  tipsContent: {
+    gap: 12,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  tipBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginTop: 7,
+  },
   tipText: {
+    flex: 1,
     fontSize: 14,
     color: colors.text,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   modalContainer: {
     flex: 1,
