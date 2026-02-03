@@ -1,5 +1,4 @@
 
-import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { colors } from '@/styles/commonStyles';
+import { WeeklyTask, FitnessProfile } from '@/types/fitness';
+import { authenticatedGet } from '@/utils/api';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import { authenticatedGet } from '@/utils/api';
-import { WeeklyTask } from '@/types/fitness';
+import React, { useState, useEffect } from 'react';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -40,11 +40,13 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      // Load user name from profile
+      // Load user profile from local storage
       const profileData = await AsyncStorage.getItem('fitnessProfile');
+      let profile: FitnessProfile | null = null;
+      
       if (profileData) {
-        const profile = JSON.parse(profileData);
-        if (profile.name) {
+        profile = JSON.parse(profileData);
+        if (profile?.name) {
           setUserName(profile.name);
         }
       }
@@ -56,21 +58,25 @@ export default function HomeScreen() {
         const today = new Date().getDay();
         const tasksForToday = allTasks.filter(task => task.dayOfWeek === today);
         setTodayTasks(tasksForToday);
-        console.log('[Home iOS] Loaded tasks for today:', tasksForToday.length);
+        console.log('[Home] Loaded tasks for today:', tasksForToday.length);
       }
       
       // Load dashboard stats from backend
       try {
         const dashboardStats = await authenticatedGet('/api/dashboard/home');
         setStats(dashboardStats);
-        console.log('[Home iOS] Dashboard stats loaded from backend');
+        console.log('[Home] Dashboard stats loaded from backend');
       } catch (error) {
-        console.log('[Home iOS] Could not load stats from backend, using local data');
-        // Fallback to local data
+        console.log('[Home] Could not load stats from backend, using local data');
+        
+        // Fallback to local profile data
+        const caloricGoal = profile?.caloricGoal || 2500;
+        console.log('[Home] Using caloric goal from profile:', caloricGoal);
+        
         setStats({
-          dailyCalorieGoal: 2500,
+          dailyCalorieGoal: caloricGoal,
           caloriesConsumed: 0,
-          caloriesRemaining: 2500,
+          caloriesRemaining: caloricGoal,
           percentageConsumed: 0,
           goalMet: false,
           mealsLogged: 0,
@@ -78,14 +84,14 @@ export default function HomeScreen() {
         });
       }
     } catch (error) {
-      console.error('[Home iOS] Error loading data:', error);
+      console.error('[Home] Error loading data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const toggleTask = async (taskId: string) => {
-    console.log('[Home iOS] User toggled task:', taskId);
+    console.log('[Home] User toggled task:', taskId);
     try {
       const tasksData = await AsyncStorage.getItem('focusTasks');
       if (tasksData) {
@@ -101,12 +107,12 @@ export default function HomeScreen() {
         setTodayTasks(tasksForToday);
       }
     } catch (error) {
-      console.error('[Home iOS] Error toggling task:', error);
+      console.error('[Home] Error toggling task:', error);
     }
   };
 
   const handleNavigateToProfile = () => {
-    console.log('[Home iOS] User tapped profile button');
+    console.log('[Home] User tapped profile button');
     router.push('/(tabs)/profile');
   };
 

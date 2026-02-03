@@ -31,6 +31,77 @@ const DAYS_OF_WEEK = [
   { id: 6, short: 'Sat', full: 'Saturday' },
 ];
 
+// Mifflin-St Jeor Equation for BMR calculation
+const calculateCaloricGoal = (
+  gender: 'male' | 'female',
+  weight: number,
+  height: number,
+  age: number,
+  trainingFrequency: number,
+  goal: string
+) => {
+  console.log('[Onboarding] Calculating caloric goal with:', {
+    gender,
+    weight,
+    height,
+    age,
+    trainingFrequency,
+    goal,
+  });
+
+  // Calculate BMR using Mifflin-St Jeor Equation
+  let bmr: number;
+  if (gender === 'male') {
+    bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+  } else {
+    bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+  }
+
+  console.log('[Onboarding] BMR calculated:', bmr);
+
+  // Activity Level Multiplier based on training frequency
+  let activityFactor: number;
+  if (trainingFrequency <= 2) {
+    activityFactor = 1.2; // Sedentary/Lightly active
+  } else if (trainingFrequency <= 4) {
+    activityFactor = 1.375; // Moderately active
+  } else if (trainingFrequency <= 6) {
+    activityFactor = 1.55; // Very active
+  } else {
+    activityFactor = 1.725; // Extremely active
+  }
+
+  console.log('[Onboarding] Activity factor:', activityFactor);
+
+  // Calculate TDEE (Total Daily Energy Expenditure)
+  const tdee = bmr * activityFactor;
+  console.log('[Onboarding] TDEE calculated:', tdee);
+
+  // Adjust for goal
+  let caloricGoal: number;
+  if (goal === 'weight-loss') {
+    caloricGoal = tdee * 0.85; // 15% deficit
+  } else if (goal === 'muscle' || goal === 'strength') {
+    caloricGoal = tdee * 1.10; // 10% surplus
+  } else {
+    caloricGoal = tdee; // Maintenance
+  }
+
+  console.log('[Onboarding] Final caloric goal:', Math.round(caloricGoal));
+
+  // Calculate macro split
+  const proteinCalories = caloricGoal * 0.30; // 30% protein
+  const carbCalories = caloricGoal * 0.45; // 45% carbs
+  const fatCalories = caloricGoal * 0.25; // 25% fat
+
+  return {
+    caloricGoal: Math.round(caloricGoal),
+    protein: Math.round(proteinCalories / 4), // 4 cal/g protein
+    carbs: Math.round(carbCalories / 4), // 4 cal/g carbs
+    fat: Math.round(fatCalories / 9), // 9 cal/g fat
+  };
+};
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -47,15 +118,37 @@ export default function OnboardingScreen() {
     console.log('[Onboarding] User tapped Get Started');
     
     const trainingDaysCount = profile.selectedDays?.length || 3;
+    const age = profile.age || 25;
+    const gender = profile.gender || 'male';
+    const weight = profile.weight || 70;
+    const height = profile.height || 175;
+    const goal = profile.goal || 'muscle';
+    
+    // Calculate caloric goal locally
+    const nutritionGoals = calculateCaloricGoal(
+      gender,
+      weight,
+      height,
+      age,
+      trainingDaysCount,
+      goal
+    );
+    
+    console.log('[Onboarding] Calculated nutrition goals:', nutritionGoals);
     
     const finalProfile = {
       ...profile,
       name: profile.name?.trim() || undefined,
-      age: profile.age || 25,
-      gender: profile.gender || 'male',
-      weight: profile.weight || 70,
-      height: profile.height || 175,
+      age,
+      gender,
+      weight,
+      height,
+      goal,
       trainingDays: trainingDaysCount,
+      caloricGoal: nutritionGoals.caloricGoal,
+      protein: nutritionGoals.protein,
+      carbs: nutritionGoals.carbs,
+      fat: nutritionGoals.fat,
     };
     
     console.log('[Onboarding] Final profile before saving:', finalProfile);
@@ -68,12 +161,12 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Saving complete fitness profile to backend...');
       const profilePayload = {
         experienceLevel: 'beginner',
-        goal: finalProfile.goal || 'muscle',
+        goal: goal,
         trainingFrequency: trainingDaysCount,
-        gender: finalProfile.gender,
-        age: finalProfile.age,
-        weight: finalProfile.weight,
-        height: finalProfile.height,
+        gender: gender,
+        age: age,
+        weight: weight,
+        height: height,
         activityLevel,
         focusAreas: finalProfile.focusAreas || [],
         equipmentType: finalProfile.equipmentType || 'gym',
@@ -86,32 +179,46 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Complete fitness profile saved successfully');
       
       let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
-      if (finalProfile.goal === 'weight-loss') {
+      if (goal === 'weight-loss') {
         backendGoal = 'weight_loss';
-      } else if (finalProfile.goal === 'muscle' || finalProfile.goal === 'strength') {
+      } else if (goal === 'muscle' || goal === 'strength') {
         backendGoal = 'weight_gain';
       }
       
-      console.log('[Onboarding] Calculating caloric goal with:', {
-        age: finalProfile.age,
-        gender: finalProfile.gender,
-        weight: finalProfile.weight,
-        height: finalProfile.height,
+      console.log('[Onboarding] Calculating caloric goal on backend with:', {
+        age,
+        gender,
+        weight,
+        height,
         activityLevel,
         goal: backendGoal,
       });
       
       const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
-        age: finalProfile.age,
-        gender: finalProfile.gender,
-        weight: finalProfile.weight,
-        height: finalProfile.height,
+        age,
+        gender,
+        weight,
+        height,
         activityLevel,
         goal: backendGoal,
       });
       
-      console.log('[Onboarding] Caloric goal calculated:', caloricGoalResponse);
-      console.log('[Onboarding] Profile setup complete - daily calorie goal:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
+      console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
+      
+      // Update local storage with backend response if available
+      if (caloricGoalResponse?.dailyCalorieGoal) {
+        const updatedProfile = {
+          ...finalProfile,
+          caloricGoal: caloricGoalResponse.dailyCalorieGoal,
+          protein: caloricGoalResponse.protein || nutritionGoals.protein,
+          carbs: caloricGoalResponse.carbs || nutritionGoals.carbs,
+          fat: caloricGoalResponse.fat || nutritionGoals.fat,
+        };
+        await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
+        console.log('[Onboarding] Updated profile with backend caloric goal:', updatedProfile.caloricGoal);
+      }
+      
+      console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
       
       setShowSuccessModal(true);
       setTimeout(() => {
@@ -120,6 +227,7 @@ export default function OnboardingScreen() {
       }, 2000);
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
+      // Still proceed to home screen with local data
       router.replace('/(tabs)/(home)');
     }
   };
@@ -159,7 +267,7 @@ export default function OnboardingScreen() {
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your gender?</Text>
-      <Text style={styles.stepSubtitle}>This helps us personalize your workout plan</Text>
+      <Text style={styles.stepSubtitle}>This helps us calculate your calorie needs</Text>
       
       <View style={styles.optionsContainer}>
         {(['male', 'female'] as const).map((gender) => (

@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import React, { useState } from 'react';
-import { authenticatedPost } from '@/utils/api';
+import React, { useState, useEffect } from 'react';
+import { authenticatedPost, authenticatedGet } from '@/utils/api';
 import CustomModal from '@/components/ui/Modal';
 
 const plans = [
@@ -87,6 +87,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  currentPlanBadge: {
+    marginTop: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  currentPlanText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   plansContainer: {
     gap: 20,
@@ -190,15 +204,35 @@ const styles = StyleSheet.create({
 
 export default function ShopScreen() {
   const [loading, setLoading] = useState<string | null>(null);
-  const [showFreeModal, setShowFreeModal] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string>('free');
+  const [loadingPlan, setLoadingPlan] = useState(true);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    loadCurrentPlan();
+  }, []);
+
+  const loadCurrentPlan = async () => {
+    try {
+      console.log('[Shop] Loading current subscription plan...');
+      const response = await authenticatedGet('/api/payments/subscription-status');
+      console.log('[Shop] Current plan:', response.planType);
+      setCurrentPlan(response.planType || 'free');
+    } catch (error) {
+      console.error('[Shop] Error loading subscription status:', error);
+      setCurrentPlan('free');
+    } finally {
+      setLoadingPlan(false);
+    }
+  };
 
   const handlePlanPress = async (plan: typeof plans[0]) => {
     console.log('[Shop] User tapped plan:', plan.name);
 
-    if (plan.id === 'free') {
-      setShowFreeModal(true);
+    // If clicking current plan, just show info
+    if (plan.id === currentPlan) {
+      console.log('[Shop] User clicked their current plan');
       return;
     }
 
@@ -239,6 +273,16 @@ export default function ShopScreen() {
     }
   };
 
+  if (loadingPlan) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const currentPlanName = plans.find(p => p.id === currentPlan)?.name || 'Free';
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -251,13 +295,18 @@ export default function ShopScreen() {
           <Text style={styles.subtitle}>
             Unlock your full potential with premium features
           </Text>
+          <View style={styles.currentPlanBadge}>
+            <Text style={styles.currentPlanText}>
+              Current Plan: {currentPlanName}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.plansContainer}>
           {plans.map((plan) => {
             const isLoading = loading === plan.id;
-            const isFree = plan.id === 'free';
-            const buttonColor = isFree ? 'rgba(255, 255, 255, 0.1)' : plan.color;
+            const isCurrentPlan = plan.id === currentPlan;
+            const buttonColor = isCurrentPlan ? 'rgba(255, 255, 255, 0.1)' : plan.color;
 
             return (
               <View
@@ -302,11 +351,11 @@ export default function ShopScreen() {
                 <TouchableOpacity
                   style={[
                     styles.button,
-                    isFree && styles.buttonDisabled,
+                    isCurrentPlan && styles.buttonDisabled,
                     { backgroundColor: buttonColor },
                   ]}
                   onPress={() => handlePlanPress(plan)}
-                  disabled={isFree || isLoading}
+                  disabled={isCurrentPlan || isLoading}
                 >
                   {isLoading ? (
                     <ActivityIndicator color={colors.background} />
@@ -314,10 +363,10 @@ export default function ShopScreen() {
                     <Text
                       style={[
                         styles.buttonText,
-                        isFree && styles.buttonTextDisabled,
+                        isCurrentPlan && styles.buttonTextDisabled,
                       ]}
                     >
-                      {isFree ? 'Current Plan' : 'Get Started'}
+                      {isCurrentPlan ? 'Current Plan' : 'Get Started'}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -334,18 +383,6 @@ export default function ShopScreen() {
           </Text>
         </View>
       </ScrollView>
-
-      <CustomModal
-        isVisible={showFreeModal}
-        onClose={() => setShowFreeModal(false)}
-        title="Free Plan"
-      >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalText}>
-            You are already on the free plan!
-          </Text>
-        </View>
-      </CustomModal>
 
       <CustomModal
         isVisible={showErrorModal}

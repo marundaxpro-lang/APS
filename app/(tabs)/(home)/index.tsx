@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { authenticatedGet } from '@/utils/api';
-import { WeeklyTask } from '@/types/fitness';
+import { WeeklyTask, FitnessProfile } from '@/types/fitness';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -41,11 +41,13 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      // Load user name from profile
+      // Load user profile from local storage
       const profileData = await AsyncStorage.getItem('fitnessProfile');
+      let profile: FitnessProfile | null = null;
+      
       if (profileData) {
-        const profile = JSON.parse(profileData);
-        if (profile.name) {
+        profile = JSON.parse(profileData);
+        if (profile?.name) {
           setUserName(profile.name);
         }
       }
@@ -67,11 +69,15 @@ export default function HomeScreen() {
         console.log('[Home] Dashboard stats loaded from backend');
       } catch (error) {
         console.log('[Home] Could not load stats from backend, using local data');
-        // Fallback to local data
+        
+        // Fallback to local profile data
+        const caloricGoal = profile?.caloricGoal || 2500;
+        console.log('[Home] Using caloric goal from profile:', caloricGoal);
+        
         setStats({
-          dailyCalorieGoal: 2500,
+          dailyCalorieGoal: caloricGoal,
           caloriesConsumed: 0,
-          caloriesRemaining: 2500,
+          caloriesRemaining: caloricGoal,
           percentageConsumed: 0,
           goalMet: false,
           mealsLogged: 0,
