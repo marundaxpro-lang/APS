@@ -4,6 +4,7 @@ export interface FitnessProfile {
   gender: 'male' | 'female';
   age?: number;
   trainingDays: number;
+  selectedDays?: number[]; // Array of day indices (0-6) for which days to train
   focusAreas: string[];
   equipmentType: 'gym' | 'home' | 'minimal';
   goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';

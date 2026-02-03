@@ -9,6 +9,7 @@ import {
   Platform,
   TextInput,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,10 +21,21 @@ import { authenticatedPost } from '@/utils/api';
 
 const { height } = Dimensions.get('window');
 
+const DAYS_OF_WEEK = [
+  { id: 0, short: 'Sun', full: 'Sunday' },
+  { id: 1, short: 'Mon', full: 'Monday' },
+  { id: 2, short: 'Tue', full: 'Tuesday' },
+  { id: 3, short: 'Wed', full: 'Wednesday' },
+  { id: 4, short: 'Thu', full: 'Thursday' },
+  { id: 5, short: 'Fri', full: 'Friday' },
+  { id: 6, short: 'Sat', full: 'Saturday' },
+];
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
+  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[] }>>({});
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('fitnessProfile').then((data) => {
@@ -32,6 +44,10 @@ export default function OnboardingScreen() {
   }, [router]);
 
   const saveProfile = async () => {
+    console.log('[Onboarding] User tapped Get Started');
+    
+    const trainingDaysCount = profile.selectedDays?.length || 3;
+    
     const finalProfile = {
       ...profile,
       name: profile.name?.trim() || undefined,
@@ -39,22 +55,21 @@ export default function OnboardingScreen() {
       gender: profile.gender || 'male',
       weight: profile.weight || 70,
       height: profile.height || 175,
+      trainingDays: trainingDaysCount,
     };
     
     console.log('[Onboarding] Final profile before saving:', finalProfile);
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
     
     try {
-      // Calculate activity level based on training days
-      const activityLevel = (finalProfile.trainingDays || 3) >= 5 ? 'active' : 
-                           (finalProfile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
+      const activityLevel = trainingDaysCount >= 5 ? 'active' : 
+                           trainingDaysCount >= 3 ? 'moderate' : 'light';
       
-      // Save complete fitness profile to backend with ALL fields
       console.log('[Onboarding] Saving complete fitness profile to backend...');
       const profilePayload = {
         experienceLevel: 'beginner',
         goal: finalProfile.goal || 'muscle',
-        trainingFrequency: finalProfile.trainingDays || 3,
+        trainingFrequency: trainingDaysCount,
         gender: finalProfile.gender,
         age: finalProfile.age,
         weight: finalProfile.weight,
@@ -70,8 +85,6 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Backend response:', savedProfile);
       console.log('[Onboarding] Complete fitness profile saved successfully');
       
-      // Calculate calorie goal based on user input
-      // Map frontend goal to backend goal format
       let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
       if (finalProfile.goal === 'weight-loss') {
         backendGoal = 'weight_loss';
@@ -99,19 +112,22 @@ export default function OnboardingScreen() {
       
       console.log('[Onboarding] Caloric goal calculated:', caloricGoalResponse);
       console.log('[Onboarding] Profile setup complete - daily calorie goal:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
+      
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        router.replace('/(tabs)/(home)');
+      }, 2000);
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
-      // Continue to home screen even if backend save fails
-      // The local profile is already saved
+      router.replace('/(tabs)/(home)');
     }
-    
-    router.replace('/(tabs)/(home)');
   };
 
   const canProceed = () => {
     if (step === 1) return true;
     if (step === 2) return profile.gender;
-    if (step === 3) return profile.trainingDays;
+    if (step === 3) return profile.selectedDays && profile.selectedDays.length > 0;
     if (step === 4) return profile.focusAreas && profile.focusAreas.length > 0;
     if (step === 5) return profile.equipmentType;
     if (step === 6) return profile.goal && profile.weight && profile.height;
@@ -129,7 +145,10 @@ export default function OnboardingScreen() {
           placeholder="Enter your name"
           placeholderTextColor={colors.grey}
           value={profile.name || ''}
-          onChangeText={(text) => setProfile({ ...profile, name: text })}
+          onChangeText={(text) => {
+            console.log('[Onboarding] Name entered:', text);
+            setProfile({ ...profile, name: text });
+          }}
           autoCapitalize="words"
           autoCorrect={false}
         />
@@ -173,38 +192,68 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderStep3 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>How many days can you train?</Text>
-      <Text style={styles.stepSubtitle}>Choose your weekly training frequency</Text>
-      
-      <View style={styles.frequencyGrid}>
-        {[2, 3, 4, 5, 6].map((days) => (
-          <TouchableOpacity
-            key={days}
-            style={[
-              styles.frequencyCard,
-              profile.trainingDays === days && styles.selectedCard,
-            ]}
-            onPress={() => setProfile({ ...profile, trainingDays: days })}
-          >
-            <Text style={[
-              styles.frequencyNumber,
-              profile.trainingDays === days && styles.selectedText
-            ]}>
-              {days}
+  const renderStep3 = () => {
+    const selectedDays = profile.selectedDays || [];
+    
+    const toggleDay = (dayId: number) => {
+      console.log('[Onboarding] Day toggled:', dayId);
+      const current = selectedDays;
+      const updated = current.includes(dayId)
+        ? current.filter((d) => d !== dayId)
+        : [...current, dayId].sort((a, b) => a - b);
+      setProfile({ ...profile, selectedDays: updated });
+    };
+
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>Which days will you train?</Text>
+        <Text style={styles.stepSubtitle}>Select the days you want to work out</Text>
+        
+        <View style={styles.daysGrid}>
+          {DAYS_OF_WEEK.map((day) => {
+            const isSelected = selectedDays.includes(day.id);
+            return (
+              <TouchableOpacity
+                key={day.id}
+                style={[
+                  styles.dayChip,
+                  isSelected && styles.selectedDayChip,
+                ]}
+                onPress={() => toggleDay(day.id)}
+              >
+                <Text style={[
+                  styles.dayShortText,
+                  isSelected && styles.selectedDayText
+                ]}>
+                  {day.short}
+                </Text>
+                <Text style={[
+                  styles.dayFullText,
+                  isSelected && styles.selectedDayText
+                ]}>
+                  {day.full}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        
+        {selectedDays.length > 0 && (
+          <View style={styles.selectionSummary}>
+            <IconSymbol
+              ios_icon_name="checkmark.circle.fill"
+              android_material_icon_name="check-circle"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.selectionText}>
+              {selectedDays.length} {selectedDays.length === 1 ? 'day' : 'days'} selected
             </Text>
-            <Text style={[
-              styles.frequencyLabel,
-              profile.trainingDays === days && styles.selectedText
-            ]}>
-              days/week
-            </Text>
-          </TouchableOpacity>
-        ))}
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderStep4 = () => {
     const areas = profile.gender === 'female'
@@ -225,6 +274,7 @@ export default function OnboardingScreen() {
                 profile.focusAreas?.includes(area) && styles.selectedChip,
               ]}
               onPress={() => {
+                console.log('[Onboarding] Focus area toggled:', area);
                 const current = profile.focusAreas || [];
                 const updated = current.includes(area)
                   ? current.filter((a) => a !== area)
@@ -262,7 +312,10 @@ export default function OnboardingScreen() {
               styles.equipmentCard,
               profile.equipmentType === option.id && styles.selectedCard,
             ]}
-            onPress={() => setProfile({ ...profile, equipmentType: option.id as any })}
+            onPress={() => {
+              console.log('[Onboarding] Equipment type selected:', option.id);
+              setProfile({ ...profile, equipmentType: option.id as any });
+            }}
           >
             <IconSymbol
               ios_icon_name={option.iosIcon}
@@ -304,7 +357,10 @@ export default function OnboardingScreen() {
               styles.goalCard,
               profile.goal === goal.id && styles.selectedCard,
             ]}
-            onPress={() => setProfile({ ...profile, goal: goal.id as any })}
+            onPress={() => {
+              console.log('[Onboarding] Goal selected:', goal.id);
+              setProfile({ ...profile, goal: goal.id as any });
+            }}
           >
             <IconSymbol
               ios_icon_name={goal.iosIcon}
@@ -331,7 +387,10 @@ export default function OnboardingScreen() {
             placeholder="70"
             placeholderTextColor={colors.grey}
             value={profile.weight?.toString()}
-            onChangeText={(text) => setProfile({ ...profile, weight: parseFloat(text) || 0 })}
+            onChangeText={(text) => {
+              console.log('[Onboarding] Weight entered:', text);
+              setProfile({ ...profile, weight: parseFloat(text) || 0 });
+            }}
           />
         </View>
 
@@ -343,7 +402,10 @@ export default function OnboardingScreen() {
             placeholder="175"
             placeholderTextColor={colors.grey}
             value={profile.height?.toString()}
-            onChangeText={(text) => setProfile({ ...profile, height: parseFloat(text) || 0 })}
+            onChangeText={(text) => {
+              console.log('[Onboarding] Height entered:', text);
+              setProfile({ ...profile, height: parseFloat(text) || 0 });
+            }}
           />
         </View>
 
@@ -355,7 +417,10 @@ export default function OnboardingScreen() {
             placeholder="25"
             placeholderTextColor={colors.grey}
             value={profile.age?.toString()}
-            onChangeText={(text) => setProfile({ ...profile, age: parseInt(text) || 0 })}
+            onChangeText={(text) => {
+              console.log('[Onboarding] Age entered:', text);
+              setProfile({ ...profile, age: parseInt(text) || 0 });
+            }}
           />
         </View>
       </View>
@@ -391,7 +456,10 @@ export default function OnboardingScreen() {
           {step > 1 && (
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setStep(step - 1)}
+              onPress={() => {
+                console.log('[Onboarding] User tapped Back');
+                setStep(step - 1);
+              }}
             >
               <Text style={styles.backButtonText}>Back</Text>
             </TouchableOpacity>
@@ -403,8 +471,12 @@ export default function OnboardingScreen() {
               !canProceed() && styles.nextButtonDisabled,
             ]}
             onPress={() => {
-              if (step < 6) setStep(step + 1);
-              else saveProfile();
+              if (step < 6) {
+                console.log('[Onboarding] User tapped Next');
+                setStep(step + 1);
+              } else {
+                saveProfile();
+              }
             }}
             disabled={!canProceed()}
           >
@@ -414,6 +486,30 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIcon}>
+              <IconSymbol
+                ios_icon_name="checkmark.circle.fill"
+                android_material_icon_name="check-circle"
+                size={80}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={styles.successTitle}>Profile Created!</Text>
+            <Text style={styles.successMessage}>
+              Your personalized training plan is ready
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -497,7 +593,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   selectedCard: {
-    backgroundColor: 'rgba(22,36,86,0.3)',
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
   optionText: {
@@ -508,32 +604,54 @@ const styles = StyleSheet.create({
   selectedText: {
     color: colors.primary,
   },
-  frequencyGrid: {
+  daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 12,
     justifyContent: 'center',
     paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  frequencyCard: {
+  dayChip: {
     width: 100,
-    height: 120,
+    paddingVertical: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  frequencyNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
+  selectedDayChip: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    borderColor: colors.primary,
+  },
+  dayShortText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.grey,
+    marginBottom: 4,
+  },
+  dayFullText: {
+    fontSize: 12,
     color: colors.grey,
   },
-  frequencyLabel: {
-    fontSize: 14,
-    color: colors.grey,
-    marginTop: 4,
+  selectedDayText: {
+    color: colors.primary,
+  },
+  selectionSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  selectionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
   areasGrid: {
     flexDirection: 'row',
@@ -551,7 +669,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   selectedChip: {
-    backgroundColor: 'rgba(22,36,86,0.3)',
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
   chipText: {
@@ -646,5 +764,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successModal: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 24,
+    padding: 40,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  successIcon: {
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

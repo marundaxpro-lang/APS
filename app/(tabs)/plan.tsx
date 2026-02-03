@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,14 +29,18 @@ export default function PlanScreen() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
+    console.log('[Plan] Loading profile...');
     try {
-      // First try to load from backend to get the latest profile
       try {
         const { authenticatedGet } = await import('@/utils/api');
         const backendProfile = await authenticatedGet('/api/fitness-profile');
@@ -69,7 +72,6 @@ export default function PlanScreen() {
         console.log('[Plan] Could not load profile from backend, using local storage');
       }
       
-      // Fallback to local storage
       const stored = await AsyncStorage.getItem('fitnessProfile');
       if (stored) {
         const profileData = JSON.parse(stored);
@@ -93,7 +95,7 @@ export default function PlanScreen() {
     const newSplit = generateWorkoutSplit(profile);
     setWorkoutSplit(newSplit);
     
-    Alert.alert('Success', 'Your weekly training plan has been regenerated!');
+    setShowRegenerateModal(true);
   };
 
   const swapDays = (dayIndex1: number, dayIndex2: number) => {
@@ -125,29 +127,24 @@ export default function PlanScreen() {
     setSyncing(true);
     
     try {
-      // Request calendar permissions
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Calendar access is needed to sync your workouts. Please enable it in Settings.'
-        );
+        setShowPermissionModal(true);
         setSyncing(false);
         return;
       }
 
-      // Get default calendar
       const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
       const defaultCalendar = calendars.find(cal => cal.allowsModifications) || calendars[0];
       
       if (!defaultCalendar) {
-        Alert.alert('Error', 'No writable calendar found on your device.');
+        setErrorMessage('No writable calendar found on your device.');
+        setShowErrorModal(true);
         setSyncing(false);
         return;
       }
 
-      // Create events for each workout
       const today = new Date();
       const startOfWeek = new Date(today);
       startOfWeek.setDate(today.getDate() - today.getDay());
@@ -157,17 +154,17 @@ export default function PlanScreen() {
       for (const workout of workoutSplit) {
         const eventDate = new Date(startOfWeek);
         eventDate.setDate(startOfWeek.getDate() + workout.dayIndex);
-        eventDate.setHours(9, 0, 0, 0); // Default to 9 AM
+        eventDate.setHours(9, 0, 0, 0);
         
         const endDate = new Date(eventDate);
-        endDate.setHours(10, 0, 0, 0); // 1 hour duration
+        endDate.setHours(10, 0, 0, 0);
         
         const eventDetails = {
           title: `🏋️ ${workout.name}`,
           startDate: eventDate,
           endDate: endDate,
           notes: `Exercises:\n${workout.exercises.map(e => `• ${e.name} - ${e.sets}×${e.reps}`).join('\n')}`,
-          alarms: [{ relativeOffset: -30 }], // 30 min before
+          alarms: [{ relativeOffset: -30 }],
         };
         
         await Calendar.createEventAsync(defaultCalendar.id, eventDetails);
@@ -179,7 +176,8 @@ export default function PlanScreen() {
       
     } catch (error) {
       console.error('[Plan] Error syncing to calendar:', error);
-      Alert.alert('Error', 'Failed to sync workouts to calendar. Please try again.');
+      setErrorMessage('Failed to sync workouts to calendar. Please try again.');
+      setShowErrorModal(true);
     } finally {
       setSyncing(false);
     }
@@ -376,6 +374,99 @@ export default function PlanScreen() {
               onPress={() => setShowSuccessModal(false)}
             >
               <Text style={styles.successButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Regenerate Success Modal */}
+      <Modal
+        visible={showRegenerateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRegenerateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIcon}>
+              <IconSymbol 
+                ios_icon_name="checkmark.circle.fill" 
+                android_material_icon_name="check-circle" 
+                size={64} 
+                color={colors.primary} 
+              />
+            </View>
+            <Text style={styles.successTitle}>Plan Regenerated!</Text>
+            <Text style={styles.successMessage}>
+              Your weekly training plan has been updated with new exercises.
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => setShowRegenerateModal(false)}
+            >
+              <Text style={styles.successButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Permission Modal */}
+      <Modal
+        visible={showPermissionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPermissionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIcon}>
+              <IconSymbol 
+                ios_icon_name="exclamationmark.triangle.fill" 
+                android_material_icon_name="warning" 
+                size={64} 
+                color="#FFA500" 
+              />
+            </View>
+            <Text style={styles.successTitle}>Permission Required</Text>
+            <Text style={styles.successMessage}>
+              Calendar access is needed to sync your workouts. Please enable it in Settings.
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => setShowPermissionModal(false)}
+            >
+              <Text style={styles.successButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        visible={showErrorModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowErrorModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIcon}>
+              <IconSymbol 
+                ios_icon_name="xmark.circle.fill" 
+                android_material_icon_name="error" 
+                size={64} 
+                color="#FF4444" 
+              />
+            </View>
+            <Text style={styles.successTitle}>Error</Text>
+            <Text style={styles.successMessage}>
+              {errorMessage}
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.successButtonText}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>
