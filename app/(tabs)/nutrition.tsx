@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { foodDatabase } from '@/data/foods';
-import { MealEntry, FoodItem, CaloricGoal } from '@/types/fitness';
+import { MealEntry, FoodItem, CaloricGoal, FitnessProfile } from '@/types/fitness';
 import { authenticatedPost, authenticatedGet } from '@/utils/api';
 import AIAssistant from '@/components/AIAssistant';
 
@@ -47,65 +47,92 @@ export default function NutritionScreen() {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [grams, setGrams] = useState('100');
   const [loading, setLoading] = useState(true);
-  const [caloricGoalError, setCaloricGoalError] = useState(false);
   const [recentFoods, setRecentFoods] = useState<FoodItem[]>([]);
   const [favoriteFoods, setFavoriteFoods] = useState<FoodItem[]>([]);
   const [quickAddType, setQuickAddType] = useState<QuickAddItem | null>(null);
   const [quickAddValue, setQuickAddValue] = useState('');
 
   useEffect(() => {
-    loadMeals();
-    loadCaloricGoal();
-    loadRecentFoods();
-    loadFavoriteFoods();
+    loadData();
   }, []);
 
-  const loadMeals = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
-      const response = await authenticatedGet(`/api/nutrition?date=${today}`);
-      if (response && Array.isArray(response)) {
-        setMeals(response);
-        console.log('[Nutrition] Loaded meals from backend');
+      
+      // Load profile from local storage first
+      const profileData = await AsyncStorage.getItem('fitnessProfile');
+      let profile: FitnessProfile | null = null;
+      
+      if (profileData) {
+        profile = JSON.parse(profileData);
+        console.log('[Nutrition] Loaded profile from local storage:', profile);
+        
+        // Use local profile data for caloric goal
+        if (profile.caloricGoal) {
+          const calories = profile.caloricGoal;
+          const proteinCalories = calories * 0.30;
+          const fatCalories = calories * 0.25;
+          const carbsCalories = calories * 0.45;
+          
+          const goal: CaloricGoal = {
+            dailyCalorieGoal: calories,
+            bmr: 0,
+            tdee: calories,
+            proteinGoal: profile.protein || Math.round(proteinCalories / 4),
+            carbsGoal: profile.carbs || Math.round(carbsCalories / 4),
+            fatGoal: profile.fat || Math.round(fatCalories / 9),
+          };
+          
+          setCaloricGoal(goal);
+          console.log('[Nutrition] Using caloric goal from local profile:', goal);
+        }
       }
+      
+      // Try to load from backend (but don't fail if it doesn't work)
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const mealsResponse = await authenticatedGet(`/api/nutrition?date=${today}`);
+        if (mealsResponse && Array.isArray(mealsResponse)) {
+          setMeals(mealsResponse);
+          console.log('[Nutrition] Loaded meals from backend');
+        }
+      } catch (error) {
+        console.log('[Nutrition] Could not load meals from backend, using local data');
+      }
+      
+      // Try to load caloric goal from backend (but use local if it fails)
+      try {
+        const goalData = await authenticatedGet('/api/dashboard/caloric-goal');
+        if (goalData && goalData.dailyCalorieGoal) {
+          const calories = goalData.dailyCalorieGoal;
+          const proteinCalories = calories * 0.30;
+          const fatCalories = calories * 0.25;
+          const carbsCalories = calories * 0.45;
+          
+          const goal: CaloricGoal = {
+            dailyCalorieGoal: calories,
+            bmr: goalData.basalMetabolicRate || 0,
+            tdee: calories,
+            proteinGoal: Math.round(proteinCalories / 4),
+            carbsGoal: Math.round(carbsCalories / 4),
+            fatGoal: Math.round(fatCalories / 9),
+          };
+          
+          setCaloricGoal(goal);
+          console.log('[Nutrition] Updated caloric goal from backend:', goal);
+        }
+      } catch (error) {
+        console.log('[Nutrition] Could not load caloric goal from backend, using local profile data');
+      }
+      
+      // Load recent and favorite foods
+      await loadRecentFoods();
+      await loadFavoriteFoods();
     } catch (error) {
-      console.error('[Nutrition] Error loading meals:', error);
+      console.error('[Nutrition] Error loading data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadCaloricGoal = async () => {
-    try {
-      console.log('[Nutrition] Fetching caloric goal from backend...');
-      const goalData = await authenticatedGet('/api/dashboard/caloric-goal');
-      
-      if (goalData && goalData.dailyCalorieGoal) {
-        const calories = goalData.dailyCalorieGoal;
-        const proteinCalories = calories * 0.30;
-        const fatCalories = calories * 0.25;
-        const carbsCalories = calories * 0.45;
-        
-        const goal: CaloricGoal = {
-          dailyCalorieGoal: calories,
-          bmr: goalData.basalMetabolicRate || 0,
-          tdee: calories,
-          proteinGoal: Math.round(proteinCalories / 4),
-          carbsGoal: Math.round(carbsCalories / 4),
-          fatGoal: Math.round(fatCalories / 9),
-        };
-        
-        setCaloricGoal(goal);
-        setCaloricGoalError(false);
-        console.log('[Nutrition] Loaded caloric goal from backend:', goal);
-      } else {
-        console.warn('[Nutrition] No caloric goal found in response');
-        setCaloricGoalError(true);
-      }
-    } catch (error) {
-      console.error('[Nutrition] Error loading caloric goal:', error);
-      setCaloricGoalError(true);
     }
   };
 
@@ -234,7 +261,7 @@ export default function NutritionScreen() {
       await authenticatedPost('/api/nutrition', mealData);
       console.log('[Nutrition] Quick entry saved successfully');
     } catch (error) {
-      console.error('[Nutrition] Error saving quick entry:', error);
+      console.log('[Nutrition] Could not save quick entry to backend, keeping local only');
     }
     
     setShowQuickAddModal(false);
@@ -271,7 +298,7 @@ export default function NutritionScreen() {
         await authenticatedPost('/api/nutrition', mealData);
         console.log('[Nutrition] Meal saved successfully');
       } catch (error) {
-        console.error('[Nutrition] Error saving meal:', error);
+        console.log('[Nutrition] Could not save meal to backend, keeping local only');
       }
       
       setShowFoodModal(false);
@@ -297,7 +324,7 @@ export default function NutritionScreen() {
   }
 
   // Show error state if caloric goal is not set
-  if (caloricGoalError || !goals) {
+  if (!goals) {
     return (
       <View style={styles.container}>
         <ScrollView

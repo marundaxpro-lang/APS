@@ -13,7 +13,6 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import React, { useState, useEffect } from 'react';
 import { authenticatedPost, authenticatedGet } from '@/utils/api';
-import CustomModal from '@/components/ui/Modal';
 
 const plans = [
   {
@@ -191,23 +190,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  modalContent: {
-    padding: 20,
-  },
-  modalText: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
 });
 
 export default function ShopScreen() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [loadingPlan, setLoadingPlan] = useState(true);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     loadCurrentPlan();
@@ -220,7 +208,7 @@ export default function ShopScreen() {
       console.log('[Shop] Current plan:', response.planType);
       setCurrentPlan(response.planType || 'free');
     } catch (error) {
-      console.error('[Shop] Error loading subscription status:', error);
+      console.log('[Shop] Could not load subscription status, defaulting to free plan');
       setCurrentPlan('free');
     } finally {
       setLoadingPlan(false);
@@ -230,7 +218,7 @@ export default function ShopScreen() {
   const handlePlanPress = async (plan: typeof plans[0]) => {
     console.log('[Shop] User tapped plan:', plan.name);
 
-    // If clicking current plan, just show info
+    // If clicking current plan, just return
     if (plan.id === currentPlan) {
       console.log('[Shop] User clicked their current plan');
       return;
@@ -256,18 +244,12 @@ export default function ShopScreen() {
           await Linking.openURL(response.checkoutUrl);
         } else {
           console.error('[Shop] Cannot open URL:', response.checkoutUrl);
-          setErrorMessage('Unable to open checkout page');
-          setShowErrorModal(true);
         }
       } else {
         console.error('[Shop] No checkout URL in response');
-        setErrorMessage('Failed to create checkout session');
-        setShowErrorModal(true);
       }
     } catch (error) {
       console.error('[Shop] Checkout error:', error);
-      setErrorMessage('Failed to start checkout process. Please try again.');
-      setShowErrorModal(true);
     } finally {
       setLoading(null);
     }
@@ -383,16 +365,6 @@ export default function ShopScreen() {
           </Text>
         </View>
       </ScrollView>
-
-      <CustomModal
-        isVisible={showErrorModal}
-        onClose={() => setShowErrorModal(false)}
-        title="Error"
-      >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalText}>{errorMessage}</Text>
-        </View>
-      </CustomModal>
     </View>
   );
 }
