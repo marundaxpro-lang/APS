@@ -17,9 +17,9 @@ export default function TabLayout() {
         <Icon sf="fork.knife" drawable="restaurant" />
         <Label>Nutrition</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="progress" name="progress">
-        <Icon sf="chart.line.uptrend.xyaxis" drawable="show-chart" />
-        <Label>Progress</Label>
+      <NativeTabs.Trigger key="shop" name="shop">
+        <Icon sf="cart.fill" drawable="shopping-cart" />
+        <Label>Shop</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.circle.fill" drawable="person" />

@@ -32,10 +32,10 @@ export default function TabLayout() {
             label: 'Nutrition',
           },
           {
-            name: 'progress',
-            route: '/(tabs)/progress',
-            icon: 'show-chart',
-            label: 'Progress',
+            name: 'shop',
+            route: '/(tabs)/shop',
+            icon: 'shopping-cart',
+            label: 'Shop',
           },
           {
             name: 'profile',

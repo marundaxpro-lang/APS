@@ -6,14 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
-import ParticleBackground from '@/components/ParticleBackground';
 import { colors } from '@/styles/commonStyles';
 import React, { useState } from 'react';
 import { authenticatedPost } from '@/utils/api';
+import CustomModal from '@/components/ui/Modal';
 
 const plans = [
   {
@@ -177,45 +177,63 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  modalContent: {
+    padding: 20,
+  },
+  modalText: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
 });
 
 export default function ShopScreen() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [showFreeModal, setShowFreeModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handlePlanPress = async (plan: typeof plans[0]) => {
+    console.log('[Shop] User tapped plan:', plan.name);
+
     if (plan.id === 'free') {
-      Alert.alert('Free Plan', 'You are already on the free plan!');
+      setShowFreeModal(true);
       return;
     }
 
     setLoading(plan.id);
 
     try {
-      // TODO: Backend Integration - Call the Stripe checkout API endpoint
-      // This will create a Stripe checkout session and return the URL
+      console.log('[Shop] Creating checkout session for plan:', plan.id);
+      
       const response = await authenticatedPost('/api/payments/create-checkout', {
         planId: plan.id,
         planName: plan.name,
         amount: plan.priceValue,
       });
 
+      console.log('[Shop] Checkout response:', response);
+
       if (response.checkoutUrl) {
-        // Open Stripe checkout page
         const supported = await Linking.canOpenURL(response.checkoutUrl);
         if (supported) {
+          console.log('[Shop] Opening checkout URL:', response.checkoutUrl);
           await Linking.openURL(response.checkoutUrl);
         } else {
-          Alert.alert('Error', 'Unable to open checkout page');
+          console.error('[Shop] Cannot open URL:', response.checkoutUrl);
+          setErrorMessage('Unable to open checkout page');
+          setShowErrorModal(true);
         }
       } else {
-        Alert.alert('Error', 'Failed to create checkout session');
+        console.error('[Shop] No checkout URL in response');
+        setErrorMessage('Failed to create checkout session');
+        setShowErrorModal(true);
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      Alert.alert(
-        'Error',
-        'Failed to start checkout process. Please try again.'
-      );
+      console.error('[Shop] Checkout error:', error);
+      setErrorMessage('Failed to start checkout process. Please try again.');
+      setShowErrorModal(true);
     } finally {
       setLoading(null);
     }
@@ -223,7 +241,6 @@ export default function ShopScreen() {
 
   return (
     <View style={styles.container}>
-      <ParticleBackground />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -237,70 +254,76 @@ export default function ShopScreen() {
         </View>
 
         <View style={styles.plansContainer}>
-          {plans.map((plan) => (
-            <View
-              key={plan.id}
-              style={[
-                styles.planCard,
-                { borderColor: plan.popular ? plan.color : 'rgba(255, 255, 255, 0.1)' },
-              ]}
-            >
-              {plan.popular && (
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularText}>MOST POPULAR</Text>
-                </View>
-              )}
+          {plans.map((plan) => {
+            const isLoading = loading === plan.id;
+            const isFree = plan.id === 'free';
+            const buttonColor = isFree ? 'rgba(255, 255, 255, 0.1)' : plan.color;
 
-              <View style={styles.planHeader}>
-                <Text style={styles.planName}>{plan.name}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={[styles.price, { color: plan.color }]}>
-                    {plan.price}
-                  </Text>
-                  {plan.period && (
-                    <Text style={styles.period}>{plan.period}</Text>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.featuresContainer}>
-                {plan.features.map((feature, index) => (
-                  <View key={index} style={styles.feature}>
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={20}
-                      color={plan.color}
-                    />
-                    <Text style={styles.featureText}>{feature}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
+            return (
+              <View
+                key={plan.id}
                 style={[
-                  styles.button,
-                  plan.id === 'free' && styles.buttonDisabled,
-                  { backgroundColor: plan.id === 'free' ? 'rgba(255, 255, 255, 0.1)' : plan.color },
+                  styles.planCard,
+                  { borderColor: plan.popular ? plan.color : 'rgba(255, 255, 255, 0.1)' },
                 ]}
-                onPress={() => handlePlanPress(plan)}
-                disabled={plan.id === 'free' || loading === plan.id}
               >
-                <Text
+                {plan.popular && (
+                  <View style={styles.popularBadge}>
+                    <Text style={styles.popularText}>MOST POPULAR</Text>
+                  </View>
+                )}
+
+                <View style={styles.planHeader}>
+                  <Text style={styles.planName}>{plan.name}</Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={[styles.price, { color: plan.color }]}>
+                      {plan.price}
+                    </Text>
+                    {plan.period && (
+                      <Text style={styles.period}>{plan.period}</Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.featuresContainer}>
+                  {plan.features.map((feature, index) => (
+                    <View key={index} style={styles.feature}>
+                      <IconSymbol
+                        ios_icon_name="checkmark.circle.fill"
+                        android_material_icon_name="check-circle"
+                        size={20}
+                        color={plan.color}
+                      />
+                      <Text style={styles.featureText}>{feature}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <TouchableOpacity
                   style={[
-                    styles.buttonText,
-                    plan.id === 'free' && styles.buttonTextDisabled,
+                    styles.button,
+                    isFree && styles.buttonDisabled,
+                    { backgroundColor: buttonColor },
                   ]}
+                  onPress={() => handlePlanPress(plan)}
+                  disabled={isFree || isLoading}
                 >
-                  {loading === plan.id
-                    ? 'Loading...'
-                    : plan.id === 'free'
-                    ? 'Current Plan'
-                    : 'Get Started'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+                  {isLoading ? (
+                    <ActivityIndicator color={colors.background} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        isFree && styles.buttonTextDisabled,
+                      ]}
+                    >
+                      {isFree ? 'Current Plan' : 'Get Started'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.footer}>
@@ -311,6 +334,28 @@ export default function ShopScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <CustomModal
+        isVisible={showFreeModal}
+        onClose={() => setShowFreeModal(false)}
+        title="Free Plan"
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalText}>
+            You are already on the free plan!
+          </Text>
+        </View>
+      </CustomModal>
+
+      <CustomModal
+        isVisible={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalText}>{errorMessage}</Text>
+        </View>
+      </CustomModal>
     </View>
   );
 }
