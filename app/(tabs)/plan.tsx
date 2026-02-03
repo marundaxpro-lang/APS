@@ -18,6 +18,7 @@ import { generateWorkoutSplit } from '@/data/workouts';
 import ParticleBackground from '@/components/ParticleBackground';
 import { FitnessProfile, WorkoutDay } from '@/types/fitness';
 import { useRouter } from 'expo-router';
+import { authenticatedGet } from '@/utils/api';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -32,7 +33,10 @@ export default function PlanScreen() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [caloricGoal, setCaloricGoal] = useState<number | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -42,7 +46,6 @@ export default function PlanScreen() {
     console.log('[Plan] Loading profile...');
     try {
       try {
-        const { authenticatedGet } = await import('@/utils/api');
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         
         if (backendProfile) {
@@ -57,10 +60,12 @@ export default function PlanScreen() {
             weight: backendProfile.weight || 70,
             height: backendProfile.height || 175,
             age: backendProfile.age || 25,
+            caloricGoal: backendProfile.caloricGoal,
           };
           
           console.log('[Plan] Mapped profile:', mappedProfile);
           setProfile(mappedProfile);
+          setCaloricGoal(mappedProfile.caloricGoal || null);
           await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
           
           const split = generateWorkoutSplit(mappedProfile);
@@ -77,6 +82,7 @@ export default function PlanScreen() {
         const profileData = JSON.parse(stored);
         console.log('[Plan] Loaded profile from local storage:', profileData);
         setProfile(profileData);
+        setCaloricGoal(profileData.caloricGoal || null);
         const split = generateWorkoutSplit(profileData);
         console.log('[Plan] Generated split:', split);
         setWorkoutSplit(split);
@@ -96,30 +102,6 @@ export default function PlanScreen() {
     setWorkoutSplit(newSplit);
     
     setShowRegenerateModal(true);
-  };
-
-  const swapDays = (dayIndex1: number, dayIndex2: number) => {
-    console.log('[Plan] User swapped days:', dayIndex1, dayIndex2);
-    const newSplit = [...workoutSplit];
-    const workout1 = newSplit.find(w => w.dayIndex === dayIndex1);
-    const workout2 = newSplit.find(w => w.dayIndex === dayIndex2);
-    
-    if (workout1 && workout2) {
-      workout1.dayIndex = dayIndex2;
-      workout2.dayIndex = dayIndex1;
-      
-      const temp = workout1.day;
-      workout1.day = workout2.day;
-      workout2.day = temp;
-      
-      setWorkoutSplit(newSplit.sort((a, b) => a.dayIndex - b.dayIndex));
-    }
-  };
-
-  const markRestDay = (dayIndex: number) => {
-    console.log('[Plan] User marked day as rest:', dayIndex);
-    const newSplit = workoutSplit.filter(w => w.dayIndex !== dayIndex);
-    setWorkoutSplit(newSplit);
   };
 
   const syncToAppleCalendar = async () => {
@@ -197,6 +179,26 @@ export default function PlanScreen() {
     return Array.from(muscles).slice(0, 3).join(', ');
   };
 
+  const handleWorkoutPress = async (workout: WorkoutDay) => {
+    console.log('[Plan] User tapped workout:', workout.name);
+    setSelectedWorkout(workout);
+    setShowWorkoutModal(true);
+  };
+
+  const handleStartWorkout = async () => {
+    console.log('[Plan] User tapped Start Workout from modal');
+    if (selectedWorkout) {
+      try {
+        await AsyncStorage.setItem('selectedWorkout', JSON.stringify(selectedWorkout));
+        console.log('[Plan] Selected workout saved to AsyncStorage');
+        setShowWorkoutModal(false);
+        router.push('/workout-session');
+      } catch (error) {
+        console.error('[Plan] Error saving selected workout:', error);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -205,6 +207,10 @@ export default function PlanScreen() {
       </View>
     );
   }
+
+  const proteinGoal = caloricGoal ? Math.round((caloricGoal * 0.30) / 4) : 0;
+  const carbsGoal = caloricGoal ? Math.round((caloricGoal * 0.45) / 4) : 0;
+  const fatGoal = caloricGoal ? Math.round((caloricGoal * 0.25) / 9) : 0;
 
   return (
     <View style={styles.container}>
@@ -216,10 +222,65 @@ export default function PlanScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Weekly Training Plan</Text>
-            <Text style={styles.subtitle}>Your personalized workout schedule</Text>
+            <Text style={styles.title}>Weekly Plan</Text>
+            <Text style={styles.subtitle}>Your training & nutrition goals</Text>
           </View>
         </View>
+
+        {/* Caloric Plan Card */}
+        {caloricGoal && (
+          <View style={styles.caloricCard}>
+            <View style={styles.caloricHeader}>
+              <IconSymbol 
+                ios_icon_name="flame.fill" 
+                android_material_icon_name="local-fire-department" 
+                size={24} 
+                color={colors.primary} 
+              />
+              <Text style={styles.caloricTitle}>Daily Nutrition Goals</Text>
+            </View>
+            
+            <View style={styles.caloricMain}>
+              <View style={styles.caloricMainItem}>
+                <Text style={styles.caloricMainValue}>{caloricGoal}</Text>
+                <Text style={styles.caloricMainLabel}>Calories</Text>
+              </View>
+            </View>
+
+            <View style={styles.macrosRow}>
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{proteinGoal}g</Text>
+                <Text style={styles.macroLabel}>Protein</Text>
+              </View>
+              <View style={styles.macroDivider} />
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{carbsGoal}g</Text>
+                <Text style={styles.macroLabel}>Carbs</Text>
+              </View>
+              <View style={styles.macroDivider} />
+              <View style={styles.macroItem}>
+                <Text style={styles.macroValue}>{fatGoal}g</Text>
+                <Text style={styles.macroLabel}>Fat</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.viewNutritionButton}
+              onPress={() => {
+                console.log('[Plan] User tapped View Nutrition');
+                router.push('/(tabs)/nutrition');
+              }}
+            >
+              <Text style={styles.viewNutritionText}>Track Today&apos;s Meals</Text>
+              <IconSymbol 
+                ios_icon_name="chevron.right" 
+                android_material_icon_name="chevron-right" 
+                size={16} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.actionsRow}>
           <TouchableOpacity
@@ -256,19 +317,23 @@ export default function PlanScreen() {
           </TouchableOpacity>
         </View>
 
+        <Text style={styles.sectionTitle}>Training Schedule</Text>
+
         <View style={styles.weekGrid}>
           {DAYS.map((day, index) => {
             const workout = getDayWorkout(index);
             const isToday = index === new Date().getDay();
 
             return (
-              <View
+              <TouchableOpacity
                 key={index}
                 style={[
                   styles.dayCard,
                   isToday && styles.todayCard,
                   !workout && styles.restDayCard,
                 ]}
+                onPress={() => workout && handleWorkoutPress(workout)}
+                disabled={!workout}
               >
                 <View style={styles.dayHeader}>
                   <Text style={[
@@ -310,6 +375,9 @@ export default function PlanScreen() {
                     <Text style={styles.focusMuscles} numberOfLines={1}>
                       {getFocusMuscles(workout)}
                     </Text>
+                    <View style={styles.tapHint}>
+                      <Text style={styles.tapHintText}>Tap to view & start</Text>
+                    </View>
                   </>
                 ) : (
                   <>
@@ -325,7 +393,7 @@ export default function PlanScreen() {
                     <Text style={styles.restSubtext}>Recovery & regeneration</Text>
                   </>
                 )}
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -340,6 +408,7 @@ export default function PlanScreen() {
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Training Tips</Text>
             <Text style={styles.infoText}>
+              • Tap any workout day to view exercises and start{'\n'}
               • Sync your plan to Apple Calendar for reminders{'\n'}
               • Rest days are crucial for muscle recovery{'\n'}
               • Adjust your plan as needed based on how you feel
@@ -347,6 +416,71 @@ export default function PlanScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Workout Detail Modal */}
+      <Modal
+        visible={showWorkoutModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowWorkoutModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalDay}>{selectedWorkout?.day}</Text>
+              <Text style={styles.modalTitle}>{selectedWorkout?.name}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowWorkoutModal(false)}>
+              <IconSymbol 
+                ios_icon_name="xmark.circle.fill" 
+                android_material_icon_name="close" 
+                size={32} 
+                color={colors.text} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView 
+            style={styles.modalScrollView}
+            contentContainerStyle={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <TouchableOpacity
+              style={styles.startWorkoutButton}
+              onPress={handleStartWorkout}
+            >
+              <IconSymbol 
+                ios_icon_name="play.fill" 
+                android_material_icon_name="play-arrow" 
+                size={24} 
+                color="#fff" 
+              />
+              <Text style={styles.startWorkoutButtonText}>Start This Workout</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.exercisesTitle}>Exercises ({selectedWorkout?.exercises.length})</Text>
+
+            {selectedWorkout?.exercises.map((exercise, index) => (
+              <View key={exercise.id} style={styles.exerciseCard}>
+                <View style={styles.exerciseNumber}>
+                  <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+                </View>
+                <View style={styles.exerciseInfo}>
+                  <Text style={styles.exerciseName}>{exercise.name}</Text>
+                  <Text style={styles.exerciseMeta}>
+                    {exercise.sets} sets × {exercise.reps} reps
+                  </Text>
+                  {exercise.muscleGroups && exercise.muscleGroups.length > 0 && (
+                    <Text style={styles.exerciseMuscles}>
+                      {exercise.muscleGroups.join(', ')}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Success Modal */}
       <Modal
@@ -505,6 +639,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
+  caloricCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  caloricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  caloricTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  caloricMain: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  caloricMainItem: {
+    alignItems: 'center',
+  },
+  caloricMainValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  caloricMainLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  macrosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  macroItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  macroValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  macroLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  macroDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(69, 155, 155, 0.3)',
+    marginHorizontal: 8,
+  },
+  viewNutritionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  viewNutritionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: 12,
@@ -535,6 +745,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
   },
   weekGrid: {
     gap: 12,
@@ -605,6 +821,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '600',
+    marginBottom: 8,
+  },
+  tapHint: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  tapHintText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
   restIcon: {
     alignSelf: 'center',
@@ -644,6 +873,99 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  modalDay: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  startWorkoutButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
+    marginBottom: 32,
+  },
+  startWorkoutButtonText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  exercisesTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  exerciseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 12,
+  },
+  exerciseNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exerciseNumberText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  exerciseInfo: {
+    flex: 1,
+  },
+  exerciseName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  exerciseMeta: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  exerciseMuscles: {
+    fontSize: 12,
+    color: colors.grey,
+    textTransform: 'capitalize',
   },
   modalOverlay: {
     flex: 1,
