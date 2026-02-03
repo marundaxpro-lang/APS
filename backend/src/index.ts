@@ -16,6 +16,7 @@ import { registerPaymentRoutes } from './routes/payments.js';
 import { registerExerciseRoutes } from './routes/exercises.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerMealPlanRoutes } from './routes/meal-plans.js';
+import { registerTaskRoutes } from './routes/tasks.js';
 
 // Combine schemas
 const schema = { ...appSchema, ...authSchema };
@@ -47,6 +48,7 @@ registerPaymentRoutes(app);
 registerExerciseRoutes(app);
 registerDashboardRoutes(app);
 registerMealPlanRoutes(app);
+registerTaskRoutes(app);
 
 await app.run();
 app.logger.info('Fitness app backend running');

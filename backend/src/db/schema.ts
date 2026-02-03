@@ -446,3 +446,31 @@ export const mealPlanMealsRelations = relations(mealPlanMeals, ({ one }) => ({
     references: [mealPlans.id],
   }),
 }));
+
+/**
+ * UserTask: Store user's tasks with categories and due dates
+ */
+export const userTasks = pgTable(
+  'user_tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    category: text('category', { enum: ['study', 'work', 'fitness', 'personal', 'other'] }).notNull(),
+    completed: boolean('completed').default(false).notNull(),
+    dueDate: timestamp('due_date', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_user_tasks').on(table.userId)]
+);
+
+/**
+ * Relations for UserTask
+ */
+export const userTasksRelations = relations(userTasks, ({ one }) => ({
+  user: one(user, {
+    fields: [userTasks.userId],
+    references: [user.id],
+  }),
+}));
