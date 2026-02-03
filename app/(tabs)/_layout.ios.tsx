@@ -13,13 +13,13 @@ export default function TabLayout() {
         <Icon sf="figure.strengthtraining.traditional" drawable="fitness-center" />
         <Label>Training</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger key="focus" name="focus">
+        <Icon sf="timer" drawable="timer" />
+        <Label>Focus</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger key="nutrition" name="nutrition">
         <Icon sf="fork.knife" drawable="restaurant" />
         <Label>Nutrition</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="shop" name="shop">
-        <Icon sf="cart.fill" drawable="shopping-cart" />
-        <Label>Shop</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.circle.fill" drawable="person" />

@@ -16,6 +16,7 @@ import ParticleBackground from '@/components/ParticleBackground';
 import { FitnessProfile } from '@/types/fitness';
 import { authenticatedPost } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
+import { generateWorkoutSplit } from '@/data/workouts';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -44,7 +45,17 @@ export default function EditProfileScreen() {
   const saveProfile = async () => {
     try {
       console.log('[EditProfile] Saving profile:', profile);
+      
+      // Save to local storage first
       await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
+      
+      // Regenerate weekly workout plan with new training days
+      if (profile.trainingDays && profile.equipmentType && profile.focusAreas && profile.goal) {
+        console.log('[EditProfile] Regenerating weekly workout plan...');
+        const newWorkoutSplit = generateWorkoutSplit(profile as FitnessProfile);
+        console.log('[EditProfile] New workout split generated:', newWorkoutSplit);
+        // The plan.tsx screen will automatically load the new profile and regenerate
+      }
       
       try {
         // Calculate activity level based on training days
@@ -91,9 +102,19 @@ export default function EditProfileScreen() {
           });
           
           console.log('[EditProfile] Caloric goal recalculated:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
+          
+          // Update local profile with new caloric goal
+          if (caloricGoalResponse?.dailyCalorieGoal) {
+            const updatedProfile = {
+              ...profile,
+              caloricGoal: caloricGoalResponse.dailyCalorieGoal,
+            };
+            await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
+            setProfile(updatedProfile);
+          }
         }
         
-        console.log('[EditProfile] Profile and caloric goal saved successfully');
+        console.log('[EditProfile] Profile, caloric goal, and workout plan updated successfully');
       } catch (error) {
         console.error('[EditProfile] Error saving to backend:', error);
       }
@@ -201,6 +222,18 @@ export default function EditProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Training Frequency</Text>
           
+          <View style={styles.infoCard}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.infoText}>
+              Changing your training days will automatically regenerate your weekly workout plan
+            </Text>
+          </View>
+          
           <View style={styles.frequencyGrid}>
             {[2, 3, 4, 5, 6].map((days) => (
               <TouchableOpacity
@@ -241,7 +274,7 @@ export default function EditProfileScreen() {
         }}
         type="success"
         title="Success"
-        message="Profile updated successfully! Your caloric goal has been recalculated."
+        message="Profile updated successfully! Your caloric goal and weekly workout plan have been regenerated."
         confirmText="OK"
       />
 

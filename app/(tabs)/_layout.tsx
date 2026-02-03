@@ -26,16 +26,16 @@ export default function TabLayout() {
             label: 'Training',
           },
           {
+            name: 'focus',
+            route: '/(tabs)/focus',
+            icon: 'timer',
+            label: 'Focus',
+          },
+          {
             name: 'nutrition',
             route: '/(tabs)/nutrition',
             icon: 'restaurant',
             label: 'Nutrition',
-          },
-          {
-            name: 'shop',
-            route: '/(tabs)/shop',
-            icon: 'shopping-cart',
-            label: 'Shop',
           },
           {
             name: 'profile',

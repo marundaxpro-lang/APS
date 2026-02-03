@@ -10,6 +10,7 @@ export interface FitnessProfile {
   goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';
   weight: number;
   height: number;
+  caloricGoal?: number;
 }
 
 export interface Exercise {
@@ -45,6 +46,16 @@ export interface WeeklyTask extends FocusTask {
   startTime?: string;
   duration?: number;
   type?: 'study' | 'work' | 'personal';
+}
+
+export interface UserTask {
+  id: string;
+  title: string;
+  category: 'study' | 'work' | 'fitness' | 'personal' | 'other';
+  completed: boolean;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TimerType {
