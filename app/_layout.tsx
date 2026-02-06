@@ -18,6 +18,7 @@ import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Modal from "@/components/ui/Modal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -88,10 +89,12 @@ export default function RootLayout() {
           <WidgetProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack>
-                {/* Main app with tabs */}
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                {/* Auth and onboarding screens */}
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
                 <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+                
+                {/* Main app with tabs */}
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="workout-session" options={{ headerShown: false }} />
 
                 {/* Modal Demo Screens */}

@@ -40,6 +40,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
+  guestBanner: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  guestBannerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  guestBannerText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  guestBannerButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  guestBannerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   section: {
     marginBottom: 24,
   },
@@ -95,11 +126,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   secondaryButton: {
-    backgroundColor: colors.cardSecondary,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginBottom: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   secondaryButtonText: {
     color: colors.text,
@@ -113,11 +146,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   logoutButton: {
-    backgroundColor: colors.cardSecondary,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginTop: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   logoutButtonText: {
     color: '#FF3B30',
@@ -132,7 +167,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 20,
     padding: 24,
     width: '100%',
@@ -163,7 +198,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonCancel: {
-    backgroundColor: colors.cardSecondary,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   modalButtonConfirm: {
     backgroundColor: '#FF3B30',
@@ -183,6 +220,7 @@ export default function ProfileScreen() {
   const { user, signOut, authLoading } = useAuth();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
 
@@ -190,6 +228,10 @@ export default function ProfileScreen() {
     console.log('ProfileScreen: Loading profile data');
     try {
       setLoading(true);
+
+      const guestStatus = await AsyncStorage.getItem('isGuestUser');
+      setIsGuest(guestStatus === 'true');
+      console.log('ProfileScreen: Guest status:', guestStatus);
 
       const localProfile = await AsyncStorage.getItem('fitnessProfile');
       if (localProfile) {
@@ -217,14 +259,14 @@ export default function ProfileScreen() {
   useEffect(() => {
     console.log('ProfileScreen: Auth state changed - user:', user, 'authLoading:', authLoading);
     if (!authLoading) {
-      if (!user) {
-        console.log('ProfileScreen: No user found, redirecting to auth');
-        router.replace('/auth');
-      } else {
-        loadProfile();
-      }
+      loadProfile();
     }
-  }, [user, authLoading, loadProfile, router]);
+  }, [user, authLoading, loadProfile]);
+
+  const handleCreateAccount = () => {
+    console.log('ProfileScreen: User tapped Create Account');
+    router.push('/auth');
+  };
 
   const handleLogout = async () => {
     console.log('ProfileScreen: User tapped Logout button');
@@ -235,9 +277,15 @@ export default function ProfileScreen() {
     console.log('ProfileScreen: User confirmed logout');
     setShowLogoutModal(false);
     try {
-      await signOut();
-      console.log('ProfileScreen: Sign out successful, redirecting to auth');
-      router.replace('/auth');
+      if (isGuest) {
+        await AsyncStorage.removeItem('isGuestUser');
+        console.log('ProfileScreen: Guest logged out, redirecting to auth');
+        router.replace('/auth');
+      } else {
+        await signOut();
+        console.log('ProfileScreen: Sign out successful, redirecting to auth');
+        router.replace('/auth');
+      }
     } catch (error) {
       console.error('ProfileScreen: Error during logout:', error);
     }
@@ -288,6 +336,27 @@ export default function ProfileScreen() {
           <Text style={styles.subtitle}>Manage your fitness profile</Text>
         </View>
 
+        {isGuest && (
+          <View style={styles.guestBanner}>
+            <IconSymbol
+              ios_icon_name="person.crop.circle.badge.exclamationmark"
+              android_material_icon_name="person-add"
+              size={32}
+              color={colors.primary}
+            />
+            <Text style={styles.guestBannerTitle}>You&apos;re using Guest Mode</Text>
+            <Text style={styles.guestBannerText}>
+              Create an account to sync your progress across devices and never lose your data.
+            </Text>
+            <TouchableOpacity
+              style={styles.guestBannerButton}
+              onPress={handleCreateAccount}
+            >
+              <Text style={styles.guestBannerButtonText}>Create Account</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
           <View style={styles.card}>
@@ -295,10 +364,12 @@ export default function ProfileScreen() {
               <Text style={styles.label}>Name</Text>
               <Text style={styles.value}>{profile?.name || user?.name || 'Not set'}</Text>
             </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Email</Text>
-              <Text style={styles.value}>{user?.email || 'Not set'}</Text>
-            </View>
+            {!isGuest && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Email</Text>
+                <Text style={styles.value}>{user?.email || 'Not set'}</Text>
+              </View>
+            )}
             <View style={styles.row}>
               <Text style={styles.label}>Gender</Text>
               <Text style={styles.value}>{genderDisplay}</Text>
@@ -376,7 +447,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Sign Out</Text>
+            <Text style={styles.logoutButtonText}>
+              {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -389,9 +462,13 @@ export default function ProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sign Out</Text>
+            <Text style={styles.modalTitle}>
+              {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
+            </Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to sign out?
+              {isGuest 
+                ? 'Are you sure you want to exit guest mode? Your local data will remain on this device.'
+                : 'Are you sure you want to sign out?'}
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -408,7 +485,7 @@ export default function ProfileScreen() {
                 onPress={confirmLogout}
               >
                 <Text style={[styles.modalButtonText, styles.modalButtonTextConfirm]}>
-                  Sign Out
+                  {isGuest ? 'Exit' : 'Sign Out'}
                 </Text>
               </TouchableOpacity>
             </View>
