@@ -586,7 +586,7 @@ export default function OnboardingScreen() {
     return (
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.stepContainer}
+        contentContainerStyle={styles.step7ScrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.finalHeader}>
@@ -867,6 +867,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  step7ScrollContent: {
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
   stepTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -1107,15 +1112,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 32,
-    paddingHorizontal: 20,
   },
   genderSelection: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   genderButtons: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 12,
   },
   genderButton: {
     flex: 1,
@@ -1139,16 +1144,17 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   statsContainer: {
-    gap: 16,
-    marginBottom: 24,
+    gap: 20,
+    marginBottom: 28,
   },
   inputGroup: {
-    gap: 8,
+    gap: 10,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: colors.text,
+    letterSpacing: 0.3,
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.05)',
