@@ -131,6 +131,24 @@ export default function HomeScreen() {
     return weeklyWorkouts.find(day => day.dayIndex === dayIndex) || null;
   };
 
+  // Get the next 3 days starting from today
+  const getNextThreeDays = () => {
+    const todayIndex = new Date().getDay();
+    const nextThreeDays = [];
+    
+    for (let i = 0; i < 3; i++) {
+      const dayIndex = (todayIndex + i) % 7;
+      nextThreeDays.push({
+        dayIndex,
+        dayName: DAYS_SHORT[dayIndex],
+        isToday: i === 0,
+      });
+    }
+    
+    console.log('[Home] Next 3 days:', nextThreeDays);
+    return nextThreeDays;
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -166,7 +184,7 @@ export default function HomeScreen() {
                       greetingTime < 18 ? 'Good afternoon' : 
                       'Good evening';
 
-  const todayIndex = new Date().getDay();
+  const nextThreeDays = getNextThreeDays();
 
   return (
     <View style={styles.container}>
@@ -279,7 +297,7 @@ export default function HomeScreen() {
         {weeklyWorkouts.length > 0 && (
           <View style={styles.weeklyPlanSection}>
             <View style={styles.weeklyPlanHeader}>
-              <Text style={styles.sectionTitle}>Weekly Training Plan</Text>
+              <Text style={styles.sectionTitle}>Next 3 Days</Text>
               <TouchableOpacity onPress={handleViewFullPlan}>
                 <Text style={styles.viewAllLink}>View Full Plan</Text>
               </TouchableOpacity>
@@ -290,16 +308,15 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.weeklyPlanScrollContent}
             >
-              {DAYS_SHORT.map((day, index) => {
-                const workout = getDayWorkout(index);
-                const isToday = index === todayIndex;
+              {nextThreeDays.map((dayInfo, index) => {
+                const workout = getDayWorkout(dayInfo.dayIndex);
 
                 return (
                   <TouchableOpacity
                     key={index}
                     style={[
                       styles.weekDayCard,
-                      isToday && styles.weekDayCardToday,
+                      dayInfo.isToday && styles.weekDayCardToday,
                       !workout && styles.weekDayCardRest,
                     ]}
                     onPress={handleViewFullPlan}
@@ -307,9 +324,9 @@ export default function HomeScreen() {
                   >
                     <Text style={[
                       styles.weekDayLabel,
-                      isToday && styles.weekDayLabelToday,
+                      dayInfo.isToday && styles.weekDayLabelToday,
                     ]}>
-                      {day}
+                      {dayInfo.dayName}
                     </Text>
                     {workout ? (
                       <React.Fragment>
@@ -318,12 +335,12 @@ export default function HomeScreen() {
                             ios_icon_name="figure.strengthtraining.traditional"
                             android_material_icon_name="fitness-center"
                             size={48}
-                            color={isToday ? colors.primary : colors.textSecondary}
+                            color={dayInfo.isToday ? colors.primary : colors.textSecondary}
                           />
                         </View>
                         <Text style={[
                           styles.weekDayWorkout,
-                          isToday && styles.weekDayWorkoutToday,
+                          dayInfo.isToday && styles.weekDayWorkoutToday,
                         ]} numberOfLines={2}>
                           {workout.name}
                         </Text>
