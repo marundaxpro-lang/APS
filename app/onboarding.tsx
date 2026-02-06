@@ -62,50 +62,50 @@ const calculateCaloricGoal = (
   // Activity Level Multiplier based on training frequency
   let activityFactor: number;
   if (trainingFrequency <= 2) {
-    activityFactor = 1.2; // Sedentary/Lightly active
+    activityFactor = 1.2;
   } else if (trainingFrequency <= 4) {
-    activityFactor = 1.375; // Moderately active
+    activityFactor = 1.375;
   } else if (trainingFrequency <= 6) {
-    activityFactor = 1.55; // Very active
+    activityFactor = 1.55;
   } else {
-    activityFactor = 1.725; // Extremely active
+    activityFactor = 1.725;
   }
 
   console.log('[Onboarding] Activity factor:', activityFactor);
 
-  // Calculate TDEE (Total Daily Energy Expenditure)
+  // Calculate TDEE
   const tdee = bmr * activityFactor;
   console.log('[Onboarding] TDEE calculated:', tdee);
 
   // Adjust for goal
   let caloricGoal: number;
   if (goal === 'weight-loss') {
-    caloricGoal = tdee * 0.85; // 15% deficit
+    caloricGoal = tdee * 0.85;
   } else if (goal === 'muscle' || goal === 'strength') {
-    caloricGoal = tdee * 1.10; // 10% surplus
+    caloricGoal = tdee * 1.10;
   } else {
-    caloricGoal = tdee; // Maintenance
+    caloricGoal = tdee;
   }
 
   console.log('[Onboarding] Final caloric goal:', Math.round(caloricGoal));
 
   // Calculate macro split
-  const proteinCalories = caloricGoal * 0.30; // 30% protein
-  const carbCalories = caloricGoal * 0.45; // 45% carbs
-  const fatCalories = caloricGoal * 0.25; // 25% fat
+  const proteinCalories = caloricGoal * 0.30;
+  const carbCalories = caloricGoal * 0.45;
+  const fatCalories = caloricGoal * 0.25;
 
   return {
     caloricGoal: Math.round(caloricGoal),
-    protein: Math.round(proteinCalories / 4), // 4 cal/g protein
-    carbs: Math.round(carbCalories / 4), // 4 cal/g carbs
-    fat: Math.round(fatCalories / 9), // 9 cal/g fat
+    protein: Math.round(proteinCalories / 4),
+    carbs: Math.round(carbCalories / 4),
+    fat: Math.round(fatCalories / 9),
   };
 };
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[] }>>({});
+  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[]; motivation?: string }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
@@ -124,7 +124,6 @@ export default function OnboardingScreen() {
     const height = profile.height || 175;
     const goal = profile.goal || 'muscle';
     
-    // Calculate caloric goal locally
     const nutritionGoals = calculateCaloricGoal(
       gender,
       weight,
@@ -205,7 +204,6 @@ export default function OnboardingScreen() {
       
       console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
       
-      // Update local storage with backend response if available
       if (caloricGoalResponse?.dailyCalorieGoal) {
         const updatedProfile = {
           ...finalProfile,
@@ -227,25 +225,62 @@ export default function OnboardingScreen() {
       }, 2000);
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
-      // Still proceed to home screen with local data
       router.replace('/(tabs)/(home)');
     }
   };
 
   const canProceed = () => {
     if (step === 1) return true;
-    if (step === 2) return profile.gender;
-    if (step === 3) return profile.selectedDays && profile.selectedDays.length > 0;
-    if (step === 4) return profile.focusAreas && profile.focusAreas.length > 0;
-    if (step === 5) return profile.equipmentType;
-    if (step === 6) return profile.goal && profile.weight && profile.height;
+    if (step === 2) return profile.motivation && profile.motivation.trim().length > 0;
+    if (step === 3) return profile.goal;
+    if (step === 4) return profile.selectedDays && profile.selectedDays.length > 0;
+    if (step === 5) return profile.focusAreas && profile.focusAreas.length > 0;
+    if (step === 6) return profile.equipmentType;
+    if (step === 7) return profile.gender && profile.weight && profile.height && profile.age;
     return false;
   };
+
+  // Dynamic helper text based on selections
+  const getHelperText = () => {
+    const daysCount = profile.selectedDays?.length || 0;
+    const focusCount = profile.focusAreas?.length || 0;
+    const equipment = profile.equipmentType;
+    const goal = profile.goal;
+
+    if (step === 4 && daysCount > 0) {
+      if (daysCount <= 2) {
+        return '💡 Perfect for beginners. We\'ll focus on full-body compound movements to maximize your limited time.';
+      } else if (daysCount <= 4) {
+        return '💡 Great balance! We\'ll create an upper/lower split that fits your schedule perfectly.';
+      } else {
+        return '💡 Excellent commitment! We\'ll design a targeted split to optimize muscle recovery and growth.';
+      }
+    }
+
+    if (step === 5 && focusCount > 0 && daysCount > 0) {
+      const areasText = focusCount === 1 ? 'area' : 'areas';
+      return `💡 Your ${daysCount}-day plan will prioritize your ${focusCount} focus ${areasText} with specialized exercises.`;
+    }
+
+    if (step === 6 && equipment) {
+      if (equipment === 'gym') {
+        return '💡 Full gym access unlocks advanced training techniques and progressive overload strategies.';
+      } else if (equipment === 'home') {
+        return '💡 Home equipment is perfect! We\'ll design effective workouts with dumbbells, bands, and bodyweight.';
+      } else {
+        return '💡 Bodyweight training builds incredible strength and control. No equipment needed, just dedication.';
+      }
+    }
+
+    return '';
+  };
+
+  const helperText = getHelperText();
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What&apos;s your name?</Text>
-      <Text style={styles.stepSubtitle}>Optional - we&apos;ll call you Athlete if you skip</Text>
+      <Text style={styles.stepSubtitle}>We&apos;ll use this to personalize your experience</Text>
       
       <View style={styles.nameInputContainer}>
         <TextInput
@@ -266,41 +301,119 @@ export default function OnboardingScreen() {
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What&apos;s your gender?</Text>
-      <Text style={styles.stepSubtitle}>This helps us calculate your calorie needs</Text>
+      <View style={styles.emotionalHeader}>
+        <IconSymbol
+          ios_icon_name="heart.fill"
+          android_material_icon_name="favorite"
+          size={48}
+          color={colors.primary}
+        />
+        <Text style={styles.emotionalTitle}>Why now?</Text>
+      </View>
+      <Text style={styles.emotionalSubtitle}>
+        What made you decide to start today? Understanding your &quot;why&quot; keeps you going when motivation fades.
+      </Text>
       
-      <View style={styles.optionsContainer}>
-        {(['male', 'female'] as const).map((gender) => (
-          <TouchableOpacity
-            key={gender}
-            style={[
-              styles.genderCard,
-              profile.gender === gender && styles.selectedCard,
-            ]}
-            onPress={() => {
-              console.log('[Onboarding] Gender selected:', gender);
-              setProfile({ ...profile, gender });
-            }}
-          >
-            <IconSymbol
-              ios_icon_name={gender === 'male' ? 'figure.stand' : 'figure.stand.dress'}
-              android_material_icon_name="person"
-              size={60}
-              color={profile.gender === gender ? colors.primary : colors.grey}
-            />
-            <Text style={[
-              styles.optionText,
-              profile.gender === gender && styles.selectedText
-            ]}>
-              {gender.charAt(0).toUpperCase() + gender.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.motivationContainer}>
+        <TextInput
+          style={styles.motivationInput}
+          placeholder="I want to feel stronger and more confident..."
+          placeholderTextColor={colors.grey}
+          value={profile.motivation || ''}
+          onChangeText={(text) => {
+            console.log('[Onboarding] Motivation entered:', text);
+            setProfile({ ...profile, motivation: text });
+          }}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          autoCapitalize="sentences"
+        />
+      </View>
+      
+      <View style={styles.inspirationBox}>
+        <Text style={styles.inspirationText}>
+          💭 This is your anchor. We&apos;ll remind you of this on tough days.
+        </Text>
       </View>
     </View>
   );
 
   const renderStep3 = () => {
+    const goals = [
+      { 
+        id: 'strength', 
+        label: 'Get Stronger', 
+        description: 'Lift heavier, feel powerful',
+        iosIcon: 'bolt.fill', 
+        androidIcon: 'flash-on' 
+      },
+      { 
+        id: 'muscle', 
+        label: 'Build Muscle', 
+        description: 'Sculpt your physique',
+        iosIcon: 'figure.strengthtraining.traditional', 
+        androidIcon: 'fitness-center' 
+      },
+      { 
+        id: 'endurance', 
+        label: 'Boost Endurance', 
+        description: 'Go longer, push harder',
+        iosIcon: 'figure.run', 
+        androidIcon: 'directions-run' 
+      },
+      { 
+        id: 'weight-loss', 
+        label: 'Lose Weight', 
+        description: 'Feel lighter, move better',
+        iosIcon: 'flame.fill', 
+        androidIcon: 'local-fire-department' 
+      },
+    ];
+
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>What matters most to you?</Text>
+        <Text style={styles.stepSubtitle}>Choose the goal that excites you most right now</Text>
+        
+        <View style={styles.goalsContainer}>
+          {goals.map((goal) => (
+            <TouchableOpacity
+              key={goal.id}
+              style={[
+                styles.goalCardEnhanced,
+                profile.goal === goal.id && styles.selectedCard,
+              ]}
+              onPress={() => {
+                console.log('[Onboarding] Goal selected:', goal.id);
+                setProfile({ ...profile, goal: goal.id as any });
+              }}
+            >
+              <IconSymbol
+                ios_icon_name={goal.iosIcon}
+                android_material_icon_name={goal.androidIcon}
+                size={40}
+                color={profile.goal === goal.id ? colors.primary : colors.grey}
+              />
+              <View style={styles.goalTextContainer}>
+                <Text style={[
+                  styles.goalLabel,
+                  profile.goal === goal.id && styles.selectedText
+                ]}>
+                  {goal.label}
+                </Text>
+                <Text style={styles.goalDescription}>
+                  {goal.description}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderStep4 = () => {
     const selectedDays = profile.selectedDays || [];
     
     const toggleDay = (dayId: number) => {
@@ -314,8 +427,8 @@ export default function OnboardingScreen() {
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>Which days will you train?</Text>
-        <Text style={styles.stepSubtitle}>Select the days you want to work out</Text>
+        <Text style={styles.stepTitle}>When can you train?</Text>
+        <Text style={styles.stepSubtitle}>Select the days that work for your schedule</Text>
         
         <View style={styles.daysGrid}>
           {DAYS_OF_WEEK.map((day) => {
@@ -359,11 +472,17 @@ export default function OnboardingScreen() {
             </Text>
           </View>
         )}
+
+        {helperText && (
+          <View style={styles.dynamicHelperBox}>
+            <Text style={styles.dynamicHelperText}>{helperText}</Text>
+          </View>
+        )}
       </View>
     );
   };
 
-  const renderStep4 = () => {
+  const renderStep5 = () => {
     const areas = profile.gender === 'female'
       ? ['Glutes', 'Legs', 'Core', 'Upper Body', 'Full Body']
       : ['Chest', 'Back', 'Arms', 'Legs', 'Shoulders'];
@@ -399,14 +518,20 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {helperText && (
+          <View style={styles.dynamicHelperBox}>
+            <Text style={styles.dynamicHelperText}>{helperText}</Text>
+          </View>
+        )}
       </View>
     );
   };
 
-  const renderStep5 = () => (
+  const renderStep6 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What equipment do you have?</Text>
-      <Text style={styles.stepSubtitle}>This determines your exercise selection</Text>
+      <Text style={styles.stepSubtitle}>We&apos;ll adapt every workout to what you have available</Text>
       
       <View style={styles.optionsContainer}>
         {[
@@ -440,100 +565,186 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {helperText && (
+        <View style={styles.dynamicHelperBox}>
+          <Text style={styles.dynamicHelperText}>{helperText}</Text>
+        </View>
+      )}
     </View>
   );
 
-  const renderStep6 = () => (
-    <ScrollView 
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.stepContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.stepTitle}>Final details</Text>
-      <Text style={styles.stepSubtitle}>Your goal and current stats</Text>
-      
-      <View style={styles.goalsContainer}>
-        {[
-          { id: 'strength', label: 'Build Strength', iosIcon: 'bolt.fill', androidIcon: 'flash-on' },
-          { id: 'muscle', label: 'Gain Muscle', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
-          { id: 'endurance', label: 'Improve Endurance', iosIcon: 'figure.run', androidIcon: 'directions-run' },
-          { id: 'weight-loss', label: 'Lose Weight', iosIcon: 'flame.fill', androidIcon: 'local-fire-department' },
-        ].map((goal) => (
-          <TouchableOpacity
-            key={goal.id}
-            style={[
-              styles.goalCard,
-              profile.goal === goal.id && styles.selectedCard,
-            ]}
-            onPress={() => {
-              console.log('[Onboarding] Goal selected:', goal.id);
-              setProfile({ ...profile, goal: goal.id as any });
-            }}
-          >
-            <IconSymbol
-              ios_icon_name={goal.iosIcon}
-              android_material_icon_name={goal.androidIcon}
-              size={40}
-              color={profile.goal === goal.id ? colors.primary : colors.grey}
+  const renderStep7 = () => {
+    const daysCount = profile.selectedDays?.length || 0;
+    const focusAreasText = profile.focusAreas?.join(', ') || 'full body';
+    const equipmentText = profile.equipmentType === 'gym' ? 'gym equipment' : 
+                         profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
+    const goalText = profile.goal === 'strength' ? 'build strength' :
+                    profile.goal === 'muscle' ? 'gain muscle' :
+                    profile.goal === 'endurance' ? 'boost endurance' : 'lose weight';
+
+    return (
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.stepContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.finalHeader}>
+          <IconSymbol
+            ios_icon_name="sparkles"
+            android_material_icon_name="auto-awesome"
+            size={56}
+            color={colors.primary}
+          />
+          <Text style={styles.finalTitle}>Almost there!</Text>
+        </View>
+        <Text style={styles.finalSubtitle}>
+          Just a few details to personalize your plan
+        </Text>
+        
+        <View style={styles.genderSelection}>
+          <Text style={styles.inputLabel}>Gender</Text>
+          <View style={styles.genderButtons}>
+            {(['male', 'female'] as const).map((gender) => (
+              <TouchableOpacity
+                key={gender}
+                style={[
+                  styles.genderButton,
+                  profile.gender === gender && styles.genderButtonSelected,
+                ]}
+                onPress={() => {
+                  console.log('[Onboarding] Gender selected:', gender);
+                  setProfile({ ...profile, gender });
+                }}
+              >
+                <Text style={[
+                  styles.genderButtonText,
+                  profile.gender === gender && styles.genderButtonTextSelected
+                ]}>
+                  {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Current Weight (kg)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="70"
+              placeholderTextColor={colors.grey}
+              value={profile.weight?.toString()}
+              onChangeText={(text) => {
+                console.log('[Onboarding] Weight entered:', text);
+                setProfile({ ...profile, weight: parseFloat(text) || 0 });
+              }}
             />
-            <Text style={[
-              styles.goalText,
-              profile.goal === goal.id && styles.selectedText
-            ]}>
-              {goal.label}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Height (cm)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="175"
+              placeholderTextColor={colors.grey}
+              value={profile.height?.toString()}
+              onChangeText={(text) => {
+                console.log('[Onboarding] Height entered:', text);
+                setProfile({ ...profile, height: parseFloat(text) || 0 });
+              }}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Age (years)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="25"
+              placeholderTextColor={colors.grey}
+              value={profile.age?.toString()}
+              onChangeText={(text) => {
+                console.log('[Onboarding] Age entered:', text);
+                setProfile({ ...profile, age: parseInt(text) || 0 });
+              }}
+            />
+          </View>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <IconSymbol
+              ios_icon_name="checkmark.seal.fill"
+              android_material_icon_name="verified"
+              size={32}
+              color={colors.primary}
+            />
+            <Text style={styles.summaryTitle}>Your Personalized Plan</Text>
+          </View>
+          
+          <View style={styles.summaryContent}>
+            <View style={styles.summaryRow}>
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.summaryText}>
+                {daysCount} days per week
+              </Text>
+            </View>
+            
+            <View style={styles.summaryRow}>
+              <IconSymbol
+                ios_icon_name="target"
+                android_material_icon_name="track-changes"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.summaryText}>
+                Focused on {focusAreasText}
+              </Text>
+            </View>
+            
+            <View style={styles.summaryRow}>
+              <IconSymbol
+                ios_icon_name="dumbbell.fill"
+                android_material_icon_name="fitness-center"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.summaryText}>
+                Using {equipmentText}
+              </Text>
+            </View>
+            
+            <View style={styles.summaryRow}>
+              <IconSymbol
+                ios_icon_name="flame.fill"
+                android_material_icon_name="local-fire-department"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.summaryText}>
+                Designed to {goalText}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.confidenceBox}>
+            <Text style={styles.confidenceText}>
+              ✨ Your plan is scientifically designed to match your goals, schedule, and equipment. Everything is ready.
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.statsContainer}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Current Weight (kg)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="70"
-            placeholderTextColor={colors.grey}
-            value={profile.weight?.toString()}
-            onChangeText={(text) => {
-              console.log('[Onboarding] Weight entered:', text);
-              setProfile({ ...profile, weight: parseFloat(text) || 0 });
-            }}
-          />
+          </View>
         </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Height (cm)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="175"
-            placeholderTextColor={colors.grey}
-            value={profile.height?.toString()}
-            onChangeText={(text) => {
-              console.log('[Onboarding] Height entered:', text);
-              setProfile({ ...profile, height: parseFloat(text) || 0 });
-            }}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Age (years)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="25"
-            placeholderTextColor={colors.grey}
-            value={profile.age?.toString()}
-            onChangeText={(text) => {
-              console.log('[Onboarding] Age entered:', text);
-              setProfile({ ...profile, age: parseInt(text) || 0 });
-            }}
-          />
-        </View>
-      </View>
-    </ScrollView>
-  );
+      </ScrollView>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -542,7 +753,7 @@ export default function OnboardingScreen() {
       
       <View style={styles.content}>
         <View style={styles.progressBar}>
-          {[1, 2, 3, 4, 5, 6].map((s) => (
+          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
             <View
               key={s}
               style={[
@@ -559,6 +770,7 @@ export default function OnboardingScreen() {
         {step === 4 && renderStep4()}
         {step === 5 && renderStep5()}
         {step === 6 && renderStep6()}
+        {step === 7 && renderStep7()}
 
         <View style={styles.navigation}>
           {step > 1 && (
@@ -579,7 +791,7 @@ export default function OnboardingScreen() {
               !canProceed() && styles.nextButtonDisabled,
             ]}
             onPress={() => {
-              if (step < 6) {
+              if (step < 7) {
                 console.log('[Onboarding] User tapped Next');
                 setStep(step + 1);
               } else {
@@ -589,13 +801,12 @@ export default function OnboardingScreen() {
             disabled={!canProceed()}
           >
             <Text style={styles.nextButtonText}>
-              {step === 6 ? 'Get Started' : 'Next'}
+              {step === 7 ? 'Start My Journey' : 'Next'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Success Modal */}
       <Modal
         visible={showSuccessModal}
         transparent
@@ -611,9 +822,9 @@ export default function OnboardingScreen() {
                 color={colors.primary}
               />
             </View>
-            <Text style={styles.successTitle}>Profile Created!</Text>
+            <Text style={styles.successTitle}>Welcome Aboard!</Text>
             <Text style={styles.successMessage}>
-              Your personalized training plan is ready
+              Your personalized training plan is ready. Let&apos;s make it happen.
             </Text>
           </View>
         </View>
@@ -640,7 +851,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   progressDot: {
-    width: 32,
+    width: 28,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
@@ -668,6 +879,7 @@ const styles = StyleSheet.create({
     color: colors.grey,
     textAlign: 'center',
     marginBottom: 40,
+    paddingHorizontal: 20,
   },
   nameInputContainer: {
     width: '100%',
@@ -683,31 +895,82 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  optionsContainer: {
-    flexDirection: 'row',
-    gap: 20,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+  emotionalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  genderCard: {
-    width: 140,
-    height: 160,
+  emotionalTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 12,
+  },
+  emotionalSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 20,
+    lineHeight: 24,
+  },
+  motivationContainer: {
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 20,
+  },
+  motivationInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 20,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 120,
+  },
+  inspirationBox: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 400,
+  },
+  inspirationText: {
+    fontSize: 14,
+    color: colors.primary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  goalsContainer: {
     gap: 12,
+    width: '100%',
+    maxWidth: 400,
+  },
+  goalCardEnhanced: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   selectedCard: {
     backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
-  optionText: {
+  goalTextContainer: {
+    flex: 1,
+  },
+  goalLabel: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.grey,
+    marginBottom: 4,
+  },
+  goalDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   selectedText: {
     color: colors.primary,
@@ -755,11 +1018,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
+    marginBottom: 16,
   },
   selectionText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
+  },
+  dynamicHelperBox: {
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 400,
+  },
+  dynamicHelperText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   areasGrid: {
     flexDirection: 'row',
@@ -767,6 +1044,7 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'center',
     paddingHorizontal: 20,
+    marginBottom: 20,
   },
   areaChip: {
     paddingHorizontal: 24,
@@ -788,6 +1066,13 @@ const styles = StyleSheet.create({
   selectedChipText: {
     color: colors.primary,
   },
+  optionsContainer: {
+    flexDirection: 'row',
+    gap: 20,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   equipmentCard: {
     width: '100%',
     maxWidth: 300,
@@ -802,27 +1087,60 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 20,
   },
-  goalsContainer: {
-    gap: 12,
-    marginBottom: 30,
+  optionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.grey,
   },
-  goalCard: {
-    flexDirection: 'row',
+  finalHeader: {
     alignItems: 'center',
-    gap: 16,
-    padding: 16,
+    marginBottom: 12,
+  },
+  finalTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 12,
+  },
+  finalSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 20,
+  },
+  genderSelection: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  genderButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
   },
-  goalText: {
+  genderButtonSelected: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    borderColor: colors.primary,
+  },
+  genderButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.grey,
   },
+  genderButtonTextSelected: {
+    color: colors.primary,
+  },
   statsContainer: {
     gap: 16,
+    marginBottom: 24,
   },
   inputGroup: {
     gap: 8,
@@ -840,6 +1158,50 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: colors.text,
+  },
+  summaryCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    padding: 24,
+    width: '100%',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  summaryTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  summaryContent: {
+    gap: 16,
+    marginBottom: 20,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  summaryText: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+  confidenceBox: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  confidenceText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   navigation: {
     flexDirection: 'row',

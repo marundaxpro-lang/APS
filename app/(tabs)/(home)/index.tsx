@@ -32,6 +32,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Athlete');
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
+  const [motivation, setMotivation] = useState('');
 
   useEffect(() => {
     loadData();
@@ -41,7 +42,6 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      // Load user profile from local storage
       const profileData = await AsyncStorage.getItem('fitnessProfile');
       let profile: FitnessProfile | null = null;
       
@@ -50,9 +50,10 @@ export default function HomeScreen() {
         if (profile?.name) {
           setUserName(profile.name);
         }
+        const motivationText = (profile as any).motivation || '';
+        setMotivation(motivationText);
       }
       
-      // Load today's tasks
       const tasksData = await AsyncStorage.getItem('focusTasks');
       if (tasksData) {
         const allTasks: WeeklyTask[] = JSON.parse(tasksData);
@@ -62,7 +63,6 @@ export default function HomeScreen() {
         console.log('[Home] Loaded tasks for today:', tasksForToday.length);
       }
       
-      // Load dashboard stats from backend
       try {
         const dashboardStats = await authenticatedGet('/api/dashboard/home');
         setStats(dashboardStats);
@@ -70,7 +70,6 @@ export default function HomeScreen() {
       } catch (error) {
         console.log('[Home] Could not load stats from backend, using local data');
         
-        // Fallback to local profile data
         const caloricGoal = profile?.caloricGoal || 2500;
         console.log('[Home] Using caloric goal from profile:', caloricGoal);
         
@@ -102,7 +101,6 @@ export default function HomeScreen() {
         );
         await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
         
-        // Update local state
         const today = new Date().getDay();
         const tasksForToday = updatedTasks.filter(task => task.dayOfWeek === today);
         setTodayTasks(tasksForToday);
@@ -125,20 +123,38 @@ export default function HomeScreen() {
     );
   }
 
-  const percentageConsumed = stats?.percentageConsumed || 0;
-  const caloriesConsumed = stats?.caloriesConsumed || 0;
-  const caloriesRemaining = stats?.caloriesRemaining || stats?.dailyCalorieGoal || 2500;
-  const dailyCalorieGoal = stats?.dailyCalorieGoal || 2500;
-  const mealsLogged = stats?.mealsLogged || 0;
-
   const completedTasksCount = todayTasks.filter(t => t.completed).length;
   const totalTasksCount = todayTasks.length;
+  const hasIncompleteTasks = totalTasksCount > 0 && completedTasksCount < totalTasksCount;
+  const allTasksComplete = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
+
+  const mealsLogged = stats?.mealsLogged || 0;
+  const needsNutritionLog = mealsLogged === 0;
+
+  const primaryActionText = hasIncompleteTasks ? 'Complete Your Tasks' : 
+                           needsNutritionLog ? 'Log Your First Meal' : 
+                           'Start Today\'s Workout';
+  const primaryActionRoute = hasIncompleteTasks ? '/(tabs)/focus' : 
+                            needsNutritionLog ? '/(tabs)/nutrition' : 
+                            '/(tabs)/training';
+  const primaryActionIcon = hasIncompleteTasks ? 'check-circle' : 
+                           needsNutritionLog ? 'restaurant' : 
+                           'fitness-center';
+
+  const secondaryActionText = hasIncompleteTasks ? 'View Weekly Plan' : 'Track Progress';
+  const secondaryActionRoute = hasIncompleteTasks ? '/(tabs)/plan' : '/(tabs)/progress';
+  const secondaryActionIcon = hasIncompleteTasks ? 'calendar-today' : 'show-chart';
+
+  const greetingTime = new Date().getHours();
+  const greetingText = greetingTime < 12 ? 'Good morning' : 
+                      greetingTime < 18 ? 'Good afternoon' : 
+                      'Good evening';
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.greeting}>{greetingText},</Text>
           <Text style={styles.userName}>{userName}</Text>
         </View>
         <TouchableOpacity style={styles.profileButton} onPress={handleNavigateToProfile}>
@@ -156,65 +172,166 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Today's Tasks - Highlighted Section */}
-        <View style={styles.tasksHighlight}>
-          <View style={styles.tasksHeader}>
-            <View style={styles.tasksHeaderLeft}>
-              <IconSymbol
-                ios_icon_name="checkmark.circle.fill"
-                android_material_icon_name="check-circle"
-                size={28}
-                color={colors.primary}
-              />
-              <View>
-                <Text style={styles.tasksTitle}>Today&apos;s Tasks</Text>
-                <Text style={styles.tasksSubtitle}>
-                  {completedTasksCount} of {totalTasksCount} completed
+        {motivation && (
+          <View style={styles.motivationCard}>
+            <IconSymbol
+              ios_icon_name="heart.fill"
+              android_material_icon_name="favorite"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.motivationText}>&quot;{motivation}&quot;</Text>
+          </View>
+        )}
+
+        <View style={styles.nextActionSection}>
+          <Text style={styles.nextActionLabel}>Your next move</Text>
+          
+          <TouchableOpacity 
+            style={styles.primaryAction}
+            onPress={() => {
+              console.log('[Home] User tapped primary action:', primaryActionRoute);
+              router.push(primaryActionRoute as any);
+            }}
+          >
+            <View style={styles.primaryActionContent}>
+              <View style={styles.primaryActionIcon}>
+                <IconSymbol
+                  ios_icon_name="bolt.fill"
+                  android_material_icon_name={primaryActionIcon}
+                  size={32}
+                  color="#fff"
+                />
+              </View>
+              <View style={styles.primaryActionText}>
+                <Text style={styles.primaryActionTitle}>{primaryActionText}</Text>
+                <Text style={styles.primaryActionSubtitle}>
+                  {hasIncompleteTasks ? `${totalTasksCount - completedTasksCount} tasks remaining` : 
+                   needsNutritionLog ? 'Track what you eat today' : 
+                   'Your workout is ready'}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity 
-              style={styles.viewAllButton}
-              onPress={() => router.push('/(tabs)/focus')}
-            >
-              <Text style={styles.viewAllText}>View All</Text>
-              <IconSymbol
-                ios_icon_name="chevron.right"
-                android_material_icon_name="chevron-right"
-                size={16}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
 
-          {todayTasks.length === 0 ? (
-            <View style={styles.noTasksContainer}>
-              <IconSymbol
-                ios_icon_name="tray"
-                android_material_icon_name="inbox"
-                size={40}
-                color={colors.grey}
-              />
-              <Text style={styles.noTasksText}>No tasks for today</Text>
-              <TouchableOpacity 
-                style={styles.addTaskButton}
-                onPress={() => router.push('/(tabs)/focus')}
-              >
+          <TouchableOpacity 
+            style={styles.secondaryAction}
+            onPress={() => {
+              console.log('[Home] User tapped secondary action:', secondaryActionRoute);
+              router.push(secondaryActionRoute as any);
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="chart.line.uptrend.xyaxis"
+              android_material_icon_name={secondaryActionIcon}
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.secondaryActionText}>{secondaryActionText}</Text>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={16}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {allTasksComplete && (
+          <View style={styles.celebrationCard}>
+            <IconSymbol
+              ios_icon_name="party.popper.fill"
+              android_material_icon_name="celebration"
+              size={32}
+              color={colors.primary}
+            />
+            <View style={styles.celebrationText}>
+              <Text style={styles.celebrationTitle}>All tasks complete!</Text>
+              <Text style={styles.celebrationSubtitle}>You&apos;re crushing it today 🔥</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.todayOverview}>
+          <Text style={styles.sectionTitle}>Today at a glance</Text>
+          
+          <View style={styles.overviewGrid}>
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
                 <IconSymbol
-                  ios_icon_name="plus"
-                  android_material_icon_name="add"
-                  size={16}
-                  color="#fff"
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={20}
+                  color={colors.primary}
                 />
-                <Text style={styles.addTaskButtonText}>Add Task</Text>
+                <Text style={styles.overviewLabel}>Tasks</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {completedTasksCount}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                of {totalTasksCount}
+              </Text>
+            </View>
+
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
+                <IconSymbol
+                  ios_icon_name="fork.knife"
+                  android_material_icon_name="restaurant"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.overviewLabel}>Meals</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {mealsLogged}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                logged
+              </Text>
+            </View>
+
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
+                <IconSymbol
+                  ios_icon_name="flame.fill"
+                  android_material_icon_name="local-fire-department"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.overviewLabel}>Calories</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {stats?.caloriesConsumed || 0}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                of {stats?.dailyCalorieGoal || 2500}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {todayTasks.length > 0 && (
+          <View style={styles.quickTasksSection}>
+            <View style={styles.quickTasksHeader}>
+              <Text style={styles.sectionTitle}>Quick tasks</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/focus')}>
+                <Text style={styles.viewAllLink}>View all</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.tasksList}>
+            
+            <View style={styles.quickTasksList}>
               {todayTasks.slice(0, 3).map((task) => (
                 <TouchableOpacity
                   key={task.id}
-                  style={styles.taskItem}
+                  style={styles.quickTaskItem}
                   onPress={() => toggleTask(task.id)}
                 >
                   <View style={[
@@ -225,190 +342,22 @@ export default function HomeScreen() {
                       <IconSymbol
                         ios_icon_name="checkmark"
                         android_material_icon_name="check"
-                        size={14}
+                        size={12}
                         color="#fff"
                       />
                     )}
                   </View>
-                  <View style={styles.taskInfo}>
-                    <Text style={[
-                      styles.taskTitle,
-                      task.completed && styles.taskTitleCompleted,
-                    ]}>
-                      {task.title}
-                    </Text>
-                    {task.startTime && (
-                      <Text style={styles.taskTime}>{task.startTime}</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-              {todayTasks.length > 3 && (
-                <TouchableOpacity 
-                  style={styles.moreTasksButton}
-                  onPress={() => router.push('/(tabs)/focus')}
-                >
-                  <Text style={styles.moreTasksText}>
-                    +{todayTasks.length - 3} more tasks
+                  <Text style={[
+                    styles.quickTaskText,
+                    task.completed && styles.quickTaskTextCompleted,
+                  ]}>
+                    {task.title}
                   </Text>
                 </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Compact Nutrition Overview */}
-        <View style={styles.nutritionCard}>
-          <View style={styles.nutritionHeader}>
-            <IconSymbol
-              ios_icon_name="flame.fill"
-              android_material_icon_name="local-fire-department"
-              size={20}
-              color={colors.primary}
-            />
-            <Text style={styles.nutritionTitle}>Nutrition</Text>
-          </View>
-          
-          <View style={styles.nutritionStats}>
-            <View style={styles.nutritionStat}>
-              <Text style={styles.nutritionValue}>{caloriesConsumed}</Text>
-              <Text style={styles.nutritionLabel}>consumed</Text>
-            </View>
-            <View style={styles.nutritionDivider} />
-            <View style={styles.nutritionStat}>
-              <Text style={styles.nutritionValue}>{caloriesRemaining}</Text>
-              <Text style={styles.nutritionLabel}>remaining</Text>
-            </View>
-            <View style={styles.nutritionDivider} />
-            <View style={styles.nutritionStat}>
-              <Text style={styles.nutritionValue}>{dailyCalorieGoal}</Text>
-              <Text style={styles.nutritionLabel}>goal</Text>
+              ))}
             </View>
           </View>
-
-          <View style={styles.nutritionProgressBar}>
-            <View 
-              style={[
-                styles.nutritionProgressFill, 
-                { width: `${Math.min(percentageConsumed, 100)}%` }
-              ]} 
-            />
-          </View>
-        </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="figure.strengthtraining.traditional"
-              android_material_icon_name="fitness-center"
-              size={28}
-              color={colors.primary}
-            />
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Workouts</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="fork.knife"
-              android_material_icon_name="restaurant"
-              size={28}
-              color={colors.primary}
-            />
-            <Text style={styles.statValue}>{mealsLogged}</Text>
-            <Text style={styles.statLabel}>Meals Logged</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="flame.fill"
-              android_material_icon_name="local-fire-department"
-              size={28}
-              color={colors.primary}
-            />
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <IconSymbol
-              ios_icon_name="chart.line.uptrend.xyaxis"
-              android_material_icon_name="trending-up"
-              size={28}
-              color={colors.primary}
-            />
-            <Text style={styles.statValue}>0%</Text>
-            <Text style={styles.statLabel}>Progress</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/training')}
-            >
-              <View style={styles.actionIconContainer}>
-                <IconSymbol
-                  ios_icon_name="figure.strengthtraining.traditional"
-                  android_material_icon_name="fitness-center"
-                  size={28}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={styles.actionText}>Start Workout</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/nutrition')}
-            >
-              <View style={styles.actionIconContainer}>
-                <IconSymbol
-                  ios_icon_name="fork.knife"
-                  android_material_icon_name="restaurant"
-                  size={28}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={styles.actionText}>Log Meal</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/progress')}
-            >
-              <View style={styles.actionIconContainer}>
-                <IconSymbol
-                  ios_icon_name="chart.line.uptrend.xyaxis"
-                  android_material_icon_name="show-chart"
-                  size={28}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={styles.actionText}>View Progress</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/plan')}
-            >
-              <View style={styles.actionIconContainer}>
-                <IconSymbol
-                  ios_icon_name="calendar"
-                  android_material_icon_name="calendar-today"
-                  size={28}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={styles.actionText}>Weekly Plan</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -459,83 +408,181 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  tasksHighlight: {
-    backgroundColor: colors.card,
-    borderColor: colors.primary,
-    borderWidth: 2,
+  motivationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  motivationText: {
+    flex: 1,
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: colors.text,
+    lineHeight: 20,
+  },
+  nextActionSection: {
+    marginBottom: 32,
+  },
+  nextActionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  primaryAction: {
+    backgroundColor: colors.primary,
     borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  primaryActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  primaryActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionText: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  primaryActionSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  secondaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  secondaryActionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  celebrationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 16,
     padding: 20,
+    marginBottom: 24,
+  },
+  celebrationText: {
+    flex: 1,
+  },
+  celebrationTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  celebrationSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  todayOverview: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
     marginBottom: 16,
   },
-  tasksHeader: {
+  overviewGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  overviewCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  overviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  overviewValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  overviewSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  quickTasksSection: {
+    marginBottom: 24,
+  },
+  quickTasksHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  tasksHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  tasksTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  tasksSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    borderRadius: 12,
-  },
-  viewAllText: {
-    fontSize: 13,
+  viewAllLink: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
   },
-  noTasksContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  noTasksText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  addTaskButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  addTaskButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  tasksList: {
+  quickTasksList: {
     gap: 10,
   },
-  taskItem: {
+  quickTaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    padding: 12,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    padding: 14,
     borderRadius: 12,
   },
   taskCheckbox: {
@@ -551,152 +598,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  taskInfo: {
+  quickTaskText: {
     flex: 1,
-  },
-  taskTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
     color: colors.text,
   },
-  taskTitleCompleted: {
+  quickTaskTextCompleted: {
     textDecorationLine: 'line-through',
     color: colors.grey,
-  },
-  taskTime: {
-    fontSize: 12,
-    color: colors.primary,
-    marginTop: 2,
-  },
-  moreTasksButton: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  moreTasksText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  nutritionCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-  nutritionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  nutritionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  nutritionStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  nutritionStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  nutritionValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  nutritionLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  nutritionDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: colors.cardBorder,
-    marginHorizontal: 8,
-  },
-  nutritionProgressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  nutritionProgressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '47%',
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  quickActions: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  actionCard: {
-    flex: 1,
-    minWidth: '47%',
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    gap: 10,
-  },
-  actionIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
   },
 });
