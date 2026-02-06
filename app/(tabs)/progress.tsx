@@ -52,8 +52,14 @@ export default function ProgressScreen() {
         const backendMeasurements = await authenticatedGet('/api/measurements');
         
         if (backendMeasurements && Array.isArray(backendMeasurements)) {
-          setMeasurements(backendMeasurements);
-          await AsyncStorage.setItem('measurements', JSON.stringify(backendMeasurements));
+          // Ensure all weight values are numbers
+          const normalizedMeasurements = backendMeasurements.map(m => ({
+            ...m,
+            weight: typeof m.weight === 'string' ? parseFloat(m.weight) : m.weight,
+            bodyFat: m.bodyFat ? (typeof m.bodyFat === 'string' ? parseFloat(m.bodyFat) : m.bodyFat) : undefined,
+          }));
+          setMeasurements(normalizedMeasurements);
+          await AsyncStorage.setItem('measurements', JSON.stringify(normalizedMeasurements));
           console.log('[Progress] Measurements loaded from backend');
         }
       } catch (error) {
@@ -61,14 +67,22 @@ export default function ProgressScreen() {
         // Fallback to local storage
         const measurementsData = await AsyncStorage.getItem('measurements');
         if (measurementsData) {
-          setMeasurements(JSON.parse(measurementsData));
+          const localMeasurements = JSON.parse(measurementsData);
+          // Ensure all weight values are numbers
+          const normalizedMeasurements = localMeasurements.map((m: any) => ({
+            ...m,
+            weight: typeof m.weight === 'string' ? parseFloat(m.weight) : m.weight,
+            bodyFat: m.bodyFat ? (typeof m.bodyFat === 'string' ? parseFloat(m.bodyFat) : m.bodyFat) : undefined,
+          }));
+          setMeasurements(normalizedMeasurements);
         } else {
           // Initialize with profile data if available
           if (profileData) {
             const prof = JSON.parse(profileData);
+            const initialWeight = typeof prof.weight === 'string' ? parseFloat(prof.weight) : (prof.weight || 70);
             const initialMeasurement: Measurement = {
               id: Date.now().toString(),
-              weight: prof.weight || 70,
+              weight: initialWeight,
               bodyFat: 18,
               date: new Date().toISOString().split('T')[0],
             };
@@ -171,15 +185,41 @@ export default function ProgressScreen() {
     );
   }
 
-  const currentWeight = measurements.length > 0 ? measurements[measurements.length - 1].weight : profile?.weight || 0;
-  const currentBodyFat = measurements.length > 0 ? measurements[measurements.length - 1].bodyFat : 18;
-  const startWeight = measurements.length > 0 ? measurements[0].weight : currentWeight;
+  // Safely extract and convert weight values to numbers
+  const getNumericWeight = (weight: any): number => {
+    if (typeof weight === 'number') return weight;
+    if (typeof weight === 'string') return parseFloat(weight) || 0;
+    return 0;
+  };
+
+  const getNumericBodyFat = (bodyFat: any): number => {
+    if (typeof bodyFat === 'number') return bodyFat;
+    if (typeof bodyFat === 'string') return parseFloat(bodyFat) || 18;
+    return 18;
+  };
+
+  const currentWeight = measurements.length > 0 
+    ? getNumericWeight(measurements[measurements.length - 1].weight) 
+    : getNumericWeight(profile?.weight) || 0;
+  
+  const currentBodyFat = measurements.length > 0 
+    ? getNumericBodyFat(measurements[measurements.length - 1].bodyFat) 
+    : 18;
+  
+  const startWeight = measurements.length > 0 
+    ? getNumericWeight(measurements[0].weight) 
+    : currentWeight;
+  
   const weightChange = startWeight - currentWeight;
-  const startBodyFat = measurements.length > 0 ? measurements[0].bodyFat || 18 : 18;
-  const bodyFatChange = startBodyFat - (currentBodyFat || 18);
+  
+  const startBodyFat = measurements.length > 0 
+    ? getNumericBodyFat(measurements[0].bodyFat) 
+    : 18;
+  
+  const bodyFatChange = startBodyFat - currentBodyFat;
 
   // Calculate Lean Body Mass (more meaningful than BMI)
-  const leanBodyMass = currentWeight * (1 - (currentBodyFat || 18) / 100);
+  const leanBodyMass = currentWeight * (1 - currentBodyFat / 100);
   const startLeanBodyMass = startWeight * (1 - startBodyFat / 100);
   const leanMassChange = leanBodyMass - startLeanBodyMass;
 
@@ -228,7 +268,7 @@ export default function ProgressScreen() {
                 color={colors.primary}
               />
             </View>
-            <Text style={styles.statValue}>{(currentBodyFat || 18).toFixed(1)}</Text>
+            <Text style={styles.statValue}>{currentBodyFat.toFixed(1)}</Text>
             <Text style={styles.statUnit}>%</Text>
             <Text style={styles.statLabel}>Body Fat</Text>
             {bodyFatChange !== 0 && (
@@ -284,10 +324,12 @@ export default function ProgressScreen() {
               {/* Simple line chart visualization */}
               <View style={styles.chartGrid}>
                 {measurements.map((m, index) => {
-                  const maxWeight = Math.max(...measurements.map(m => m.weight));
-                  const minWeight = Math.min(...measurements.map(m => m.weight));
+                  const numericWeights = measurements.map(measurement => getNumericWeight(measurement.weight));
+                  const maxWeight = Math.max(...numericWeights);
+                  const minWeight = Math.min(...numericWeights);
                   const range = maxWeight - minWeight || 1;
-                  const heightPercent = ((m.weight - minWeight) / range) * 100;
+                  const mWeight = getNumericWeight(m.weight);
+                  const heightPercent = ((mWeight - minWeight) / range) * 100;
                   
                   return (
                     <View key={m.id} style={styles.chartBar}>
@@ -299,7 +341,7 @@ export default function ProgressScreen() {
                           ]}
                         />
                       </View>
-                      <Text style={styles.chartBarLabel}>{m.weight.toFixed(0)}</Text>
+                      <Text style={styles.chartBarLabel}>{mWeight.toFixed(0)}</Text>
                       <Text style={styles.chartBarDate}>
                         {new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </Text>
