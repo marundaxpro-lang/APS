@@ -29,12 +29,10 @@ export default function TrainingScreen() {
 
   const loadWorkout = useCallback(async () => {
     try {
-      // Check if user has logged workouts
       const workoutHistory = await AsyncStorage.getItem('workoutHistory');
       const hasHistory = workoutHistory && JSON.parse(workoutHistory).length > 0;
       setHasWorkoutsLogged(hasHistory);
 
-      // First try to load from backend to get the latest profile
       try {
         const { authenticatedGet } = await import('@/utils/api');
         const backendProfile = await authenticatedGet('/api/fitness-profile');
@@ -81,7 +79,6 @@ export default function TrainingScreen() {
         console.log('[Training] Falling back to local storage');
       }
       
-      // Fallback to local storage
       const storedProfile = await AsyncStorage.getItem('fitnessProfile');
       if (!storedProfile) {
         router.replace('/onboarding');
@@ -113,6 +110,11 @@ export default function TrainingScreen() {
   const handleViewWeeklyWorkouts = () => {
     console.log('[Training] User tapped View Weekly Workouts button');
     setShowWeeklyModal(true);
+  };
+
+  const handleViewWeeklyPlan = () => {
+    console.log('[Training] User tapped View Weekly Plan button - navigating to Plan screen');
+    router.push('/(tabs)/plan');
   };
 
   const handleSelectWorkout = async (workout: WorkoutDay) => {
@@ -148,7 +150,6 @@ export default function TrainingScreen() {
     router.push('/(tabs)/plan');
   };
 
-  // Get context-aware tips based on workout type
   const getWorkoutTips = () => {
     if (!todaysWorkout) return [];
     
@@ -157,28 +158,24 @@ export default function TrainingScreen() {
     
     const tips = [];
     
-    // Chest/Push tips
     if (workoutName.includes('push') || workoutName.includes('chest') || 
         exercises.some(e => e.includes('bench') || e.includes('press'))) {
       tips.push('Retract your shoulder blades for better chest activation');
       tips.push('Control the eccentric (lowering) phase for 2-3 seconds');
     }
     
-    // Pull/Back tips
     if (workoutName.includes('pull') || workoutName.includes('back') ||
         exercises.some(e => e.includes('row') || e.includes('pull'))) {
       tips.push('Focus on pulling with your elbows, not your hands');
       tips.push('Squeeze your shoulder blades together at peak contraction');
     }
     
-    // Leg tips
     if (workoutName.includes('leg') || workoutName.includes('lower') ||
         exercises.some(e => e.includes('squat') || e.includes('leg'))) {
       tips.push('Keep your core braced throughout the movement');
       tips.push('Drive through your heels, not your toes');
     }
     
-    // General tips
     tips.push('Warm up with 5-10 minutes of light cardio');
     tips.push('Rest 60-90 seconds between sets for hypertrophy');
     tips.push('Stay hydrated - drink water between sets');
@@ -197,7 +194,6 @@ export default function TrainingScreen() {
     );
   }
 
-  // Empty state for users with no workouts logged
   if (!hasWorkoutsLogged && !todaysWorkout) {
     return (
       <View style={styles.container}>
@@ -365,6 +361,25 @@ export default function TrainingScreen() {
             color="#fff"
           />
           <Text style={styles.startButtonText}>Start Workout</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.weeklyPlanButton}
+          onPress={handleViewWeeklyPlan}
+        >
+          <IconSymbol
+            ios_icon_name="calendar"
+            android_material_icon_name="calendar-today"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.weeklyPlanButtonText}>View Weekly Plan</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={20}
+            color={colors.primary}
+          />
         </TouchableOpacity>
 
         <View style={styles.exerciseList}>
@@ -554,12 +569,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginBottom: 32,
+    marginBottom: 12,
   },
   startButtonText: {
     fontSize: 18,
     fontWeight: '800',
     color: '#fff',
+  },
+  weeklyPlanButton: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderColor: colors.primary,
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 32,
+  },
+  weeklyPlanButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
   },
   exerciseList: {
     marginBottom: 24,

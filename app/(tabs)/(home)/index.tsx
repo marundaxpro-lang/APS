@@ -14,7 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { authenticatedGet } from '@/utils/api';
-import { WeeklyTask, FitnessProfile } from '@/types/fitness';
+import { WeeklyTask, FitnessProfile, WorkoutDay } from '@/types/fitness';
+import { generateWorkoutSplit } from '@/data/workouts';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -26,6 +27,8 @@ interface DashboardStats {
   lastUpdated: string;
 }
 
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 export default function HomeScreen() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -33,6 +36,7 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState('Athlete');
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
   const [motivation, setMotivation] = useState('');
+  const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
 
   useEffect(() => {
     loadData();
@@ -52,6 +56,10 @@ export default function HomeScreen() {
         }
         const motivationText = (profile as any).motivation || '';
         setMotivation(motivationText);
+
+        const workoutSplit = generateWorkoutSplit(profile);
+        console.log('[Home] Generated weekly workout split:', workoutSplit);
+        setWeeklyWorkouts(workoutSplit);
       }
       
       const tasksData = await AsyncStorage.getItem('focusTasks');
@@ -115,6 +123,15 @@ export default function HomeScreen() {
     router.push('/(tabs)/profile');
   };
 
+  const handleViewFullPlan = () => {
+    console.log('[Home] User tapped View Full Plan');
+    router.push('/(tabs)/plan');
+  };
+
+  const getDayWorkout = (dayIndex: number): WorkoutDay | null => {
+    return weeklyWorkouts.find(day => day.dayIndex === dayIndex) || null;
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -149,6 +166,8 @@ export default function HomeScreen() {
   const greetingText = greetingTime < 12 ? 'Good morning' : 
                       greetingTime < 18 ? 'Good afternoon' : 
                       'Good evening';
+
+  const todayIndex = new Date().getDay();
 
   return (
     <View style={styles.container}>
@@ -254,6 +273,68 @@ export default function HomeScreen() {
             <View style={styles.celebrationText}>
               <Text style={styles.celebrationTitle}>All tasks complete!</Text>
               <Text style={styles.celebrationSubtitle}>You&apos;re crushing it today 🔥</Text>
+            </View>
+          </View>
+        )}
+
+        {weeklyWorkouts.length > 0 && (
+          <View style={styles.weeklyPlanSection}>
+            <View style={styles.weeklyPlanHeader}>
+              <Text style={styles.sectionTitle}>Weekly Training Plan</Text>
+              <TouchableOpacity onPress={handleViewFullPlan}>
+                <Text style={styles.viewAllLink}>View Full Plan</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weeklyPlanGrid}>
+              {DAYS_SHORT.map((day, index) => {
+                const workout = getDayWorkout(index);
+                const isToday = index === todayIndex;
+
+                return (
+                  <View
+                    key={index}
+                    style={[
+                      styles.weekDayCard,
+                      isToday && styles.weekDayCardToday,
+                      !workout && styles.weekDayCardRest,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.weekDayLabel,
+                      isToday && styles.weekDayLabelToday,
+                    ]}>
+                      {day}
+                    </Text>
+                    {workout ? (
+                      <>
+                        <IconSymbol
+                          ios_icon_name="figure.strengthtraining.traditional"
+                          android_material_icon_name="fitness-center"
+                          size={20}
+                          color={isToday ? colors.primary : colors.textSecondary}
+                        />
+                        <Text style={[
+                          styles.weekDayWorkout,
+                          isToday && styles.weekDayWorkoutToday,
+                        ]} numberOfLines={2}>
+                          {workout.name}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <IconSymbol
+                          ios_icon_name="bed.double.fill"
+                          android_material_icon_name="hotel"
+                          size={20}
+                          color={colors.grey}
+                        />
+                        <Text style={styles.weekDayRest}>Rest</Text>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -515,6 +596,66 @@ const styles = StyleSheet.create({
   celebrationSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  weeklyPlanSection: {
+    marginBottom: 32,
+  },
+  weeklyPlanHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  weeklyPlanGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  weekDayCard: {
+    width: '13%',
+    minWidth: 45,
+    aspectRatio: 0.75,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weekDayCardToday: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+  },
+  weekDayCardRest: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  weekDayLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  weekDayLabelToday: {
+    color: colors.primary,
+  },
+  weekDayWorkout: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  weekDayWorkoutToday: {
+    color: colors.primary,
+  },
+  weekDayRest: {
+    fontSize: 9,
+    color: colors.grey,
+    textAlign: 'center',
+    marginTop: 4,
   },
   todayOverview: {
     marginBottom: 32,
