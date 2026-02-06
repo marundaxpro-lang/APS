@@ -286,19 +286,25 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.weeklyPlanGrid}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.weeklyPlanScrollContent}
+            >
               {DAYS_SHORT.map((day, index) => {
                 const workout = getDayWorkout(index);
                 const isToday = index === todayIndex;
 
                 return (
-                  <View
+                  <TouchableOpacity
                     key={index}
                     style={[
                       styles.weekDayCard,
                       isToday && styles.weekDayCardToday,
                       !workout && styles.weekDayCardRest,
                     ]}
+                    onPress={handleViewFullPlan}
+                    activeOpacity={0.7}
                   >
                     <Text style={[
                       styles.weekDayLabel,
@@ -307,35 +313,39 @@ export default function HomeScreen() {
                       {day}
                     </Text>
                     {workout ? (
-                      <>
-                        <IconSymbol
-                          ios_icon_name="figure.strengthtraining.traditional"
-                          android_material_icon_name="fitness-center"
-                          size={20}
-                          color={isToday ? colors.primary : colors.textSecondary}
-                        />
+                      <React.Fragment>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="figure.strengthtraining.traditional"
+                            android_material_icon_name="fitness-center"
+                            size={48}
+                            color={isToday ? colors.primary : colors.textSecondary}
+                          />
+                        </View>
                         <Text style={[
                           styles.weekDayWorkout,
                           isToday && styles.weekDayWorkoutToday,
                         ]} numberOfLines={2}>
                           {workout.name}
                         </Text>
-                      </>
+                      </React.Fragment>
                     ) : (
-                      <>
-                        <IconSymbol
-                          ios_icon_name="bed.double.fill"
-                          android_material_icon_name="hotel"
-                          size={20}
-                          color={colors.grey}
-                        />
+                      <React.Fragment>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="bed.double.fill"
+                            android_material_icon_name="hotel"
+                            size={48}
+                            color={colors.grey}
+                          />
+                        </View>
                         <Text style={styles.weekDayRest}>Rest</Text>
-                      </>
+                      </React.Fragment>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -599,27 +609,27 @@ const styles = StyleSheet.create({
   },
   weeklyPlanSection: {
     marginBottom: 32,
+    marginHorizontal: -20,
   },
   weeklyPlanHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 20,
   },
-  weeklyPlanGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  weeklyPlanScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
   },
   weekDayCard: {
-    width: '13%',
-    minWidth: 45,
-    aspectRatio: 0.75,
+    width: 120,
+    height: 160,
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 8,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -632,30 +642,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   weekDayLabel: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.textSecondary,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   weekDayLabelToday: {
     color: colors.primary,
   },
+  weekDayIconContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   weekDayWorkout: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   weekDayWorkoutToday: {
     color: colors.primary,
   },
   weekDayRest: {
-    fontSize: 9,
+    fontSize: 12,
     color: colors.grey,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   todayOverview: {
     marginBottom: 32,

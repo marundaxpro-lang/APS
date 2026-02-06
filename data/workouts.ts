@@ -216,48 +216,91 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
   
   console.log('Generating workout split with profile:', profile);
   
+  // Get the selected days from profile (array of day indices 0-6)
+  const selectedDays = (profile as any).selectedDays || [];
+  const numDays = selectedDays.length || trainingDays || 3;
+  
+  console.log('Selected days from onboarding:', selectedDays);
+  console.log('Number of training days:', numDays);
+  
   // Prioritize glutes for female users
   const adjustedFocusAreas = gender === 'female' && !focusAreas.includes('Glutes')
     ? [...focusAreas, 'Glutes']
     : focusAreas;
 
   const workoutSplit: WorkoutDay[] = [];
+  
+  // Day names for display
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  if (trainingDays === 2) {
-    workoutSplit.push(
-      { day: 'Monday', name: 'Upper Body', exercises: getExercises(['chest', 'back', 'shoulders', 'arms'], equipmentType, 6), dayIndex: 1 },
-      { day: 'Thursday', name: 'Lower Body', exercises: getExercises(['legs', 'glutes'], equipmentType, 6), dayIndex: 4 }
-    );
-  } else if (trainingDays === 3) {
-    workoutSplit.push(
-      { day: 'Monday', name: 'Push', exercises: getExercises(['chest', 'shoulders', 'arms'], equipmentType, 6), dayIndex: 1 },
-      { day: 'Wednesday', name: 'Pull', exercises: getExercises(['back', 'arms'], equipmentType, 6), dayIndex: 3 },
-      { day: 'Friday', name: 'Legs', exercises: getExercises(['legs', 'glutes'], equipmentType, 6), dayIndex: 5 }
-    );
-  } else if (trainingDays === 4) {
-    workoutSplit.push(
-      { day: 'Monday', name: 'Upper Body A', exercises: getExercises(['chest', 'back'], equipmentType, 6), dayIndex: 1 },
-      { day: 'Tuesday', name: 'Lower Body A', exercises: getExercises(['legs', 'glutes'], equipmentType, 6), dayIndex: 2 },
-      { day: 'Thursday', name: 'Upper Body B', exercises: getExercises(['shoulders', 'arms'], equipmentType, 6), dayIndex: 4 },
-      { day: 'Friday', name: 'Lower Body B', exercises: getExercises(['legs', 'glutes', 'core'], equipmentType, 6), dayIndex: 5 }
-    );
-  } else if (trainingDays === 5) {
-    workoutSplit.push(
-      { day: 'Monday', name: 'Chest & Triceps', exercises: getExercises(['chest', 'arms'], equipmentType, 6), dayIndex: 1 },
-      { day: 'Tuesday', name: 'Back & Biceps', exercises: getExercises(['back', 'arms'], equipmentType, 6), dayIndex: 2 },
-      { day: 'Wednesday', name: 'Legs', exercises: getExercises(['legs'], equipmentType, 6), dayIndex: 3 },
-      { day: 'Thursday', name: 'Shoulders', exercises: getExercises(['shoulders', 'core'], equipmentType, 6), dayIndex: 4 },
-      { day: 'Friday', name: 'Glutes & Legs', exercises: getExercises(['glutes', 'legs'], equipmentType, 6), dayIndex: 5 }
-    );
-  } else if (trainingDays >= 6) {
-    workoutSplit.push(
-      { day: 'Monday', name: 'Chest', exercises: getExercises(['chest'], equipmentType, 6), dayIndex: 1 },
-      { day: 'Tuesday', name: 'Back', exercises: getExercises(['back'], equipmentType, 6), dayIndex: 2 },
-      { day: 'Wednesday', name: 'Legs', exercises: getExercises(['legs'], equipmentType, 6), dayIndex: 3 },
-      { day: 'Thursday', name: 'Shoulders', exercises: getExercises(['shoulders'], equipmentType, 6), dayIndex: 4 },
-      { day: 'Friday', name: 'Arms', exercises: getExercises(['arms'], equipmentType, 6), dayIndex: 5 },
-      { day: 'Saturday', name: 'Glutes & Core', exercises: getExercises(['glutes', 'core'], equipmentType, 6), dayIndex: 6 }
-    );
+  // Define workout templates based on number of days
+  let workoutTemplates: Array<{ name: string; muscleGroups: string[] }> = [];
+  
+  if (numDays === 2) {
+    workoutTemplates = [
+      { name: 'Upper Body', muscleGroups: ['chest', 'back', 'shoulders', 'arms'] },
+      { name: 'Lower Body', muscleGroups: ['legs', 'glutes'] }
+    ];
+  } else if (numDays === 3) {
+    workoutTemplates = [
+      { name: 'Push', muscleGroups: ['chest', 'shoulders', 'arms'] },
+      { name: 'Pull', muscleGroups: ['back', 'arms'] },
+      { name: 'Legs', muscleGroups: ['legs', 'glutes'] }
+    ];
+  } else if (numDays === 4) {
+    workoutTemplates = [
+      { name: 'Upper Body A', muscleGroups: ['chest', 'back'] },
+      { name: 'Lower Body A', muscleGroups: ['legs', 'glutes'] },
+      { name: 'Upper Body B', muscleGroups: ['shoulders', 'arms'] },
+      { name: 'Lower Body B', muscleGroups: ['legs', 'glutes', 'core'] }
+    ];
+  } else if (numDays === 5) {
+    workoutTemplates = [
+      { name: 'Chest & Triceps', muscleGroups: ['chest', 'arms'] },
+      { name: 'Back & Biceps', muscleGroups: ['back', 'arms'] },
+      { name: 'Legs', muscleGroups: ['legs'] },
+      { name: 'Shoulders', muscleGroups: ['shoulders', 'core'] },
+      { name: 'Glutes & Legs', muscleGroups: ['glutes', 'legs'] }
+    ];
+  } else if (numDays >= 6) {
+    workoutTemplates = [
+      { name: 'Chest', muscleGroups: ['chest'] },
+      { name: 'Back', muscleGroups: ['back'] },
+      { name: 'Legs', muscleGroups: ['legs'] },
+      { name: 'Shoulders', muscleGroups: ['shoulders'] },
+      { name: 'Arms', muscleGroups: ['arms'] },
+      { name: 'Glutes & Core', muscleGroups: ['glutes', 'core'] }
+    ];
+  }
+
+  // Map workouts to the selected days
+  if (selectedDays.length > 0) {
+    selectedDays.forEach((dayIndex: number, idx: number) => {
+      const template = workoutTemplates[idx % workoutTemplates.length];
+      workoutSplit.push({
+        day: dayNames[dayIndex],
+        name: template.name,
+        exercises: getExercises(template.muscleGroups, equipmentType, 6),
+        dayIndex: dayIndex
+      });
+    });
+  } else {
+    // Fallback to default days if selectedDays is not available
+    const defaultDays = numDays === 2 ? [1, 4] :
+                       numDays === 3 ? [1, 3, 5] :
+                       numDays === 4 ? [1, 2, 4, 5] :
+                       numDays === 5 ? [1, 2, 3, 4, 5] :
+                       [1, 2, 3, 4, 5, 6];
+    
+    defaultDays.forEach((dayIndex, idx) => {
+      const template = workoutTemplates[idx % workoutTemplates.length];
+      workoutSplit.push({
+        day: dayNames[dayIndex],
+        name: template.name,
+        exercises: getExercises(template.muscleGroups, equipmentType, 6),
+        dayIndex: dayIndex
+      });
+    });
   }
 
   console.log('Generated workout split:', workoutSplit);
