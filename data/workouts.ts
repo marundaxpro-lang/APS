@@ -273,10 +273,11 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
     ];
   }
 
-  // Map workouts to the selected days
+  // Map workouts to the selected days - FIXED: Use workoutIndex instead of idx
   if (selectedDays.length > 0) {
-    selectedDays.forEach((dayIndex: number, idx: number) => {
-      const template = workoutTemplates[idx % workoutTemplates.length];
+    selectedDays.forEach((dayIndex: number, workoutIndex: number) => {
+      const template = workoutTemplates[workoutIndex % workoutTemplates.length];
+      console.log(`Mapping workout ${workoutIndex} (${template.name}) to day ${dayIndex} (${dayNames[dayIndex]})`);
       workoutSplit.push({
         day: dayNames[dayIndex],
         name: template.name,
@@ -292,8 +293,8 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
                        numDays === 5 ? [1, 2, 3, 4, 5] :
                        [1, 2, 3, 4, 5, 6];
     
-    defaultDays.forEach((dayIndex, idx) => {
-      const template = workoutTemplates[idx % workoutTemplates.length];
+    defaultDays.forEach((dayIndex, workoutIndex) => {
+      const template = workoutTemplates[workoutIndex % workoutTemplates.length];
       workoutSplit.push({
         day: dayNames[dayIndex],
         name: template.name,
