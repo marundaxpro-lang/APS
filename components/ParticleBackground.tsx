@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -71,7 +71,7 @@ const Particle = ({ index }: { index: number }) => {
 
 export default function ParticleBackground() {
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={styles.container}>
       {Array.from({ length: PARTICLE_COUNT }).map((_, index) => (
         <Particle key={index} index={index} />
       ))}
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
+    pointerEvents: 'none',
   },
   particle: {
     position: 'absolute',
