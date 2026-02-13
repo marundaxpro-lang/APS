@@ -122,16 +122,22 @@ export default function ParticleBackground() {
   const safeWidth = dimensions?.width && typeof dimensions.width === 'number' && dimensions.width > 0 ? dimensions.width : 375;
   const safeHeight = dimensions?.height && typeof dimensions.height === 'number' && dimensions.height > 0 ? dimensions.height : 667;
 
+  // Create particles array safely
+  const particles = [];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    particles.push(
+      <Particle 
+        key={`particle-${i}`}
+        index={i} 
+        screenWidth={safeWidth}
+        screenHeight={safeHeight}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {Array.from({ length: PARTICLE_COUNT }).map((_, index) => (
-        <Particle 
-          key={index} 
-          index={index} 
-          screenWidth={safeWidth}
-          screenHeight={safeHeight}
-        />
-      ))}
+      {particles}
     </View>
   );
 }
