@@ -12,6 +12,27 @@ import Animated, {
 
 const PARTICLE_COUNT = 30;
 
+// Safe function to get dimensions with fallback
+function getSafeDimensions() {
+  try {
+    const window = Dimensions.get('window');
+    if (window && typeof window.width === 'number' && typeof window.height === 'number') {
+      return {
+        width: window.width,
+        height: window.height,
+      };
+    }
+  } catch (error) {
+    console.log('[ParticleBackground] Error getting dimensions:', error);
+  }
+  
+  // Fallback dimensions
+  return {
+    width: 375,
+    height: 667,
+  };
+}
+
 const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenWidth: number; screenHeight: number }) => {
   const translateX = useSharedValue(Math.random() * screenWidth);
   const translateY = useSharedValue(Math.random() * screenHeight);
@@ -69,17 +90,16 @@ const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenW
 };
 
 export default function ParticleBackground() {
-  const [dimensions, setDimensions] = useState(() => {
-    const window = Dimensions.get('window');
-    return {
-      width: window?.width || 375,
-      height: window?.height || 667,
-    };
-  });
+  const [dimensions, setDimensions] = useState(getSafeDimensions);
 
   useEffect(() => {
+    // Update dimensions on mount
+    const initialDimensions = getSafeDimensions();
+    setDimensions(initialDimensions);
+
+    // Listen for dimension changes
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      if (window?.width && window?.height) {
+      if (window && typeof window.width === 'number' && typeof window.height === 'number') {
         setDimensions({
           width: window.width,
           height: window.height,
@@ -87,11 +107,16 @@ export default function ParticleBackground() {
       }
     });
 
-    return () => subscription?.remove();
+    return () => {
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      }
+    };
   }, []);
 
   // Don't render particles if dimensions are invalid
-  if (!dimensions.width || !dimensions.height) {
+  if (!dimensions || !dimensions.width || !dimensions.height || dimensions.width <= 0 || dimensions.height <= 0) {
+    console.log('[ParticleBackground] Invalid dimensions, rendering empty container');
     return <View style={styles.container} />;
   }
 
