@@ -16,7 +16,7 @@ const PARTICLE_COUNT = 30;
 function getSafeDimensions() {
   try {
     const window = Dimensions.get('window');
-    if (window && typeof window.width === 'number' && typeof window.height === 'number') {
+    if (window && typeof window.width === 'number' && typeof window.height === 'number' && window.width > 0 && window.height > 0) {
       return {
         width: window.width,
         height: window.height,
@@ -34,8 +34,12 @@ function getSafeDimensions() {
 }
 
 const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenWidth: number; screenHeight: number }) => {
-  const translateX = useSharedValue(Math.random() * screenWidth);
-  const translateY = useSharedValue(Math.random() * screenHeight);
+  // Validate dimensions before using them
+  const safeWidth = typeof screenWidth === 'number' && screenWidth > 0 ? screenWidth : 375;
+  const safeHeight = typeof screenHeight === 'number' && screenHeight > 0 ? screenHeight : 667;
+
+  const translateX = useSharedValue(Math.random() * safeWidth);
+  const translateY = useSharedValue(Math.random() * safeHeight);
   const opacity = useSharedValue(Math.random() * 0.5 + 0.2);
   const scale = useSharedValue(Math.random() * 0.5 + 0.5);
 
@@ -46,7 +50,7 @@ const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenW
     translateX.value = withDelay(
       delay,
       withRepeat(
-        withTiming(Math.random() * screenWidth, {
+        withTiming(Math.random() * safeWidth, {
           duration,
           easing: Easing.inOut(Easing.ease),
         }),
@@ -58,7 +62,7 @@ const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenW
     translateY.value = withDelay(
       delay,
       withRepeat(
-        withTiming(Math.random() * screenHeight, {
+        withTiming(Math.random() * safeHeight, {
           duration: duration * 1.2,
           easing: Easing.inOut(Easing.ease),
         }),
@@ -75,7 +79,7 @@ const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenW
       -1,
       true
     );
-  }, [opacity, translateX, translateY, screenWidth, screenHeight]);
+  }, [opacity, translateX, translateY, safeWidth, safeHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -90,7 +94,7 @@ const Particle = ({ index, screenWidth, screenHeight }: { index: number; screenW
 };
 
 export default function ParticleBackground() {
-  const [dimensions, setDimensions] = useState(getSafeDimensions);
+  const [dimensions, setDimensions] = useState(() => getSafeDimensions());
 
   useEffect(() => {
     // Update dimensions on mount
@@ -99,7 +103,7 @@ export default function ParticleBackground() {
 
     // Listen for dimension changes
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      if (window && typeof window.width === 'number' && typeof window.height === 'number') {
+      if (window && typeof window.width === 'number' && typeof window.height === 'number' && window.width > 0 && window.height > 0) {
         setDimensions({
           width: window.width,
           height: window.height,
@@ -114,11 +118,9 @@ export default function ParticleBackground() {
     };
   }, []);
 
-  // Don't render particles if dimensions are invalid
-  if (!dimensions || !dimensions.width || !dimensions.height || dimensions.width <= 0 || dimensions.height <= 0) {
-    console.log('[ParticleBackground] Invalid dimensions, rendering empty container');
-    return <View style={styles.container} />;
-  }
+  // Validate dimensions before rendering
+  const safeWidth = dimensions?.width && typeof dimensions.width === 'number' && dimensions.width > 0 ? dimensions.width : 375;
+  const safeHeight = dimensions?.height && typeof dimensions.height === 'number' && dimensions.height > 0 ? dimensions.height : 667;
 
   return (
     <View style={styles.container}>
@@ -126,8 +128,8 @@ export default function ParticleBackground() {
         <Particle 
           key={index} 
           index={index} 
-          screenWidth={dimensions.width}
-          screenHeight={dimensions.height}
+          screenWidth={safeWidth}
+          screenHeight={safeHeight}
         />
       ))}
     </View>
