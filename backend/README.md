@@ -1,9 +1,17 @@
 ## Getting Started
 
+**1. Create a GitHub Personal Access Token:**
+- Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+- Generate a token with `read:packages` scope
+
+**2. Set the token and install:**
 ```bash
+export NPM_TOKEN=<your-token>
 npm install
 npm run dev
 ```
+
+**Important:** Never commit your token. Use environment variables locally or secure secrets in CI/CD.
 
 ## Database
 
