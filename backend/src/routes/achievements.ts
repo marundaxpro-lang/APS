@@ -5,9 +5,9 @@ import * as schema from '../db/schema.js';
 import { z } from 'zod';
 
 const unlockAchievementSchema = z.object({
-  achievementType: z.string(),
-  unlockedDate: z.string().datetime(),
-  shared: z.boolean().optional(),
+  title: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(), // emoji or icon name
 });
 
 export function registerAchievementRoutes(app: App) {
@@ -29,28 +29,33 @@ export function registerAchievementRoutes(app: App) {
         return reply.status(400).send({ error: 'Invalid request body' });
       }
 
-      const { achievementType, unlockedDate, shared } = validation.data;
+      const { title, description, icon } = validation.data;
       const userId = session.user.id;
+
+      app.logger.info({ userId, title }, 'Unlocking achievement');
 
       const [achievement] = await app.db
         .insert(schema.achievements)
         .values({
           userId,
-          achievementType,
-          unlockedDate: new Date(unlockedDate),
-          shared: shared || false,
+          title,
+          description: description || null,
+          icon: icon || null,
         })
         .returning();
 
+      app.logger.info({ achievementId: achievement.id }, 'Achievement unlocked');
+
       return {
         id: achievement.id,
-        achievementType: achievement.achievementType,
-        unlockedDate: achievement.unlockedDate,
-        shared: achievement.shared,
+        title: achievement.title,
+        description: achievement.description,
+        icon: achievement.icon,
+        unlockedAt: achievement.unlockedAt,
         createdAt: achievement.createdAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error unlocking achievement');
+      app.logger.error({ err: error }, 'Error unlocking achievement');
       return reply.status(500).send({ error: 'Failed to unlock achievement' });
     }
   });
@@ -68,21 +73,26 @@ export function registerAchievementRoutes(app: App) {
     try {
       const userId = session.user.id;
 
+      app.logger.info({ userId }, 'Retrieving achievements');
+
       const achievements = await app.db
         .select()
         .from(schema.achievements)
         .where(eq(schema.achievements.userId, userId))
-        .orderBy(schema.achievements.unlockedDate);
+        .orderBy(schema.achievements.unlockedAt);
+
+      app.logger.info({ userId, count: achievements.length }, 'Achievements retrieved');
 
       return achievements.map((a) => ({
         id: a.id,
-        achievementType: a.achievementType,
-        unlockedDate: a.unlockedDate,
-        shared: a.shared,
+        title: a.title,
+        description: a.description,
+        icon: a.icon,
+        unlockedAt: a.unlockedAt,
         createdAt: a.createdAt,
       }));
     } catch (error) {
-      app.logger.error(error, 'Error retrieving achievements');
+      app.logger.error({ err: error }, 'Error retrieving achievements');
       return reply.status(500).send({ error: 'Failed to retrieve achievements' });
     }
   });

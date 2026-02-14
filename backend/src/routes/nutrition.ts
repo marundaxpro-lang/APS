@@ -14,20 +14,19 @@ const foodSchema = z.object({
 });
 
 const createNutritionLogSchema = z.object({
-  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snacks']),
-  foods: z.array(foodSchema),
-  totalCalories: z.string().optional(),
-  totalProtein: z.string().optional(),
-  totalCarbs: z.string().optional(),
-  totalFat: z.string().optional(),
+  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
+  foodItems: z.array(foodSchema),
+  totalCalories: z.number().optional(),
+  totalProtein: z.number().optional(),
+  totalCarbs: z.number().optional(),
+  totalFat: z.number().optional(),
   logDate: z.string().datetime(),
-  notes: z.string().optional(),
 });
 
 const getNutritionLogsSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snacks']).optional(),
+  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
 });
 
 export function registerNutritionRoutes(app: App) {
@@ -51,53 +50,52 @@ export function registerNutritionRoutes(app: App) {
 
       const {
         mealType,
-        foods,
+        foodItems,
         totalCalories,
         totalProtein,
         totalCarbs,
         totalFat,
         logDate,
-        notes,
       } = validation.data;
       const userId = session.user.id;
 
+      app.logger.info({ userId, mealType }, 'Logging nutrition');
+
       // Calculate totals if not provided
-      let calories = totalCalories ? parseFloat(totalCalories) : foods.reduce((sum, f) => sum + f.calories, 0);
-      let protein = totalProtein ? parseFloat(totalProtein) : foods.reduce((sum, f) => sum + f.protein, 0);
-      let carbs = totalCarbs ? parseFloat(totalCarbs) : foods.reduce((sum, f) => sum + f.carbs, 0);
-      let fat = totalFat ? parseFloat(totalFat) : foods.reduce((sum, f) => sum + f.fat, 0);
+      let calories = totalCalories || foodItems.reduce((sum, f) => sum + f.calories, 0);
+      let protein = totalProtein || foodItems.reduce((sum, f) => sum + f.protein, 0);
+      let carbs = totalCarbs || foodItems.reduce((sum, f) => sum + f.carbs, 0);
+      let fat = totalFat || foodItems.reduce((sum, f) => sum + f.fat, 0);
 
       const [nutritionLog] = await app.db
         .insert(schema.nutritionLogs)
-        .values([
-          {
-            userId,
-            mealType,
-            foods: foods as any,
-            totalCalories: calories.toString() as any,
-            totalProtein: protein.toString() as any,
-            totalCarbs: carbs.toString() as any,
-            totalFat: fat.toString() as any,
-            logDate: new Date(logDate),
-            notes: notes || null,
-          },
-        ])
+        .values({
+          userId,
+          mealType,
+          foodItems: foodItems as any,
+          totalCalories: Math.round(calories),
+          totalProtein: Math.round(protein),
+          totalCarbs: Math.round(carbs),
+          totalFat: Math.round(fat),
+          logDate: new Date(logDate),
+        })
         .returning();
+
+      app.logger.info({ logId: nutritionLog.id }, 'Nutrition logged');
 
       return {
         id: nutritionLog.id,
         mealType: nutritionLog.mealType,
-        foods: nutritionLog.foods,
+        foodItems: nutritionLog.foodItems,
         totalCalories: nutritionLog.totalCalories,
         totalProtein: nutritionLog.totalProtein,
         totalCarbs: nutritionLog.totalCarbs,
         totalFat: nutritionLog.totalFat,
         logDate: nutritionLog.logDate,
-        notes: nutritionLog.notes,
         createdAt: nutritionLog.createdAt,
       };
     } catch (error) {
-      app.logger.error(error, 'Error creating nutrition log');
+      app.logger.error({ err: error }, 'Error creating nutrition log');
       return reply.status(500).send({ error: 'Failed to log meal' });
     }
   });
@@ -123,7 +121,9 @@ export function registerNutritionRoutes(app: App) {
       const { startDate, endDate, mealType } = validation.data;
       const userId = session.user.id;
 
-      let conditions = [eq(schema.nutritionLogs.userId, userId)];
+      app.logger.info({ userId }, 'Retrieving nutrition logs');
+
+      let conditions: any[] = [eq(schema.nutritionLogs.userId, userId)];
 
       if (startDate) {
         conditions.push(gte(schema.nutritionLogs.logDate, new Date(startDate)));
@@ -144,20 +144,21 @@ export function registerNutritionRoutes(app: App) {
         .orderBy(schema.nutritionLogs.logDate)
         .limit(100);
 
+      app.logger.info({ userId, count: logs.length }, 'Nutrition logs retrieved');
+
       return logs.map((log) => ({
         id: log.id,
         mealType: log.mealType,
-        foods: log.foods,
+        foodItems: log.foodItems,
         totalCalories: log.totalCalories,
         totalProtein: log.totalProtein,
         totalCarbs: log.totalCarbs,
         totalFat: log.totalFat,
         logDate: log.logDate,
-        notes: log.notes,
         createdAt: log.createdAt,
       }));
     } catch (error) {
-      app.logger.error(error, 'Error retrieving nutrition logs');
+      app.logger.error({ err: error }, 'Error retrieving nutrition logs');
       return reply.status(500).send({ error: 'Failed to retrieve nutrition logs' });
     }
   });
