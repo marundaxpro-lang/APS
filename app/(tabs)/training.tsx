@@ -250,24 +250,66 @@ export default function TrainingScreen() {
     return (
       <View style={styles.container}>
         <ParticleBackground />
-        <View style={styles.emptyContainer}>
-          <IconSymbol
-            ios_icon_name="calendar.badge.exclamationmark"
-            android_material_icon_name="event-busy"
-            size={64}
-            color={colors.textSecondary}
-          />
-          <Text style={styles.emptyTitle}>No Workout Today</Text>
-          <Text style={styles.emptySubtitle}>
-            Rest day! Your body needs recovery too.
-          </Text>
-          <TouchableOpacity
-            style={styles.planButton}
-            onPress={handleViewWeeklyWorkouts}
-          >
-            <Text style={styles.planButtonText}>View All Workouts</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.restDayContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.restDayContainer}>
+            <View style={styles.restDayIconContainer}>
+              <IconSymbol
+                ios_icon_name="bed.double.fill"
+                android_material_icon_name="hotel"
+                size={80}
+                color={colors.primary}
+              />
+            </View>
+            
+            <Text style={styles.restDayTitle}>Today is a Rest Day</Text>
+            <Text style={styles.restDaySubtitle}>
+              Recovery is just as important as training. Your muscles need time to repair and grow stronger.
+            </Text>
+
+            <View style={styles.restDayTipsCard}>
+              <Text style={styles.restDayTipsTitle}>Make the Most of Your Rest Day</Text>
+              <View style={styles.restDayTipsList}>
+                <View style={styles.restDayTipRow}>
+                  <View style={styles.restDayTipBullet} />
+                  <Text style={styles.restDayTipText}>Stay hydrated and eat nutritious meals</Text>
+                </View>
+                <View style={styles.restDayTipRow}>
+                  <View style={styles.restDayTipBullet} />
+                  <Text style={styles.restDayTipText}>Light stretching or yoga can aid recovery</Text>
+                </View>
+                <View style={styles.restDayTipRow}>
+                  <View style={styles.restDayTipBullet} />
+                  <Text style={styles.restDayTipText}>Get 7-9 hours of quality sleep</Text>
+                </View>
+                <View style={styles.restDayTipRow}>
+                  <View style={styles.restDayTipBullet} />
+                  <Text style={styles.restDayTipText}>Consider a light walk or mobility work</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.viewPlanButton}
+              onPress={handleViewWeeklyPlan}
+            >
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={24}
+                color="#fff"
+              />
+              <Text style={styles.viewPlanButtonText}>View Full Training Plan</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.restDayFooter}>
+              Check your weekly plan to see which days you train
+            </Text>
+          </View>
+        </ScrollView>
 
         <Modal
           visible={showWeeklyModal}
@@ -464,6 +506,101 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+  },
+  restDayContent: {
+    flexGrow: 1,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
+  restDayContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  restDayIconContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  restDayTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  restDaySubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+    paddingHorizontal: 20,
+  },
+  restDayTipsCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(69, 155, 155, 0.3)',
+    width: '100%',
+    marginBottom: 32,
+  },
+  restDayTipsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  restDayTipsList: {
+    gap: 12,
+  },
+  restDayTipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  restDayTipBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginTop: 7,
+  },
+  restDayTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  viewPlanButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    width: '100%',
+    marginBottom: 16,
+  },
+  viewPlanButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  restDayFooter: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   emptyStateContainer: {
     flex: 1,

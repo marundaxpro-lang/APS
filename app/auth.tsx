@@ -56,11 +56,36 @@ export default function AuthScreen() {
     setShowErrorModal(true);
   };
 
+  const validatePassword = (pwd: string): { valid: boolean; message: string } => {
+    if (pwd.length < 8) {
+      return { valid: false, message: "Password must be at least 8 characters long" };
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return { valid: false, message: "Password must contain at least one uppercase letter" };
+    }
+    if (!/[a-z]/.test(pwd)) {
+      return { valid: false, message: "Password must contain at least one lowercase letter" };
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return { valid: false, message: "Password must contain at least one number" };
+    }
+    return { valid: true, message: "" };
+  };
+
   const handleEmailAuth = async () => {
     console.log('[AuthScreen] User tapped email auth button');
     if (!email || !password) {
       showError("Please enter email and password");
       return;
+    }
+
+    // Validate password for signup
+    if (mode === "signup") {
+      const validation = validatePassword(password);
+      if (!validation.valid) {
+        showError(validation.message);
+        return;
+      }
     }
 
     setLoading(true);
@@ -200,6 +225,11 @@ export default function AuthScreen() {
                   secureTextEntry
                   autoCapitalize="none"
                 />
+                {mode === "signup" && (
+                  <Text style={styles.passwordHint}>
+                    Must be 8+ characters with uppercase, lowercase, and number
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
@@ -374,6 +404,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: colors.card,
     color: colors.text,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    lineHeight: 16,
   },
   primaryButton: {
     height: 50,

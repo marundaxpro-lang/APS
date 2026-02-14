@@ -13,7 +13,7 @@ export default function IndexScreen() {
 
   useEffect(() => {
     const checkInitialRoute = async () => {
-      console.log('[IndexScreen] Checking initial route');
+      console.log('[IndexScreen] Checking initial route - always show auth first for new users');
       
       try {
         // Wait for auth to load
@@ -30,17 +30,17 @@ export default function IndexScreen() {
         console.log('[IndexScreen] Has profile:', hasProfile ? 'yes' : 'no');
         console.log('[IndexScreen] Is guest:', isGuest);
 
-        if (hasProfile) {
-          // User has completed onboarding, go to home
-          console.log('[IndexScreen] Redirecting to home');
+        // If user is authenticated AND has completed onboarding, go to home
+        if ((user || isGuest === 'true') && hasProfile) {
+          console.log('[IndexScreen] User authenticated with profile, redirecting to home');
           router.replace('/(tabs)/(home)');
         } else if (user || isGuest === 'true') {
           // User is authenticated or guest but hasn't completed onboarding
-          console.log('[IndexScreen] Redirecting to onboarding');
+          console.log('[IndexScreen] User authenticated without profile, redirecting to onboarding');
           router.replace('/onboarding');
         } else {
-          // No user and no guest mode, show auth screen
-          console.log('[IndexScreen] Redirecting to auth');
+          // No user and no guest mode, show auth screen (this is the default for new users)
+          console.log('[IndexScreen] No authentication, redirecting to auth screen');
           router.replace('/auth');
         }
       } catch (error) {

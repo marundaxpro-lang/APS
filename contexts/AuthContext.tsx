@@ -130,13 +130,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     console.log("[AuthContext] Starting email signup for:", email);
     try {
-      const result = await authClient.signUp.email({
+      // Use the custom signup endpoint that sends welcome emails
+      const { apiPost } = await import('@/utils/api');
+      const result = await apiPost('/api/auth/signup/email-with-welcome', {
         email,
         password,
         name,
       });
-      console.log("[AuthContext] Signup successful, result:", result);
-      console.log("[AuthContext] Welcome email should be sent by backend");
+      console.log("[AuthContext] Signup successful with welcome email, result:", result);
+      
+      // Store the token if provided
+      if (result.token) {
+        if (Platform.OS === "web") {
+          localStorage.setItem("apex-fitness_bearer_token", result.token);
+        } else {
+          await require("expo-secure-store").setItemAsync("apex-fitness_bearer_token", result.token);
+        }
+      }
+      
       await fetchUser();
       console.log("[AuthContext] User fetched after signup");
     } catch (error) {
@@ -155,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         storeWebBearerToken(token);
         console.log("[AuthContext] Token stored, fetching user...");
         await fetchUser();
-        console.log("[AuthContext] Google sign in complete");
+        console.log("[AuthContext] Google sign in complete - welcome email sent by backend for new users");
       } else {
         console.log("[AuthContext] Starting native Google OAuth flow");
         await authClient.signIn.social({
@@ -164,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         console.log("[AuthContext] Native OAuth initiated, fetching user...");
         await fetchUser();
-        console.log("[AuthContext] Google sign in complete");
+        console.log("[AuthContext] Google sign in complete - welcome email sent by backend for new users");
       }
     } catch (error) {
       console.error("[AuthContext] Google sign in failed:", error);
@@ -173,20 +184,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithApple = async () => {
+    console.log("[AuthContext] Starting Apple sign in, platform:", Platform.OS);
     try {
       if (Platform.OS === "web") {
+        console.log("[AuthContext] Opening Apple OAuth popup");
         const token = await openOAuthPopup("apple");
         storeWebBearerToken(token);
         await fetchUser();
+        console.log("[AuthContext] Apple sign in complete - welcome email sent by backend for new users");
       } else {
+        console.log("[AuthContext] Starting native Apple OAuth flow");
         await authClient.signIn.social({
           provider: "apple",
           callbackURL: "/profile",
         });
         await fetchUser();
+        console.log("[AuthContext] Apple sign in complete - welcome email sent by backend for new users");
       }
     } catch (error) {
-      console.error("Apple sign in failed:", error);
+      console.error("[AuthContext] Apple sign in failed:", error);
       throw error;
     }
   };
