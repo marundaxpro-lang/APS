@@ -3,14 +3,20 @@ export interface FitnessProfile {
   name?: string;
   gender: 'male' | 'female';
   age?: number;
-  trainingDays: number;
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced';
+  trainingDays?: number;
+  trainingFrequency?: number; // Same as trainingDays, for backend compatibility
   selectedDays?: number[]; // Array of day indices (0-6) for which days to train
-  focusAreas: string[];
-  equipmentType: 'gym' | 'home' | 'minimal';
-  goal: 'strength' | 'muscle' | 'endurance' | 'weight-loss';
-  weight: number;
-  height: number;
+  focusAreas?: string[];
+  equipmentType?: 'gym' | 'home' | 'minimal';
+  goal?: 'strength' | 'muscle' | 'endurance' | 'weight-loss' | 'weightLoss' | 'muscleGain' | 'maintenance';
+  weight?: number;
+  height?: number;
   caloricGoal?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  motivation?: string;
 }
 
 export interface Exercise {

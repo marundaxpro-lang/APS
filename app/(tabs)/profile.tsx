@@ -243,11 +243,36 @@ export default function ProfileScreen() {
 
       if (user) {
         console.log('ProfileScreen: Fetching profile from backend for user:', user.id);
-        const response = await authenticatedGet<FitnessProfile>('/api/fitness-profile');
-        if (response.data) {
-          console.log('ProfileScreen: Loaded profile from backend:', response.data);
-          setProfile(response.data);
-          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(response.data));
+        try {
+          const backendProfile = await authenticatedGet<any>('/api/fitness-profile');
+          console.log('ProfileScreen: Loaded profile from backend:', backendProfile);
+          
+          // Map backend snake_case fields to frontend camelCase
+          const mappedProfile = {
+            name: backendProfile.name || parsedProfile?.name,
+            experienceLevel: backendProfile.experienceLevel || backendProfile.experience_level || parsedProfile?.experienceLevel,
+            goal: backendProfile.goal || parsedProfile?.goal,
+            trainingDays: backendProfile.trainingFrequency || backendProfile.training_frequency || backendProfile.trainingDays || parsedProfile?.trainingDays,
+            trainingFrequency: backendProfile.trainingFrequency || backendProfile.training_frequency || parsedProfile?.trainingFrequency,
+            gender: backendProfile.gender || parsedProfile?.gender,
+            weight: backendProfile.weight ? parseFloat(backendProfile.weight) : parsedProfile?.weight,
+            height: backendProfile.height ? parseFloat(backendProfile.height) : parsedProfile?.height,
+            age: backendProfile.age || parsedProfile?.age,
+            activityLevel: backendProfile.activityLevel || backendProfile.activity_level || parsedProfile?.activityLevel,
+            equipmentType: backendProfile.equipmentType || backendProfile.equipment_type || parsedProfile?.equipmentType,
+            focusAreas: backendProfile.focusAreas || backendProfile.focus_areas || parsedProfile?.focusAreas || [],
+            caloricGoal: parsedProfile?.caloricGoal,
+            protein: parsedProfile?.protein,
+            carbs: parsedProfile?.carbs,
+            fat: parsedProfile?.fat,
+          };
+          
+          console.log('ProfileScreen: Mapped profile:', mappedProfile);
+          setProfile(mappedProfile);
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
+        } catch (error) {
+          console.error('ProfileScreen: Error fetching profile from backend:', error);
+          // Continue with local profile if backend fails
         }
       }
     } catch (error) {
@@ -321,12 +346,35 @@ export default function ProfileScreen() {
     );
   }
 
-  const genderDisplay = profile?.gender === 'male' ? 'Male' : profile?.gender === 'female' ? 'Female' : profile?.gender || 'Not set';
-  const experienceDisplay = profile?.experienceLevel === 'beginner' ? 'Beginner' : profile?.experienceLevel === 'intermediate' ? 'Intermediate' : profile?.experienceLevel === 'advanced' ? 'Advanced' : 'Not set';
-  const goalDisplay = profile?.goal === 'strength' ? 'Strength' : profile?.goal === 'muscleGain' ? 'Muscle Gain' : profile?.goal === 'endurance' ? 'Endurance' : profile?.goal === 'weightLoss' ? 'Weight Loss' : profile?.goal === 'maintenance' ? 'Maintenance' : 'Not set';
-  const trainingDaysDisplay = profile?.trainingFrequency ? `${profile.trainingFrequency} days/week` : 'Not set';
-  const weightDisplay = profile?.weight ? `${profile.weight} kg` : 'Not set';
-  const heightDisplay = profile?.height ? `${profile.height} cm` : 'Not set';
+  // Map goal values from onboarding to display text
+  const goalMap: Record<string, string> = {
+    'strength': 'Get Stronger',
+    'muscle': 'Build Muscle',
+    'endurance': 'Boost Endurance',
+    'weight-loss': 'Lose Weight',
+    'weight_loss': 'Lose Weight',
+    'weightLoss': 'Lose Weight',
+    'muscleGain': 'Build Muscle',
+    'muscle_gain': 'Build Muscle',
+    'maintenance': 'Maintenance',
+  };
+
+  const genderDisplay = profile?.gender === 'male' ? 'Male' : profile?.gender === 'female' ? 'Female' : profile?.gender === 'other' ? 'Other' : 'Not set';
+  
+  // Experience level with proper fallback
+  const experienceLevel = profile?.experienceLevel || 'beginner';
+  const experienceDisplay = experienceLevel === 'beginner' ? 'Beginner' : 
+                           experienceLevel === 'intermediate' ? 'Intermediate' : 
+                           experienceLevel === 'advanced' ? 'Advanced' : 'Beginner';
+  
+  const goalDisplay = profile?.goal ? (goalMap[profile.goal] || profile.goal) : 'Not set';
+  
+  // Training days can come from trainingDays, trainingFrequency, or selectedDays
+  const trainingDaysCount = profile?.trainingDays || profile?.trainingFrequency || (profile as any)?.selectedDays?.length || 0;
+  const trainingDaysDisplay = trainingDaysCount > 0 ? `${trainingDaysCount} days/week` : 'Not set';
+  
+  const weightDisplay = profile?.weight ? `${Math.round(profile.weight)} kg` : 'Not set';
+  const heightDisplay = profile?.height ? `${Math.round(profile.height)} cm` : 'Not set';
   const ageDisplay = profile?.age ? `${profile.age} years` : 'Not set';
 
   return (

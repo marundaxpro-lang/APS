@@ -242,11 +242,23 @@ export default function ProfileScreen() {
 
       if (user) {
         console.log('ProfileScreen: Fetching profile from backend for user:', user.id);
-        const response = await authenticatedGet<FitnessProfile>('/api/fitness-profile');
-        if (response.data) {
-          console.log('ProfileScreen: Loaded profile from backend:', response.data);
-          setProfile(response.data);
-          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(response.data));
+        try {
+          const backendProfile = await authenticatedGet<any>('/api/fitness-profile');
+          console.log('ProfileScreen: Loaded profile from backend:', backendProfile);
+          
+          // Merge backend profile with local profile (backend takes precedence)
+          const mergedProfile = {
+            ...parsedProfile,
+            ...backendProfile,
+            // Ensure trainingDays is set from trainingFrequency if available
+            trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays || parsedProfile?.trainingDays,
+          };
+          
+          setProfile(mergedProfile);
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mergedProfile));
+        } catch (error) {
+          console.error('ProfileScreen: Error fetching profile from backend:', error);
+          // Continue with local profile if backend fails
         }
       }
     } catch (error) {
@@ -320,10 +332,25 @@ export default function ProfileScreen() {
     );
   }
 
+  // Map goal values from onboarding to display text
+  const goalMap: Record<string, string> = {
+    'strength': 'Get Stronger',
+    'muscle': 'Build Muscle',
+    'endurance': 'Boost Endurance',
+    'weight-loss': 'Lose Weight',
+    'weightLoss': 'Lose Weight',
+    'muscleGain': 'Build Muscle',
+    'maintenance': 'Maintenance',
+  };
+
   const genderDisplay = profile?.gender === 'male' ? 'Male' : profile?.gender === 'female' ? 'Female' : profile?.gender || 'Not set';
-  const experienceDisplay = profile?.experienceLevel === 'beginner' ? 'Beginner' : profile?.experienceLevel === 'intermediate' ? 'Intermediate' : profile?.experienceLevel === 'advanced' ? 'Advanced' : 'Not set';
-  const goalDisplay = profile?.goal === 'strength' ? 'Strength' : profile?.goal === 'muscleGain' ? 'Muscle Gain' : profile?.goal === 'endurance' ? 'Endurance' : profile?.goal === 'weightLoss' ? 'Weight Loss' : profile?.goal === 'maintenance' ? 'Maintenance' : 'Not set';
-  const trainingDaysDisplay = profile?.trainingFrequency ? `${profile.trainingFrequency} days/week` : 'Not set';
+  const experienceDisplay = profile?.experienceLevel === 'beginner' ? 'Beginner' : profile?.experienceLevel === 'intermediate' ? 'Intermediate' : profile?.experienceLevel === 'advanced' ? 'Advanced' : 'Beginner';
+  const goalDisplay = profile?.goal ? (goalMap[profile.goal] || profile.goal) : 'Not set';
+  
+  // Training days can come from trainingDays, trainingFrequency, or selectedDays
+  const trainingDaysCount = profile?.trainingDays || profile?.trainingFrequency || (profile as any)?.selectedDays?.length || 0;
+  const trainingDaysDisplay = trainingDaysCount > 0 ? `${trainingDaysCount} days/week` : 'Not set';
+  
   const weightDisplay = profile?.weight ? `${profile.weight} kg` : 'Not set';
   const heightDisplay = profile?.height ? `${profile.height} cm` : 'Not set';
   const ageDisplay = profile?.age ? `${profile.age} years` : 'Not set';

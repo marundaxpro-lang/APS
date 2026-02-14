@@ -143,7 +143,9 @@ export default function OnboardingScreen() {
       weight,
       height,
       goal,
+      experienceLevel: 'beginner' as const, // Set default experience level
       trainingDays: trainingDaysCount,
+      trainingFrequency: trainingDaysCount, // Also save as trainingFrequency for compatibility
       caloricGoal: nutritionGoals.caloricGoal,
       protein: nutritionGoals.protein,
       carbs: nutritionGoals.carbs,
@@ -177,11 +179,16 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Backend response:', savedProfile);
       console.log('[Onboarding] Complete fitness profile saved successfully');
       
-      let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
+      // Map frontend goal values to backend expected values
+      let backendGoal: 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' = 'muscle_gain';
       if (goal === 'weight-loss') {
         backendGoal = 'weight_loss';
-      } else if (goal === 'muscle' || goal === 'strength') {
-        backendGoal = 'weight_gain';
+      } else if (goal === 'muscle') {
+        backendGoal = 'muscle_gain';
+      } else if (goal === 'strength') {
+        backendGoal = 'strength';
+      } else if (goal === 'endurance') {
+        backendGoal = 'endurance';
       }
       
       console.log('[Onboarding] Calculating caloric goal on backend with:', {
@@ -193,27 +200,32 @@ export default function OnboardingScreen() {
         goal: backendGoal,
       });
       
-      const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
-        age,
-        gender,
-        weight,
-        height,
-        activityLevel,
-        goal: backendGoal,
-      });
-      
-      console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
-      
-      if (caloricGoalResponse?.dailyCalorieGoal) {
-        const updatedProfile = {
-          ...finalProfile,
-          caloricGoal: caloricGoalResponse.dailyCalorieGoal,
-          protein: caloricGoalResponse.protein || nutritionGoals.protein,
-          carbs: caloricGoalResponse.carbs || nutritionGoals.carbs,
-          fat: caloricGoalResponse.fat || nutritionGoals.fat,
-        };
-        await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
-        console.log('[Onboarding] Updated profile with backend caloric goal:', updatedProfile.caloricGoal);
+      try {
+        const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
+          age,
+          gender,
+          weight,
+          height,
+          activityLevel,
+          goal: backendGoal,
+        });
+        
+        console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
+        
+        if (caloricGoalResponse?.dailyCalorieGoal) {
+          const updatedProfile = {
+            ...finalProfile,
+            caloricGoal: caloricGoalResponse.dailyCalorieGoal,
+            protein: caloricGoalResponse.proteinGoal || nutritionGoals.protein,
+            carbs: caloricGoalResponse.carbsGoal || nutritionGoals.carbs,
+            fat: caloricGoalResponse.fatGoal || nutritionGoals.fat,
+          };
+          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
+          console.log('[Onboarding] Updated profile with backend caloric goal:', updatedProfile.caloricGoal);
+        }
+      } catch (caloricError) {
+        console.error('[Onboarding] Error calculating caloric goal on backend:', caloricError);
+        // Continue with local calculation if backend fails
       }
       
       console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);

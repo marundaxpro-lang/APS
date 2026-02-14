@@ -13,6 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  authLoading: boolean; // Alias for loading for compatibility
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -31,6 +32,8 @@ function openOAuthPopup(provider: string): Promise<string> {
       return;
     }
 
+    console.log(`[OAuth] Opening popup for provider: ${provider}`);
+
     // @ts-expect-error - window is available on web
     const popupUrl = `${window.location.origin}/auth-popup?provider=${provider}`;
     const width = 500;
@@ -40,6 +43,8 @@ function openOAuthPopup(provider: string): Promise<string> {
     // @ts-expect-error - window is available on web
     const top = window.screenY + (window.outerHeight - height) / 2;
 
+    console.log(`[OAuth] Popup URL: ${popupUrl}`);
+
     // @ts-expect-error - window is available on web
     const popup = window.open(
       popupUrl,
@@ -48,17 +53,23 @@ function openOAuthPopup(provider: string): Promise<string> {
     );
 
     if (!popup) {
+      console.error("[OAuth] Failed to open popup - popups may be blocked");
       reject(new Error("Failed to open popup. Please allow popups."));
       return;
     }
 
+    console.log("[OAuth] Popup opened, waiting for response...");
+
     const handleMessage = (event: MessageEvent) => {
+      console.log("[OAuth] Received message:", event.data);
       if (event.data?.type === "oauth-success" && event.data?.token) {
+        console.log("[OAuth] Success! Token received");
         // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
         clearInterval(checkClosed);
         resolve(event.data.token);
       } else if (event.data?.type === "oauth-error") {
+        console.error("[OAuth] Error received:", event.data.error);
         // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
         clearInterval(checkClosed);
@@ -71,6 +82,7 @@ function openOAuthPopup(provider: string): Promise<string> {
 
     const checkClosed = setInterval(() => {
       if (popup.closed) {
+        console.log("[OAuth] Popup was closed by user");
         clearInterval(checkClosed);
         // @ts-expect-error - window is available on web
         window.removeEventListener("message", handleMessage);
@@ -116,34 +128,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
+    console.log("[AuthContext] Starting email signup for:", email);
     try {
-      await authClient.signUp.email({
+      const result = await authClient.signUp.email({
         email,
         password,
         name,
       });
+      console.log("[AuthContext] Signup successful, result:", result);
+      console.log("[AuthContext] Welcome email should be sent by backend");
       await fetchUser();
+      console.log("[AuthContext] User fetched after signup");
     } catch (error) {
-      console.error("Email sign up failed:", error);
+      console.error("[AuthContext] Email sign up failed:", error);
       throw error;
     }
   };
 
   const signInWithGoogle = async () => {
+    console.log("[AuthContext] Starting Google sign in, platform:", Platform.OS);
     try {
       if (Platform.OS === "web") {
+        console.log("[AuthContext] Opening Google OAuth popup");
         const token = await openOAuthPopup("google");
+        console.log("[AuthContext] Received token from popup, storing...");
         storeWebBearerToken(token);
+        console.log("[AuthContext] Token stored, fetching user...");
         await fetchUser();
+        console.log("[AuthContext] Google sign in complete");
       } else {
+        console.log("[AuthContext] Starting native Google OAuth flow");
         await authClient.signIn.social({
           provider: "google",
           callbackURL: "/profile",
         });
+        console.log("[AuthContext] Native OAuth initiated, fetching user...");
         await fetchUser();
+        console.log("[AuthContext] Google sign in complete");
       }
     } catch (error) {
-      console.error("Google sign in failed:", error);
+      console.error("[AuthContext] Google sign in failed:", error);
       throw error;
     }
   };
@@ -188,11 +212,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Clear user state immediately in finally block for better UX
       await authClient.signOut();
-      setUser(null);
     } catch (error) {
       console.error("Sign out failed:", error);
-      throw error;
+      // Still clear local state even if server signout fails
+    } finally {
+      setUser(null);
+      // Clear bearer token from storage
+      if (Platform.OS === "web") {
+        localStorage.removeItem("apex-fitness_bearer_token");
+      } else {
+        try {
+          await require("expo-secure-store").deleteItemAsync("apex-fitness_bearer_token");
+        } catch (e) {
+          console.error("Failed to clear secure store:", e);
+        }
+      }
     }
   };
 
@@ -201,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        authLoading: loading, // Alias for compatibility
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,
