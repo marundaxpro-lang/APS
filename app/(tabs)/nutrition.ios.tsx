@@ -6,10 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
   Modal,
   TextInput,
-  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -104,13 +102,11 @@ export default function NutritionScreen() {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
       
-      // Load targets
       const storedTargets = await AsyncStorage.getItem('nutritionTargets');
       if (storedTargets) {
         setTargets(JSON.parse(storedTargets));
         console.log('[Nutrition] Loaded targets from storage');
       } else {
-        // Try to derive from profile
         const profileData = await AsyncStorage.getItem('fitnessProfile');
         if (profileData) {
           const profile: FitnessProfile = JSON.parse(profileData);
@@ -128,7 +124,6 @@ export default function NutritionScreen() {
         }
       }
       
-      // Load daily logs
       const storedLogs = await AsyncStorage.getItem('nutritionDailyLogs');
       if (storedLogs) {
         const allLogs: Record<string, DailyNutritionData> = JSON.parse(storedLogs);
@@ -227,13 +222,13 @@ export default function NutritionScreen() {
     };
     
     if (remaining.P > remaining.C && remaining.P > remaining.F) {
-      return SMART_ADD_BLOCKS[1]; // Protein Boost
+      return SMART_ADD_BLOCKS[1];
     } else if (remaining.C > remaining.P && remaining.C > remaining.F) {
-      return SMART_ADD_BLOCKS[2]; // Carb Boost
+      return SMART_ADD_BLOCKS[2];
     } else if (remaining.kcal < 300) {
-      return NEXT_MOVE_OPTIONS[1]; // Light snack
+      return NEXT_MOVE_OPTIONS[1];
     } else {
-      return SMART_ADD_BLOCKS[0]; // Quick Meal
+      return SMART_ADD_BLOCKS[0];
     }
   };
 
@@ -394,7 +389,6 @@ export default function NutritionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Smart Add Tiles */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Smart Add</Text>
           <View style={styles.tilesGrid}>
@@ -420,7 +414,6 @@ export default function NutritionScreen() {
           </View>
         </View>
 
-        {/* Daily Calories Card */}
         <TouchableOpacity
           style={styles.caloriesCard}
           onPress={() => {
@@ -450,7 +443,6 @@ export default function NutritionScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Macro Bars */}
         <View style={styles.macrosCard}>
           <View style={styles.macroRow}>
             <View style={styles.macroHeader}>
@@ -486,7 +478,6 @@ export default function NutritionScreen() {
           </View>
         </View>
 
-        {/* Next Move Card */}
         <View style={styles.nextMoveCard}>
           <Text style={styles.nextMoveTitle}>Next Move (recommended)</Text>
           <Text style={styles.nextMoveSubtitle}>
@@ -506,7 +497,6 @@ export default function NutritionScreen() {
           </View>
         </View>
 
-        {/* Meal Sections */}
         {(['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as const).map((slot) => {
           const entries = getMealEntries(slot);
           const hasEntries = entries.length > 0;
@@ -566,7 +556,6 @@ export default function NutritionScreen() {
         })}
       </ScrollView>
 
-      {/* Meal Slot Modal */}
       <Modal
         visible={showMealModal}
         animationType="slide"
@@ -587,7 +576,6 @@ export default function NutritionScreen() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent}>
-            {/* Suggested */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Suggested (1 tap)</Text>
               <TouchableOpacity
@@ -609,7 +597,6 @@ export default function NutritionScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Templates */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Templates</Text>
               {TEMPLATES.map((template) => (
@@ -628,7 +615,6 @@ export default function NutritionScreen() {
               ))}
             </View>
 
-            {/* Quick Add */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Quick Add</Text>
               <View style={styles.quickAddGrid}>
@@ -645,7 +631,6 @@ export default function NutritionScreen() {
               </View>
             </View>
 
-            {/* Manual */}
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Manual</Text>
               <TouchableOpacity
@@ -668,7 +653,6 @@ export default function NutritionScreen() {
         </View>
       </Modal>
 
-      {/* Manual Entry Modal */}
       <Modal
         visible={showManualModal}
         animationType="slide"
@@ -738,7 +722,6 @@ export default function NutritionScreen() {
         </View>
       </Modal>
 
-      {/* Timeline Modal */}
       <Modal
         visible={showTimelineModal}
         animationType="slide"
@@ -806,7 +789,6 @@ export default function NutritionScreen() {
         </View>
       </Modal>
 
-      {/* Edit Targets Modal */}
       <Modal
         visible={showTargetsModal}
         animationType="slide"
@@ -878,7 +860,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
@@ -1128,7 +1110,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingTop: 60,
   },
   modalHeader: {
     flexDirection: 'row',
