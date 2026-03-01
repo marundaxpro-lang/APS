@@ -117,8 +117,93 @@ async function sendWelcomeEmail(user: { email: string; name: string }) {
   app.logger.info({ email: user.email }, 'Welcome email queued for sending');
 }
 
-// Enable authentication with Better Auth
-app.withAuth();
+// Enable authentication with Better Auth and password reset
+app.withAuth({
+  emailAndPassword: {
+    sendResetPassword: async ({ user, url }) => {
+      // Don't await to prevent timing attacks - email sends in background
+      resend.emails
+        .send({
+          from: 'APS Fitness <noreply@apsfitness.com>',
+          to: user.email,
+          subject: 'Reset Your APS Fitness Password',
+          html: `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <style>
+                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                  .header { background-color: #459b9b; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+                  .header h1 { margin: 0; }
+                  .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                  .message { margin: 20px 0; }
+                  .reset-button { display: inline-block; background-color: #459b9b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+                  .warning-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
+                  .warning-box p { margin: 0; color: #856404; }
+                  .info-box { background-color: #f0f0f0; padding: 15px; margin: 20px 0; border-radius: 4px; }
+                  .info-box p { margin: 5px 0; font-size: 14px; color: #555; }
+                  .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+                  .link-display { word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 12px; color: #555; margin: 10px 0; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <div class="header">
+                    <h1>Password Reset Request</h1>
+                  </div>
+                  <div class="content">
+                    <div class="message">
+                      <p>Hi ${user.name || 'there'},</p>
+                      <p>We received a request to reset your APS Fitness password. Click the button below to reset it:</p>
+                    </div>
+
+                    <div style="text-align: center;">
+                      <a href="${url}" class="reset-button">Reset Your Password</a>
+                    </div>
+
+                    <div class="message" style="text-align: center; font-size: 14px; color: #666;">
+                      <p>Or copy and paste this link in your browser:</p>
+                      <div class="link-display">${url}</div>
+                    </div>
+
+                    <div class="warning-box">
+                      <p><strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons.</p>
+                    </div>
+
+                    <div class="info-box">
+                      <p><strong>Didn't request a password reset?</strong></p>
+                      <p>If you didn't request this reset, please ignore this email. Your password will remain unchanged. If you believe your account is compromised, please contact our support team immediately.</p>
+                    </div>
+
+                    <div class="message">
+                      <p><strong>For your security:</strong></p>
+                      <ul>
+                        <li>Never share your password reset link with anyone</li>
+                        <li>Use a strong, unique password</li>
+                        <li>After resetting, sign in immediately and update your password</li>
+                      </ul>
+                    </div>
+
+                    <div class="footer">
+                      <p>&copy; 2026 APS Fitness. All rights reserved.</p>
+                      <p>This is an automated email. Please do not reply directly to this message.</p>
+                    </div>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `,
+        })
+        .catch((error) => {
+          app.logger.error({ err: error, email: user.email }, 'Failed to send password reset email');
+        });
+
+      app.logger.info({ email: user.email }, 'Password reset email queued for sending');
+    },
+  },
+});
 
 // Enable storage for file uploads
 app.withStorage();
