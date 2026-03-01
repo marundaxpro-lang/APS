@@ -15,15 +15,25 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { FitnessProfile } from '@/types/fitness';
 
-interface MacroBlock {
+interface MacroMeal {
   id: string;
   label: string;
   kcal: number;
   P: number;
   C: number;
   F: number;
+  category: 'high_protein' | 'high_carb' | 'balanced' | 'light';
+}
+
+interface SmartAddOption {
+  id: string;
+  label: string;
+  example: string;
+  kcal: number;
+  P: number;
+  C: number;
+  F: number;
   color: string;
-  icon: string;
 }
 
 interface NutritionLogEntry {
@@ -31,7 +41,7 @@ interface NutritionLogEntry {
   timestamp: string;
   mealSlot?: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks';
   label: string;
-  type: 'smart_add' | 'template' | 'manual';
+  type: 'smart_add' | 'template' | 'manual' | 'macro_meal';
   kcal: number;
   P: number;
   C: number;
@@ -50,23 +60,57 @@ interface NutritionTargets {
   fatGoal: number;
 }
 
-const SMART_ADD_BLOCKS: MacroBlock[] = [
-  { id: 'quick_meal', label: 'Quick Meal', kcal: 600, P: 35, C: 60, F: 15, color: '#459b9b', icon: 'restaurant' },
-  { id: 'protein_boost', label: 'Protein Boost', kcal: 200, P: 30, C: 5, F: 5, color: '#ef4444', icon: 'fitness-center' },
-  { id: 'carb_boost', label: 'Carb Boost', kcal: 280, P: 5, C: 60, F: 2, color: '#f59e0b', icon: 'grain' },
-  { id: 'fat_addon', label: 'Fat Add-on', kcal: 180, P: 0, C: 0, F: 20, color: '#8b5cf6', icon: 'water-drop' },
+interface TodaysPlan {
+  Breakfast: MacroMeal;
+  Lunch: MacroMeal;
+  Dinner: MacroMeal;
+  Snacks: MacroMeal;
+}
+
+const MACRO_MEALS_LIBRARY: MacroMeal[] = [
+  { id: 'skyr_whey_berries', label: 'Skyr + whey + berries', kcal: 350, P: 40, C: 30, F: 8, category: 'high_protein' },
+  { id: 'chicken_rice_bowl', label: 'Chicken rice bowl', kcal: 650, P: 50, C: 70, F: 15, category: 'balanced' },
+  { id: 'tuna_wrap', label: 'Tuna wrap', kcal: 400, P: 30, C: 40, F: 12, category: 'balanced' },
+  { id: 'oats_banana', label: 'Oats + banana', kcal: 300, P: 10, C: 50, F: 7, category: 'high_carb' },
+  { id: 'eggs_toast', label: 'Eggs + toast', kcal: 380, P: 25, C: 35, F: 15, category: 'balanced' },
+  { id: 'protein_shake', label: 'Protein shake', kcal: 180, P: 30, C: 8, F: 3, category: 'high_protein' },
+  { id: 'greek_yogurt_granola', label: 'Greek yogurt + granola', kcal: 320, P: 20, C: 40, F: 8, category: 'balanced' },
+  { id: 'salmon_sweet_potato', label: 'Salmon + sweet potato', kcal: 550, P: 40, C: 50, F: 18, category: 'balanced' },
+  { id: 'turkey_avocado_wrap', label: 'Turkey avocado wrap', kcal: 480, P: 35, C: 45, F: 16, category: 'balanced' },
+  { id: 'cottage_cheese_fruit', label: 'Cottage cheese + fruit', kcal: 250, P: 25, C: 30, F: 5, category: 'high_protein' },
+  { id: 'beef_quinoa_bowl', label: 'Beef quinoa bowl', kcal: 620, P: 45, C: 60, F: 20, category: 'balanced' },
+  { id: 'protein_pancakes', label: 'Protein pancakes', kcal: 420, P: 35, C: 45, F: 10, category: 'high_protein' },
+  { id: 'chicken_pasta', label: 'Chicken pasta', kcal: 680, P: 48, C: 75, F: 18, category: 'high_carb' },
+  { id: 'egg_white_omelette', label: 'Egg white omelette', kcal: 220, P: 28, C: 10, F: 8, category: 'high_protein' },
+  { id: 'rice_cakes_pb', label: 'Rice cakes + PB', kcal: 280, P: 12, C: 35, F: 12, category: 'high_carb' },
+  { id: 'tuna_salad', label: 'Tuna salad', kcal: 320, P: 35, C: 15, F: 14, category: 'high_protein' },
+  { id: 'smoothie_bowl', label: 'Smoothie bowl', kcal: 380, P: 20, C: 55, F: 10, category: 'high_carb' },
+  { id: 'steak_veggies', label: 'Steak + veggies', kcal: 520, P: 48, C: 25, F: 26, category: 'high_protein' },
+  { id: 'bagel_cream_cheese', label: 'Bagel + cream cheese', kcal: 350, P: 12, C: 50, F: 12, category: 'high_carb' },
+  { id: 'protein_bar', label: 'Protein bar', kcal: 200, P: 20, C: 22, F: 6, category: 'high_protein' },
+  { id: 'apple_almond_butter', label: 'Apple + almond butter', kcal: 220, P: 6, C: 28, F: 12, category: 'light' },
+  { id: 'chicken_salad', label: 'Chicken salad', kcal: 380, P: 40, C: 20, F: 16, category: 'high_protein' },
+  { id: 'pasta_marinara', label: 'Pasta marinara', kcal: 480, P: 18, C: 75, F: 12, category: 'high_carb' },
+  { id: 'turkey_sandwich', label: 'Turkey sandwich', kcal: 420, P: 32, C: 48, F: 12, category: 'balanced' },
+  { id: 'protein_oats', label: 'Protein oats', kcal: 380, P: 28, C: 50, F: 8, category: 'balanced' },
+  { id: 'shrimp_rice', label: 'Shrimp + rice', kcal: 450, P: 38, C: 55, F: 8, category: 'balanced' },
+  { id: 'nuts_mix', label: 'Mixed nuts', kcal: 180, P: 6, C: 8, F: 16, category: 'light' },
+  { id: 'hummus_veggies', label: 'Hummus + veggies', kcal: 200, P: 8, C: 24, F: 10, category: 'light' },
+  { id: 'chicken_wrap', label: 'Chicken wrap', kcal: 520, P: 42, C: 50, F: 16, category: 'balanced' },
+  { id: 'overnight_oats', label: 'Overnight oats', kcal: 340, P: 15, C: 52, F: 9, category: 'high_carb' },
 ];
 
-const TEMPLATES: MacroBlock[] = [
-  { id: 'balanced', label: 'Balanced', kcal: 600, P: 35, C: 60, F: 15, color: '#459b9b', icon: 'restaurant' },
-  { id: 'high_protein', label: 'High Protein', kcal: 500, P: 45, C: 35, F: 15, color: '#ef4444', icon: 'fitness-center' },
-  { id: 'light', label: 'Light', kcal: 350, P: 30, C: 30, F: 8, color: '#4ade80', icon: 'eco' },
+const SMART_ADD_OPTIONS: SmartAddOption[] = [
+  { id: 'quick_meal', label: 'Quick Meal', example: 'Chicken + rice', kcal: 600, P: 35, C: 60, F: 15, color: '#459b9b' },
+  { id: 'protein_boost', label: 'Protein Boost', example: 'Skyr / whey', kcal: 200, P: 30, C: 5, F: 5, color: '#ef4444' },
+  { id: 'carb_boost', label: 'Carb Boost', example: 'Oats / banana', kcal: 280, P: 5, C: 60, F: 2, color: '#f59e0b' },
+  { id: 'fat_addon', label: 'Fat Add-on', example: 'Nuts / olive oil', kcal: 180, P: 0, C: 0, F: 20, color: '#8b5cf6' },
 ];
 
-const NEXT_MOVE_OPTIONS: MacroBlock[] = [
-  { id: 'high_protein', label: 'High-protein', kcal: 200, P: 30, C: 5, F: 5, color: '#ef4444', icon: 'fitness-center' },
-  { id: 'light_snack', label: 'Light snack', kcal: 250, P: 15, C: 25, F: 8, color: '#4ade80', icon: 'cookie' },
-  { id: 'pre_workout', label: 'Pre-workout', kcal: 350, P: 20, C: 55, F: 5, color: '#f59e0b', icon: 'directions-run' },
+const TEMPLATES = [
+  { id: 'balanced', label: 'Balanced Meal', kcal: 600, P: 35, C: 60, F: 15 },
+  { id: 'high_protein', label: 'High Protein', kcal: 500, P: 45, C: 35, F: 15 },
+  { id: 'light', label: 'Light Meal', kcal: 350, P: 30, C: 30, F: 8 },
 ];
 
 export default function NutritionScreen() {
@@ -81,17 +125,22 @@ export default function NutritionScreen() {
     date: new Date().toISOString().split('T')[0],
     entries: [],
   });
+  const [todaysPlan, setTodaysPlan] = useState<TodaysPlan | null>(null);
   const [showMealModal, setShowMealModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showTargetsModal, setShowTargetsModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [selectedMealSlot, setSelectedMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
+  const [swapMealSlot, setSwapMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
   const [manualKcal, setManualKcal] = useState('');
   const [manualP, setManualP] = useState('');
   const [manualC, setManualC] = useState('');
   const [manualF, setManualF] = useState('');
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isPremium] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -136,11 +185,42 @@ export default function NutritionScreen() {
       } else {
         setDailyData({ date: today, entries: [] });
       }
+
+      const storedPlan = await AsyncStorage.getItem('todaysPlan');
+      if (storedPlan) {
+        const plan = JSON.parse(storedPlan);
+        if (plan.date === today) {
+          setTodaysPlan(plan.plan);
+          console.log('[Nutrition] Loaded today plan');
+        } else {
+          generateTodaysPlan();
+        }
+      } else {
+        generateTodaysPlan();
+      }
     } catch (error) {
       console.error('[Nutrition] Error loading data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateTodaysPlan = () => {
+    const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
+    const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
+    const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
+    
+    const plan: TodaysPlan = {
+      Breakfast: highCarb[Math.floor(Math.random() * highCarb.length)],
+      Lunch: balanced[Math.floor(Math.random() * balanced.length)],
+      Dinner: balanced[Math.floor(Math.random() * balanced.length)],
+      Snacks: highProtein[Math.floor(Math.random() * highProtein.length)],
+    };
+    
+    setTodaysPlan(plan);
+    const today = new Date().toISOString().split('T')[0];
+    AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan }));
+    console.log('[Nutrition] Generated new today plan');
   };
 
   const saveDailyData = async (data: DailyNutritionData) => {
@@ -183,20 +263,8 @@ export default function NutritionScreen() {
     console.log('[Nutrition] Deleted entry:', id);
   };
 
-  const handleSmartAdd = (block: MacroBlock) => {
-    console.log('[Nutrition] User tapped Smart Add:', block.label);
-    addEntry({
-      label: block.label,
-      type: 'smart_add',
-      kcal: block.kcal,
-      P: block.P,
-      C: block.C,
-      F: block.F,
-    });
-  };
-
-  const handleNextMove = (option: MacroBlock) => {
-    console.log('[Nutrition] User tapped Next Move:', option.label);
+  const handleSmartAdd = (option: SmartAddOption) => {
+    console.log('[Nutrition] User tapped Smart Add:', option.label);
     addEntry({
       label: option.label,
       type: 'smart_add',
@@ -207,13 +275,49 @@ export default function NutritionScreen() {
     });
   };
 
+  const handlePlanMealTap = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
+    if (!todaysPlan) return;
+    const meal = todaysPlan[slot];
+    console.log('[Nutrition] User tapped Today Plan:', slot, meal.label);
+    addEntry({
+      label: meal.label,
+      type: 'macro_meal',
+      mealSlot: slot,
+      kcal: meal.kcal,
+      P: meal.P,
+      C: meal.C,
+      F: meal.F,
+    });
+  };
+
+  const handleSwapMeal = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
+    if (!isPremium) {
+      console.log('[Nutrition] User tried to swap (premium feature)');
+      setShowPaywallModal(true);
+      return;
+    }
+    console.log('[Nutrition] User tapped Swap for', slot);
+    setSwapMealSlot(slot);
+    setShowSwapModal(true);
+  };
+
+  const confirmSwap = (newMeal: MacroMeal) => {
+    if (!todaysPlan) return;
+    const updatedPlan = { ...todaysPlan, [swapMealSlot]: newMeal };
+    setTodaysPlan(updatedPlan);
+    const today = new Date().toISOString().split('T')[0];
+    AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan: updatedPlan }));
+    console.log('[Nutrition] Swapped meal for', swapMealSlot, 'to', newMeal.label);
+    setShowSwapModal(false);
+  };
+
   const openMealSlot = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
     console.log('[Nutrition] User tapped Add to', slot);
     setSelectedMealSlot(slot);
     setShowMealModal(true);
   };
 
-  const getSuggestedBlock = (): MacroBlock => {
+  const getSuggestedMeals = (): MacroMeal[] => {
     const remaining = {
       kcal: targets.calorieGoal - consumed.kcal,
       P: targets.proteinGoal - consumed.P,
@@ -221,33 +325,82 @@ export default function NutritionScreen() {
       F: targets.fatGoal - consumed.F,
     };
     
+    let filtered: MacroMeal[] = [];
+    
     if (remaining.P > remaining.C && remaining.P > remaining.F) {
-      return SMART_ADD_BLOCKS[1];
+      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
     } else if (remaining.C > remaining.P && remaining.C > remaining.F) {
-      return SMART_ADD_BLOCKS[2];
-    } else if (remaining.kcal < 300) {
-      return NEXT_MOVE_OPTIONS[1];
+      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
+    } else if (remaining.kcal < 400) {
+      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light');
     } else {
-      return SMART_ADD_BLOCKS[0];
+      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
     }
+    
+    const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
   };
 
-  const handleSuggested = () => {
-    const suggested = getSuggestedBlock();
-    console.log('[Nutrition] User selected Suggested:', suggested.label);
+  const getNextMoveMeals = (): Array<MacroMeal & { reason: string }> => {
+    const remaining = {
+      kcal: targets.calorieGoal - consumed.kcal,
+      P: targets.proteinGoal - consumed.P,
+      C: targets.carbsGoal - consumed.C,
+      F: targets.fatGoal - consumed.F,
+    };
+    
+    const suggestions: Array<MacroMeal & { reason: string }> = [];
+    
+    if (remaining.P > 40) {
+      const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein' && m.P >= 30);
+      if (highProtein.length > 0) {
+        const meal = highProtein[Math.floor(Math.random() * highProtein.length)];
+        suggestions.push({ ...meal, reason: "You're low on protein" });
+      }
+    }
+    
+    if (remaining.C > 50) {
+      const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb' && m.C >= 40);
+      if (highCarb.length > 0) {
+        const meal = highCarb[Math.floor(Math.random() * highCarb.length)];
+        suggestions.push({ ...meal, reason: "You need more carbs" });
+      }
+    }
+    
+    if (remaining.kcal < 400) {
+      const light = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light' && m.kcal <= 300);
+      if (light.length > 0) {
+        const meal = light[Math.floor(Math.random() * light.length)];
+        suggestions.push({ ...meal, reason: "Light option for remaining calories" });
+      }
+    }
+    
+    while (suggestions.length < 3) {
+      const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
+      const meal = balanced[Math.floor(Math.random() * balanced.length)];
+      if (!suggestions.find(s => s.id === meal.id)) {
+        suggestions.push({ ...meal, reason: "Balanced macro option" });
+      }
+    }
+    
+    return suggestions.slice(0, 3);
+  };
+
+  const handleMacroMealSelect = (meal: MacroMeal) => {
+    console.log('[Nutrition] User selected Macro Meal:', meal.label);
     addEntry({
-      label: suggested.label,
-      type: 'smart_add',
+      label: meal.label,
+      type: 'macro_meal',
       mealSlot: selectedMealSlot,
-      kcal: suggested.kcal,
-      P: suggested.P,
-      C: suggested.C,
-      F: suggested.F,
+      kcal: meal.kcal,
+      P: meal.P,
+      C: meal.C,
+      F: meal.F,
     });
     setShowMealModal(false);
   };
 
-  const handleTemplate = (template: MacroBlock) => {
+  const handleTemplate = (template: typeof TEMPLATES[0]) => {
     console.log('[Nutrition] User selected Template:', template.label);
     addEntry({
       label: template.label,
@@ -261,16 +414,16 @@ export default function NutritionScreen() {
     setShowMealModal(false);
   };
 
-  const handleQuickAdd = (block: MacroBlock) => {
-    console.log('[Nutrition] User selected Quick Add:', block.label);
+  const handleQuickAdd = (option: SmartAddOption) => {
+    console.log('[Nutrition] User selected Quick Add:', option.label);
     addEntry({
-      label: block.label,
+      label: option.label,
       type: 'smart_add',
       mealSlot: selectedMealSlot,
-      kcal: block.kcal,
-      P: block.P,
-      C: block.C,
-      F: block.F,
+      kcal: option.kcal,
+      P: option.P,
+      C: option.C,
+      F: option.F,
     });
     setShowMealModal(false);
   };
@@ -352,6 +505,8 @@ export default function NutritionScreen() {
   const fatPercent = Math.min((consumed.F / targets.fatGoal) * 100, 100);
   const caloriesPercent = Math.min((consumed.kcal / targets.calorieGoal) * 100, 100);
 
+  const nextMoveMeals = getNextMoveMeals();
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -392,23 +547,24 @@ export default function NutritionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Smart Add</Text>
           <View style={styles.tilesGrid}>
-            {SMART_ADD_BLOCKS.map((block) => (
+            {SMART_ADD_OPTIONS.map((option) => (
               <TouchableOpacity
-                key={block.id}
-                style={[styles.tile, { borderColor: block.color }]}
-                onPress={() => handleSmartAdd(block)}
+                key={option.id}
+                style={[styles.tile, { borderColor: option.color }]}
+                onPress={() => handleSmartAdd(option)}
               >
                 <IconSymbol
                   ios_icon_name="plus.circle.fill"
-                  android_material_icon_name={block.icon}
+                  android_material_icon_name="add-circle"
                   size={32}
-                  color={block.color}
+                  color={option.color}
                 />
-                <Text style={styles.tileLabel}>{block.label}</Text>
-                <Text style={styles.tileKcal}>{block.kcal} kcal</Text>
+                <Text style={styles.tileLabel}>{option.label}</Text>
+                <Text style={styles.tileKcal}>{option.kcal} kcal</Text>
                 <Text style={styles.tileMacros}>
-                  P{block.P} C{block.C} F{block.F}
+                  P{option.P} C{option.C} F{option.F}
                 </Text>
+                <Text style={styles.tileExample}>{option.example}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -478,22 +634,99 @@ export default function NutritionScreen() {
           </View>
         </View>
 
+        {todaysPlan && (
+          <View style={styles.section}>
+            <View style={styles.planHeader}>
+              <Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
+              {!isPremium && (
+                <View style={styles.freeBadge}>
+                  <Text style={styles.freeBadgeText}>Free: 1-day</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.planGrid}>
+              {(['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as const).map((slot) => {
+                const meal = todaysPlan[slot];
+                const mealKcal = Math.round(meal.kcal);
+                const mealP = Math.round(meal.P);
+                const mealC = Math.round(meal.C);
+                const mealF = Math.round(meal.F);
+                
+                return (
+                  <View key={slot} style={styles.planTile}>
+                    <TouchableOpacity
+                      style={styles.planTileContent}
+                      onPress={() => handlePlanMealTap(slot)}
+                    >
+                      <Text style={styles.planSlot}>{slot}</Text>
+                      <Text style={styles.planMeal}>{meal.label}</Text>
+                      <Text style={styles.planMacros}>
+                        {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.swapButton}
+                      onPress={() => handleSwapMeal(slot)}
+                    >
+                      <IconSymbol
+                        ios_icon_name="arrow.2.squarepath"
+                        android_material_icon_name="swap-horiz"
+                        size={16}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.swapText}>Swap</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         <View style={styles.nextMoveCard}>
           <Text style={styles.nextMoveTitle}>Next Move (recommended)</Text>
           <Text style={styles.nextMoveSubtitle}>
             You have {remainingKcal} kcal and {remainingP}g protein left today
           </Text>
-          <View style={styles.nextMoveButtons}>
-            {NEXT_MOVE_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.nextMoveButton, { borderColor: option.color }]}
-                onPress={() => handleNextMove(option)}
-              >
-                <Text style={styles.nextMoveButtonText}>{option.label}</Text>
-                <Text style={styles.nextMoveButtonKcal}>{option.kcal} kcal</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.nextMoveList}>
+            {nextMoveMeals.map((meal) => {
+              const mealKcal = Math.round(meal.kcal);
+              const mealP = Math.round(meal.P);
+              const mealC = Math.round(meal.C);
+              const mealF = Math.round(meal.F);
+              
+              return (
+                <TouchableOpacity
+                  key={meal.id}
+                  style={styles.nextMoveItem}
+                  onPress={() => {
+                    console.log('[Nutrition] User tapped Next Move meal:', meal.label);
+                    addEntry({
+                      label: meal.label,
+                      type: 'macro_meal',
+                      kcal: meal.kcal,
+                      P: meal.P,
+                      C: meal.C,
+                      F: meal.F,
+                    });
+                  }}
+                >
+                  <View style={styles.nextMoveInfo}>
+                    <Text style={styles.nextMoveMeal}>{meal.label}</Text>
+                    <Text style={styles.nextMoveReason}>{meal.reason}</Text>
+                    <Text style={styles.nextMoveMacros}>
+                      {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
+                    </Text>
+                  </View>
+                  <IconSymbol
+                    ios_icon_name="plus.circle.fill"
+                    android_material_icon_name="add-circle"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -577,55 +810,72 @@ export default function NutritionScreen() {
 
           <ScrollView contentContainerStyle={styles.modalContent}>
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Suggested (1 tap)</Text>
-              <TouchableOpacity
-                style={styles.suggestedButton}
-                onPress={handleSuggested}
-              >
-                <View style={styles.suggestedInfo}>
-                  <Text style={styles.suggestedLabel}>{getSuggestedBlock().label}</Text>
-                  <Text style={styles.suggestedMacros}>
-                    {getSuggestedBlock().kcal} kcal • P{getSuggestedBlock().P} C{getSuggestedBlock().C} F{getSuggestedBlock().F}
-                  </Text>
-                </View>
-                <IconSymbol
-                  ios_icon_name="sparkles"
-                  android_material_icon_name="auto-awesome"
-                  size={24}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
+              <Text style={styles.modalSectionTitle}>Suggested (fastest)</Text>
+              {getSuggestedMeals().map((meal) => {
+                const mealKcal = Math.round(meal.kcal);
+                const mealP = Math.round(meal.P);
+                const mealC = Math.round(meal.C);
+                const mealF = Math.round(meal.F);
+                
+                return (
+                  <TouchableOpacity
+                    key={meal.id}
+                    style={styles.suggestedButton}
+                    onPress={() => handleMacroMealSelect(meal)}
+                  >
+                    <View style={styles.suggestedInfo}>
+                      <Text style={styles.suggestedLabel}>{meal.label}</Text>
+                      <Text style={styles.suggestedMacros}>
+                        {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
+                      </Text>
+                    </View>
+                    <IconSymbol
+                      ios_icon_name="plus.circle.fill"
+                      android_material_icon_name="add-circle"
+                      size={24}
+                      color={colors.primary}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Templates</Text>
-              {TEMPLATES.map((template) => (
-                <TouchableOpacity
-                  key={template.id}
-                  style={styles.templateButton}
-                  onPress={() => handleTemplate(template)}
-                >
-                  <View style={styles.templateInfo}>
-                    <Text style={styles.templateLabel}>{template.label}</Text>
-                    <Text style={styles.templateMacros}>
-                      {template.kcal} kcal • P{template.P} C{template.C} F{template.F}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {TEMPLATES.map((template) => {
+                const templateKcal = Math.round(template.kcal);
+                const templateP = Math.round(template.P);
+                const templateC = Math.round(template.C);
+                const templateF = Math.round(template.F);
+                
+                return (
+                  <TouchableOpacity
+                    key={template.id}
+                    style={styles.templateButton}
+                    onPress={() => handleTemplate(template)}
+                  >
+                    <View style={styles.templateInfo}>
+                      <Text style={styles.templateLabel}>{template.label}</Text>
+                      <Text style={styles.templateMacros}>
+                        {templateKcal} kcal • P{templateP} C{templateC} F{templateF}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Quick Add</Text>
+              <Text style={styles.modalSectionTitle}>Smart Add</Text>
               <View style={styles.quickAddGrid}>
-                {SMART_ADD_BLOCKS.map((block) => (
+                {SMART_ADD_OPTIONS.map((option) => (
                   <TouchableOpacity
-                    key={block.id}
-                    style={[styles.quickAddTile, { borderColor: block.color }]}
-                    onPress={() => handleQuickAdd(block)}
+                    key={option.id}
+                    style={[styles.quickAddTile, { borderColor: option.color }]}
+                    onPress={() => handleQuickAdd(option)}
                   >
-                    <Text style={styles.quickAddLabel}>{block.label}</Text>
-                    <Text style={styles.quickAddKcal}>{block.kcal} kcal</Text>
+                    <Text style={styles.quickAddLabel}>{option.label}</Text>
+                    <Text style={styles.quickAddKcal}>{option.kcal} kcal</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -718,6 +968,51 @@ export default function NutritionScreen() {
             >
               <Text style={styles.addButtonText}>Add Entry</Text>
             </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSwapModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSwapModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Swap {swapMealSlot}</Text>
+            <TouchableOpacity onPress={() => setShowSwapModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={28}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {MACRO_MEALS_LIBRARY.map((meal) => {
+              const mealKcal = Math.round(meal.kcal);
+              const mealP = Math.round(meal.P);
+              const mealC = Math.round(meal.C);
+              const mealF = Math.round(meal.F);
+              
+              return (
+                <TouchableOpacity
+                  key={meal.id}
+                  style={styles.swapOption}
+                  onPress={() => confirmSwap(meal)}
+                >
+                  <View style={styles.swapInfo}>
+                    <Text style={styles.swapLabel}>{meal.label}</Text>
+                    <Text style={styles.swapMacros}>
+                      {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       </Modal>
@@ -850,6 +1145,43 @@ export default function NutritionScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <Modal
+        visible={showPaywallModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowPaywallModal(false)}
+      >
+        <View style={styles.paywallOverlay}>
+          <View style={styles.paywallCard}>
+            <IconSymbol
+              ios_icon_name="star.fill"
+              android_material_icon_name="star"
+              size={48}
+              color={colors.warning}
+            />
+            <Text style={styles.paywallTitle}>Premium Feature</Text>
+            <Text style={styles.paywallText}>
+              Unlock unlimited meal swaps, weekly meal plans, grocery lists, and more with Premium.
+            </Text>
+            <TouchableOpacity
+              style={styles.paywallButton}
+              onPress={() => {
+                console.log('[Nutrition] User tapped Upgrade to Premium');
+                setShowPaywallModal(false);
+              }}
+            >
+              <Text style={styles.paywallButtonText}>Upgrade to Premium</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.paywallClose}
+              onPress={() => setShowPaywallModal(false)}
+            >
+              <Text style={styles.paywallCloseText}>Maybe Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -912,7 +1244,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   tileLabel: {
     fontSize: 14,
@@ -928,6 +1260,12 @@ const styles = StyleSheet.create({
   tileMacros: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  tileExample: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   caloriesCard: {
     backgroundColor: colors.card,
@@ -1014,6 +1352,72 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  freeBadge: {
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  freeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.warning,
+  },
+  planGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  planTile: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  planTileContent: {
+    padding: 12,
+  },
+  planSlot: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  planMeal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  planMacros: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  swapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderTopWidth: 1,
+    borderTopColor: colors.primary,
+  },
+  swapText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   nextMoveCard: {
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
     borderColor: colors.primary,
@@ -1033,26 +1437,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 16,
   },
-  nextMoveButtons: {
-    flexDirection: 'row',
+  nextMoveList: {
     gap: 12,
   },
-  nextMoveButton: {
-    flex: 1,
+  nextMoveItem: {
     backgroundColor: colors.card,
-    borderWidth: 2,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  nextMoveButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+  nextMoveInfo: {
+    flex: 1,
+  },
+  nextMoveMeal: {
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  nextMoveButtonKcal: {
+  nextMoveReason: {
     fontSize: 11,
+    color: colors.primary,
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  nextMoveMacros: {
+    fontSize: 12,
     color: colors.textSecondary,
   },
   mealSection: {
@@ -1140,9 +1554,10 @@ const styles = StyleSheet.create({
   suggestedButton: {
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
     borderColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: 16,
     padding: 16,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1220,6 +1635,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
+  swapOption: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+  },
+  swapInfo: {
+    flex: 1,
+  },
+  swapLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  swapMacros: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
   input: {
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
@@ -1285,6 +1721,58 @@ const styles = StyleSheet.create({
   },
   timelineMacros: {
     fontSize: 13,
+    color: colors.textSecondary,
+  },
+  paywallOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  paywallCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+  },
+  paywallTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  paywallText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  paywallButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  paywallButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  paywallClose: {
+    paddingVertical: 12,
+  },
+  paywallCloseText: {
+    fontSize: 14,
     color: colors.textSecondary,
   },
 });
