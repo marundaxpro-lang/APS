@@ -34,6 +34,7 @@ const createCheckoutSchema = z.object({
   plan_type: z.enum(['free', 'pro', 'elite']),
   success_url: z.string().url(),
   cancel_url: z.string().url(),
+  // European payment methods: card (incl. Apple Pay), ideal, paypal, sepa_debit, bancontact, giropay
   payment_method_types: z.array(z.enum(['card', 'ideal', 'paypal', 'sepa_debit', 'bancontact', 'giropay'])).optional(),
 });
 
@@ -132,8 +133,15 @@ export function registerPaymentRoutes(app: App) {
           stripeCustomerId = customer.id;
         }
 
-        // Determine payment methods
-        const supportedPaymentMethods = payment_method_types || ['card', 'ideal', 'paypal'];
+        // Determine payment methods - Include all European payment methods
+        const supportedPaymentMethods = payment_method_types || [
+          'card',           // Credit/debit cards + Apple Pay on iOS
+          'ideal',          // iDEAL (Netherlands)
+          'paypal',         // PayPal
+          'sepa_debit',     // SEPA Direct Debit (Europe)
+          'bancontact',     // Bancontact (Belgium)
+          'giropay',        // Giropay (Germany)
+        ];
 
         // Create checkout session with payment methods
         const checkoutSession = await getStripeClient().checkout.sessions.create({
@@ -379,9 +387,10 @@ export function registerPaymentRoutes(app: App) {
       }
 
       const sub = subscription[0];
+      const isPremium = (sub.planType === 'pro' || sub.planType === 'elite') && sub.status === 'active';
 
       app.logger.info(
-        { userId, planType: sub.planType, status: sub.status },
+        { userId, planType: sub.planType, status: sub.status, isPremium },
         'Subscription status retrieved'
       );
 
@@ -390,6 +399,7 @@ export function registerPaymentRoutes(app: App) {
         planType: sub.planType,
         status: sub.status,
         currentPeriodEnd: sub.currentPeriodEnd,
+        isPremium,
         stripeCustomerId: sub.stripeCustomerId,
         stripeSubscriptionId: sub.stripeSubscriptionId,
         createdAt: sub.createdAt,
