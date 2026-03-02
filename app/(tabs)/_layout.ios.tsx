@@ -21,6 +21,10 @@ export default function TabLayout() {
         <Icon sf="fork.knife" drawable="restaurant" />
         <Label>Nutrition</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger key="shop" name="shop">
+        <Icon sf="star.fill" drawable="star" />
+        <Label>Premium</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.circle.fill" drawable="person" />
         <Label>Profile</Label>

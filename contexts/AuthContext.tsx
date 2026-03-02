@@ -14,6 +14,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   authLoading: boolean; // Alias for loading for compatibility
+  isPremium: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -95,6 +96,7 @@ function openOAuthPopup(provider: string): Promise<string> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     fetchUser();
@@ -106,12 +108,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = await authClient.getSession();
       if (session?.data?.user) {
         setUser(session.data.user as User);
+        
+        // Fetch premium status
+        try {
+          const { authenticatedGet } = await import('@/utils/api');
+          const subscriptionStatus = await authenticatedGet<{ isPremium: boolean }>('/api/payments/subscription-status');
+          setIsPremium(subscriptionStatus.isPremium || false);
+          console.log('[AuthContext] Premium status:', subscriptionStatus.isPremium);
+        } catch (error) {
+          console.log('[AuthContext] Could not fetch premium status, defaulting to false');
+          setIsPremium(false);
+        }
       } else {
         setUser(null);
+        setIsPremium(false);
       }
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);
+      setIsPremium(false);
     } finally {
       setLoading(false);
     }
@@ -254,6 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         authLoading: loading, // Alias for compatibility
+        isPremium,
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,

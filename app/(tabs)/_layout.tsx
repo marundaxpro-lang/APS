@@ -38,6 +38,12 @@ export default function TabLayout() {
             label: 'Nutrition',
           },
           {
+            name: 'shop',
+            route: '/(tabs)/shop',
+            icon: 'star',
+            label: 'Premium',
+          },
+          {
             name: 'profile',
             route: '/(tabs)/profile',
             icon: 'person',

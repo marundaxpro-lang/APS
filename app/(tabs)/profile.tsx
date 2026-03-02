@@ -19,6 +19,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
 
+interface SubscriptionStatus {
+  planType: string;
+  status: string;
+  currentPeriodEnd: string | null;
+  isPremium: boolean;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -160,6 +167,107 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  premiumCard: {
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  premiumCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  premiumCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFD700',
+    flex: 1,
+  },
+  premiumCardBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  premiumCardBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFD700',
+  },
+  premiumCardSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  premiumCardPeriod: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  premiumUpgradeButton: {
+    backgroundColor: '#FFD700',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  premiumUpgradeButtonText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  freePlanCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  freePlanHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  freePlanTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+  },
+  freePlanBadge: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  freePlanBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  freePlanSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  upgradeButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -218,12 +326,13 @@ const styles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, authLoading } = useAuth();
+  const { user, signOut, authLoading, isPremium } = useAuth();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
 
   const loadProfile = useCallback(async () => {
     console.log('ProfileScreen: Loading profile data');
@@ -273,6 +382,15 @@ export default function ProfileScreen() {
         } catch (error) {
           console.error('ProfileScreen: Error fetching profile from backend:', error);
           // Continue with local profile if backend fails
+        }
+
+        // Fetch subscription status
+        try {
+          const subStatus = await authenticatedGet<SubscriptionStatus>('/api/payments/subscription-status');
+          console.log('ProfileScreen: Subscription status:', subStatus);
+          setSubscriptionStatus(subStatus);
+        } catch (error) {
+          console.log('ProfileScreen: Could not fetch subscription status');
         }
       }
     } catch (error) {
@@ -404,6 +522,72 @@ export default function ProfileScreen() {
               <Text style={styles.guestBannerButtonText}>Create Account</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Premium / Subscription Status */}
+        {!isGuest && user && (
+          isPremium ? (
+            <View style={styles.premiumCard}>
+              <View style={styles.premiumCardHeader}>
+                <IconSymbol
+                  ios_icon_name="star.fill"
+                  android_material_icon_name="star"
+                  size={28}
+                  color="#FFD700"
+                />
+                <Text style={styles.premiumCardTitle}>
+                  {subscriptionStatus?.planType === 'elite' ? 'Elite Plan' : 'Pro Plan'} Active
+                </Text>
+                <View style={styles.premiumCardBadge}>
+                  <Text style={styles.premiumCardBadgeText}>✨ PREMIUM</Text>
+                </View>
+              </View>
+              <Text style={styles.premiumCardSubtitle}>
+                You have access to all premium features including AI coaching, advanced analytics, and unlimited meal plans.
+              </Text>
+              {subscriptionStatus?.currentPeriodEnd && (
+                <Text style={styles.premiumCardPeriod}>
+                  Renews on {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString('en-NL', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.premiumUpgradeButton}
+                onPress={() => {
+                  console.log('ProfileScreen: User tapped Manage Subscription');
+                  router.push('/(tabs)/shop');
+                }}
+              >
+                <Text style={styles.premiumUpgradeButtonText}>Manage Subscription</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.freePlanCard}>
+              <View style={styles.freePlanHeader}>
+                <IconSymbol
+                  ios_icon_name="star"
+                  android_material_icon_name="star-border"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={styles.freePlanTitle}>Free Plan</Text>
+                <View style={styles.freePlanBadge}>
+                  <Text style={styles.freePlanBadgeText}>FREE</Text>
+                </View>
+              </View>
+              <Text style={styles.freePlanSubtitle}>
+                Upgrade to Pro (€9.99/mo) or Elite (€29.99/mo) to unlock AI coaching, advanced analytics, unlimited meal plans, and more. Supports iDEAL, Apple Pay, PayPal & more.
+              </Text>
+              <TouchableOpacity
+                style={styles.upgradeButton}
+                onPress={() => {
+                  console.log('ProfileScreen: User tapped Upgrade to Premium');
+                  router.push('/(tabs)/shop');
+                }}
+              >
+                <Text style={styles.upgradeButtonText}>⭐ Upgrade to Premium</Text>
+              </TouchableOpacity>
+            </View>
+          )
         )}
 
         <View style={styles.section}>

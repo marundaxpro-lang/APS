@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { FitnessProfile } from '@/types/fitness';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MacroMeal {
   id: string;
@@ -116,6 +117,7 @@ const TEMPLATES = [
 
 export default function NutritionScreen() {
   const router = useRouter();
+  const { isPremium } = useAuth();
   const [targets, setTargets] = useState<NutritionTargets>({
     calorieGoal: 2500,
     proteinGoal: 180,
@@ -141,7 +143,6 @@ export default function NutritionScreen() {
   const [manualF, setManualF] = useState('');
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isPremium] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -1170,6 +1171,7 @@ export default function NutritionScreen() {
               onPress={() => {
                 console.log('[Nutrition] User tapped Upgrade to Premium');
                 setShowPaywallModal(false);
+                router.push('/shop');
               }}
             >
               <Text style={styles.paywallButtonText}>Upgrade to Premium</Text>
