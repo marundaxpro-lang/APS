@@ -147,6 +147,8 @@ export function registerPaymentRoutes(app: App) {
         const checkoutSession = await getStripeClient().checkout.sessions.create({
           customer: stripeCustomerId,
           payment_method_types: supportedPaymentMethods as any,
+          billing_address_collection: 'required',
+          automatic_tax: { enabled: true },
           line_items: [
             {
               price_data: {
@@ -163,6 +165,7 @@ export function registerPaymentRoutes(app: App) {
                   interval: planPrice.interval as 'month' | 'year',
                   interval_count: 1,
                 },
+                tax_behavior: 'unspecified',
               },
               quantity: 1,
             },
@@ -170,7 +173,7 @@ export function registerPaymentRoutes(app: App) {
           mode: 'subscription',
           success_url,
           cancel_url,
-          locale: 'auto',
+          locale: 'en',
           client_reference_id: userId,
           metadata: {
             userId,
@@ -316,6 +319,25 @@ export function registerPaymentRoutes(app: App) {
           break;
         }
 
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object as Stripe.Invoice;
+
+          // Handle successful payment
+          if ((invoice as any).subscription) {
+            const subscriptionRecord = await app.db
+              .select()
+              .from(schema.subscriptions)
+              .where(eq(schema.subscriptions.stripeSubscriptionId, (invoice as any).subscription as string))
+              .limit(1);
+
+            if (subscriptionRecord.length > 0) {
+              app.logger.info({ subscriptionId: (invoice as any).subscription }, 'Payment succeeded for subscription');
+              // Subscription status is already updated by customer.subscription.updated event
+            }
+          }
+          break;
+        }
+
         case 'invoice.payment_failed': {
           const invoice = event.data.object as Stripe.Invoice;
 
@@ -328,7 +350,7 @@ export function registerPaymentRoutes(app: App) {
               .limit(1);
 
             if (subscriptionRecord.length > 0) {
-              app.logger.warn(`Payment failed for subscription ${(invoice as any).subscription}`);
+              app.logger.warn({ subscriptionId: (invoice as any).subscription }, 'Payment failed for subscription');
             }
           }
           break;
@@ -400,10 +422,7 @@ export function registerPaymentRoutes(app: App) {
         status: sub.status,
         currentPeriodEnd: sub.currentPeriodEnd,
         isPremium,
-        stripeCustomerId: sub.stripeCustomerId,
         stripeSubscriptionId: sub.stripeSubscriptionId,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt,
       };
     } catch (error) {
       app.logger.error({ err: error }, 'Error retrieving subscription status');
