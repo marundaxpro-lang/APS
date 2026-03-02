@@ -12,13 +12,14 @@ import {
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import React, { useState, useEffect } from 'react';
-import { authenticatedPost, authenticatedGet } from '@/utils/api';
+import { authenticatedPost, authenticatedGet, BACKEND_URL } from '@/utils/api';
+import Modal from '@/components/ui/Modal';
 
 const plans = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
+    price: '€0',
     priceValue: 0,
     features: [
       'Basic workout tracking',
@@ -31,7 +32,7 @@ const plans = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '$9.99',
+    price: '€9.99',
     priceValue: 9.99,
     period: '/month',
     features: [
@@ -48,7 +49,7 @@ const plans = [
   {
     id: 'elite',
     name: 'Elite',
-    price: '$29.99',
+    price: '€29.99',
     priceValue: 29.99,
     period: '/month',
     features: [
@@ -62,6 +63,9 @@ const plans = [
     color: '#FFD700',
   },
 ];
+
+// European payment methods supported
+const EUROPEAN_PAYMENT_METHODS = ['card', 'ideal', 'paypal', 'sepa_debit', 'bancontact', 'giropay'];
 
 const styles = StyleSheet.create({
   container: {
@@ -99,6 +103,20 @@ const styles = StyleSheet.create({
   currentPlanText: {
     color: colors.primary,
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  premiumBadge: {
+    marginTop: 8,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  premiumBadgeText: {
+    color: '#FFD700',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   plansContainer: {
@@ -178,6 +196,47 @@ const styles = StyleSheet.create({
   buttonTextDisabled: {
     color: colors.textSecondary,
   },
+  cancelButton: {
+    marginTop: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  cancelButtonText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paymentMethodsContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  paymentMethodsTitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  paymentMethodsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  paymentMethodBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  paymentMethodText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
   footer: {
     marginTop: 40,
     padding: 20,
@@ -190,12 +249,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  periodEndText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+  },
 });
+
+interface SubscriptionStatus {
+  id: string;
+  planType: string;
+  status: string;
+  currentPeriodEnd: string | null;
+  isPremium: boolean;
+  stripeSubscriptionId: string | null;
+}
 
 export default function ShopScreen() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string>('free');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [errorModal, setErrorModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [successModal, setSuccessModal] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [cancelConfirmModal, setCancelConfirmModal] = useState(false);
 
   useEffect(() => {
     loadCurrentPlan();
@@ -204,8 +283,9 @@ export default function ShopScreen() {
   const loadCurrentPlan = async () => {
     try {
       console.log('[Shop] Loading current subscription plan...');
-      const response = await authenticatedGet('/api/payments/subscription-status');
-      console.log('[Shop] Current plan:', response.planType);
+      const response = await authenticatedGet<SubscriptionStatus>('/api/payments/subscription-status');
+      console.log('[Shop] Subscription status:', response);
+      setSubscriptionStatus(response);
       setCurrentPlan(response.planType || 'free');
     } catch (error) {
       console.log('[Shop] Could not load subscription status, defaulting to free plan');
@@ -213,6 +293,22 @@ export default function ShopScreen() {
     } finally {
       setLoadingPlan(false);
     }
+  };
+
+  const getSuccessUrl = (): string => {
+    if (Platform.OS === 'web') {
+      // @ts-expect-error - window is available on web
+      return `${window.location.origin}/shop?success=true`;
+    }
+    return `${BACKEND_URL}/payment-success`;
+  };
+
+  const getCancelUrl = (): string => {
+    if (Platform.OS === 'web') {
+      // @ts-expect-error - window is available on web
+      return `${window.location.origin}/shop?cancelled=true`;
+    }
+    return `${BACKEND_URL}/payment-cancelled`;
   };
 
   const handlePlanPress = async (plan: typeof plans[0]) => {
@@ -228,12 +324,16 @@ export default function ShopScreen() {
 
     try {
       console.log('[Shop] Creating checkout session for plan:', plan.id);
-      
-      const response = await authenticatedPost('/api/payments/create-checkout', {
-        planId: plan.id,
-        planName: plan.name,
-        amount: plan.priceValue,
-      });
+
+      const response = await authenticatedPost<{ checkoutUrl: string; sessionId: string }>(
+        '/api/payments/create-checkout',
+        {
+          plan_type: plan.id,
+          success_url: getSuccessUrl(),
+          cancel_url: getCancelUrl(),
+          payment_method_types: EUROPEAN_PAYMENT_METHODS,
+        }
+      );
 
       console.log('[Shop] Checkout response:', response);
 
@@ -242,16 +342,47 @@ export default function ShopScreen() {
         if (supported) {
           console.log('[Shop] Opening checkout URL:', response.checkoutUrl);
           await Linking.openURL(response.checkoutUrl);
+          // Reload plan status after returning from checkout
+          setTimeout(() => loadCurrentPlan(), 2000);
         } else {
           console.error('[Shop] Cannot open URL:', response.checkoutUrl);
+          setErrorModal({ visible: true, message: 'Unable to open payment page. Please try again.' });
         }
       } else {
         console.error('[Shop] No checkout URL in response');
+        setErrorModal({ visible: true, message: 'Failed to create checkout session. Please try again.' });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Shop] Checkout error:', error);
+      setErrorModal({
+        visible: true,
+        message: error?.message || 'Failed to start checkout. Please try again.',
+      });
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setCancelConfirmModal(false);
+    setCancelLoading(true);
+    try {
+      console.log('[Shop] Cancelling subscription...');
+      const response = await authenticatedPost<{ success: boolean; message: string }>(
+        '/api/payments/cancel-subscription',
+        { immediate: true }
+      );
+      console.log('[Shop] Cancel response:', response);
+      setSuccessModal({ visible: true, message: response.message || 'Subscription cancelled successfully.' });
+      await loadCurrentPlan();
+    } catch (error: any) {
+      console.error('[Shop] Cancel error:', error);
+      setErrorModal({
+        visible: true,
+        message: error?.message || 'Failed to cancel subscription. Please try again.',
+      });
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -264,6 +395,18 @@ export default function ShopScreen() {
   }
 
   const currentPlanName = plans.find(p => p.id === currentPlan)?.name || 'Free';
+  const isPremium = subscriptionStatus?.isPremium || false;
+  const hasActiveStripeSubscription = !!(subscriptionStatus?.stripeSubscriptionId && subscriptionStatus?.status === 'active' && currentPlan !== 'free');
+
+  const formatPeriodEnd = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-NL', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -282,6 +425,16 @@ export default function ShopScreen() {
               Current Plan: {currentPlanName}
             </Text>
           </View>
+          {isPremium && (
+            <View style={styles.premiumBadge}>
+              <Text style={styles.premiumBadgeText}>✨ PREMIUM ACTIVE</Text>
+            </View>
+          )}
+          {subscriptionStatus?.currentPeriodEnd && hasActiveStripeSubscription && (
+            <Text style={styles.periodEndText}>
+              Renews on {formatPeriodEnd(subscriptionStatus.currentPeriodEnd)}
+            </Text>
+          )}
         </View>
 
         <View style={styles.plansContainer}>
@@ -289,6 +442,7 @@ export default function ShopScreen() {
             const isLoading = loading === plan.id;
             const isCurrentPlan = plan.id === currentPlan;
             const buttonColor = isCurrentPlan ? 'rgba(255, 255, 255, 0.1)' : plan.color;
+            const showPaymentMethods = plan.id !== 'free';
 
             return (
               <View
@@ -330,6 +484,19 @@ export default function ShopScreen() {
                   ))}
                 </View>
 
+                {showPaymentMethods && (
+                  <View style={styles.paymentMethodsContainer}>
+                    <Text style={styles.paymentMethodsTitle}>Accepted payment methods:</Text>
+                    <View style={styles.paymentMethodsList}>
+                      {['Credit/Debit Card', 'Apple Pay', 'iDEAL', 'PayPal', 'SEPA', 'Bancontact', 'Giropay'].map((method) => (
+                        <View key={method} style={styles.paymentMethodBadge}>
+                          <Text style={styles.paymentMethodText}>{method}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={[
                     styles.button,
@@ -348,10 +515,24 @@ export default function ShopScreen() {
                         isCurrentPlan && styles.buttonTextDisabled,
                       ]}
                     >
-                      {isCurrentPlan ? 'Current Plan' : 'Get Started'}
+                      {isCurrentPlan ? 'Current Plan' : plan.id === 'free' ? 'Downgrade to Free' : 'Get Started'}
                     </Text>
                   )}
                 </TouchableOpacity>
+
+                {isCurrentPlan && hasActiveStripeSubscription && plan.id !== 'free' && (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setCancelConfirmModal(true)}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? (
+                      <ActivityIndicator color="#ef4444" size="small" />
+                    ) : (
+                      <Text style={styles.cancelButtonText}>Cancel Subscription</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -361,10 +542,43 @@ export default function ShopScreen() {
           <Text style={styles.footerText}>
             All plans include a 7-day free trial. Cancel anytime.{'\n'}
             Secure payment powered by Stripe.{'\n'}
-            Supports all major payment methods including credit cards, PayPal, and iDEAL.
+            Supports iDEAL, Apple Pay, credit cards, PayPal, SEPA, Bancontact & Giropay.{'\n'}
+            Prices in EUR (€) — optimised for European customers.
           </Text>
         </View>
       </ScrollView>
+
+      {/* Error Modal */}
+      <Modal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, message: '' })}
+        title="Payment Error"
+        message={errorModal.message}
+        type="error"
+        confirmText="OK"
+      />
+
+      {/* Success Modal */}
+      <Modal
+        visible={successModal.visible}
+        onClose={() => setSuccessModal({ visible: false, message: '' })}
+        title="Success"
+        message={successModal.message}
+        type="success"
+        confirmText="OK"
+      />
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        visible={cancelConfirmModal}
+        onClose={() => setCancelConfirmModal(false)}
+        title="Cancel Subscription"
+        message="Are you sure you want to cancel your subscription? You will lose access to premium features immediately."
+        type="confirm"
+        confirmText="Cancel Subscription"
+        cancelText="Keep Plan"
+        onConfirm={handleCancelSubscription}
+      />
     </View>
   );
 }
