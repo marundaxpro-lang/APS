@@ -103,11 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUser = async () => {
+    console.log("[AuthContext] Fetching user session");
     try {
       setLoading(true);
       const session = await authClient.getSession();
+      console.log("[AuthContext] Session data:", session?.data?.user ? "User found" : "No user");
+      
       if (session?.data?.user) {
-        setUser(session.data.user as User);
+        const userData = session.data.user as User;
+        setUser(userData);
+        console.log("[AuthContext] User set:", userData.email);
         
         // Fetch premium status
         try {
@@ -120,24 +125,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsPremium(false);
         }
       } else {
+        console.log("[AuthContext] No session found, clearing user state");
         setUser(null);
         setIsPremium(false);
       }
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      console.error("[AuthContext] Failed to fetch user:", error);
       setUser(null);
       setIsPremium(false);
     } finally {
       setLoading(false);
+      console.log("[AuthContext] Fetch user complete");
     }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    console.log("[AuthContext] Starting email sign in for:", email);
     try {
+      // Clear any existing data first
+      setUser(null);
+      setIsPremium(false);
+      
       await authClient.signIn.email({ email, password });
+      console.log("[AuthContext] Email sign in successful, fetching user data");
       await fetchUser();
+      console.log("[AuthContext] Email sign in complete");
     } catch (error) {
-      console.error("Email sign in failed:", error);
+      console.error("[AuthContext] Email sign in failed:", error);
       throw error;
     }
   };
@@ -145,6 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     console.log("[AuthContext] Starting email signup for:", email);
     try {
+      // Clear any existing data first
+      setUser(null);
+      setIsPremium(false);
+      
       // Use the custom signup endpoint that sends welcome emails
       const { apiPost } = await import('@/utils/api');
       const result = await apiPost('/api/auth/signup/email-with-welcome', {
@@ -174,6 +192,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     console.log("[AuthContext] Starting Google sign in, platform:", Platform.OS);
     try {
+      // Clear any existing data first
+      setUser(null);
+      setIsPremium(false);
+      
       if (Platform.OS === "web") {
         console.log("[AuthContext] Opening Google OAuth popup");
         const token = await openOAuthPopup("google");
@@ -201,6 +223,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = async () => {
     console.log("[AuthContext] Starting Apple sign in, platform:", Platform.OS);
     try {
+      // Clear any existing data first
+      setUser(null);
+      setIsPremium(false);
+      
       if (Platform.OS === "web") {
         console.log("[AuthContext] Opening Apple OAuth popup");
         const token = await openOAuthPopup("apple");
@@ -223,43 +249,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGitHub = async () => {
+    console.log("[AuthContext] Starting GitHub sign in, platform:", Platform.OS);
     try {
+      // Clear any existing data first
+      setUser(null);
+      setIsPremium(false);
+      
       if (Platform.OS === "web") {
+        console.log("[AuthContext] Opening GitHub OAuth popup");
         const token = await openOAuthPopup("github");
         storeWebBearerToken(token);
         await fetchUser();
+        console.log("[AuthContext] GitHub sign in complete");
       } else {
+        console.log("[AuthContext] Starting native GitHub OAuth flow");
         await authClient.signIn.social({
           provider: "github",
           callbackURL: "/profile",
         });
         await fetchUser();
+        console.log("[AuthContext] GitHub sign in complete");
       }
     } catch (error) {
-      console.error("GitHub sign in failed:", error);
+      console.error("[AuthContext] GitHub sign in failed:", error);
       throw error;
     }
   };
 
   const signOut = async () => {
+    console.log("[AuthContext] Starting sign out process");
     try {
       // Clear user state immediately in finally block for better UX
       await authClient.signOut();
+      console.log("[AuthContext] Backend sign out successful");
     } catch (error) {
-      console.error("Sign out failed:", error);
+      console.error("[AuthContext] Sign out failed:", error);
       // Still clear local state even if server signout fails
     } finally {
+      console.log("[AuthContext] Clearing local user state and storage");
       setUser(null);
+      setIsPremium(false);
+      
       // Clear bearer token from storage
       if (Platform.OS === "web") {
         localStorage.removeItem("apex-fitness_bearer_token");
+        console.log("[AuthContext] Cleared web bearer token");
       } else {
         try {
           await require("expo-secure-store").deleteItemAsync("apex-fitness_bearer_token");
+          console.log("[AuthContext] Cleared native bearer token");
         } catch (e) {
-          console.error("Failed to clear secure store:", e);
+          console.error("[AuthContext] Failed to clear secure store:", e);
         }
       }
+      
+      // Clear all AsyncStorage data to prevent data leakage between accounts
+      try {
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        const keys = await AsyncStorage.default.getAllKeys();
+        console.log("[AuthContext] Clearing AsyncStorage keys:", keys);
+        await AsyncStorage.default.multiRemove(keys);
+        console.log("[AuthContext] AsyncStorage cleared successfully");
+      } catch (e) {
+        console.error("[AuthContext] Failed to clear AsyncStorage:", e);
+      }
+      
+      console.log("[AuthContext] Sign out complete");
     }
   };
 
