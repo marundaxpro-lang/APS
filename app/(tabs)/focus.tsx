@@ -19,6 +19,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { authenticatedGet, authenticatedPost, authenticatedPut, authenticatedDelete } from '@/utils/api';
 import CustomModal from '@/components/ui/Modal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserTask {
   id: string;
@@ -70,6 +71,7 @@ const CATEGORY_ICONS = {
 };
 
 export default function DisciplineModeScreen() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<UserTask[]>([]);
   const [showTimerModal, setShowTimerModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
@@ -140,7 +142,14 @@ export default function DisciplineModeScreen() {
   }, [isTimerRunning, timeLeft, loadTimerState, saveTimerState]);
 
   useEffect(() => {
-    loadTasks();
+    // Only load tasks if user is authenticated
+    if (user) {
+      loadTasks();
+    } else {
+      console.log('[Discipline] User not authenticated, skipping task load');
+      setLoading(false);
+    }
+    
     loadStreak();
     loadTimerState();
 
@@ -149,7 +158,7 @@ export default function DisciplineModeScreen() {
     return () => {
       subscription.remove();
     };
-  }, [handleAppStateChange, loadTimerState]);
+  }, [user, handleAppStateChange, loadTimerState]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -207,8 +216,14 @@ export default function DisciplineModeScreen() {
         setTasks([]);
       }
     } catch (error) {
-      console.error('[Discipline] Error loading tasks:', error);
-      setTasks([]);
+      // Silently handle auth errors - user might not be logged in yet
+      if (error instanceof Error && error.message.includes('Authentication token not found')) {
+        console.log('[Discipline] User not authenticated, skipping task load');
+        setTasks([]);
+      } else {
+        console.error('[Discipline] Error loading tasks:', error);
+        setTasks([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -236,6 +251,12 @@ export default function DisciplineModeScreen() {
   };
 
   const toggleTask = async (taskId: string) => {
+    if (!user) {
+      setErrorMessage('Please sign in to manage tasks');
+      setShowErrorModal(true);
+      return;
+    }
+
     console.log('[Discipline] User toggled task:', taskId);
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -275,6 +296,12 @@ export default function DisciplineModeScreen() {
   };
 
   const addTask = async () => {
+    if (!user) {
+      setErrorMessage('Please sign in to add tasks');
+      setShowErrorModal(true);
+      return;
+    }
+
     if (!newTaskTitle.trim()) {
       setErrorMessage('Please enter a task title');
       setShowErrorModal(true);
@@ -304,6 +331,12 @@ export default function DisciplineModeScreen() {
   };
 
   const deleteTask = async (taskId: string) => {
+    if (!user) {
+      setErrorMessage('Please sign in to delete tasks');
+      setShowErrorModal(true);
+      return;
+    }
+
     console.log('[Discipline] User deleting task:', taskId);
     
     // Optimistic update
@@ -513,7 +546,18 @@ export default function DisciplineModeScreen() {
             </TouchableOpacity>
           </View>
 
-          {loading ? (
+          {!user ? (
+            <View style={styles.emptyState}>
+              <IconSymbol 
+                ios_icon_name="person.circle" 
+                android_material_icon_name="account-circle" 
+                size={48} 
+                color={colors.grey} 
+              />
+              <Text style={styles.emptyText}>Sign in to manage tasks</Text>
+              <Text style={styles.emptySubtext}>Create an account to sync your tasks across devices</Text>
+            </View>
+          ) : loading ? (
             <Text style={styles.emptyText}>Loading tasks...</Text>
           ) : tasks.length === 0 ? (
             <View style={styles.emptyState}>
