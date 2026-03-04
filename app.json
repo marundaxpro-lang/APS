@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Apex Fitness",
-    "slug": "Apex Fitness",
+    "slug": "apex-fitness",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -36,7 +36,7 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "Apex Fitness",
+    "scheme": "apexfitness",
     "experiments": {
       "typedRoutes": true
     },

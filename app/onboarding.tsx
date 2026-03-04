@@ -10,6 +10,7 @@ import {
   TextInput,
   Dimensions,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -763,61 +764,74 @@ export default function OnboardingScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ParticleBackground />
       
-      <View style={styles.content}>
-        <View style={styles.progressBar}>
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-            <View
-              key={s}
-              style={[
-                styles.progressDot,
-                s <= step && styles.progressDotActive,
-              ]}
-            />
-          ))}
-        </View>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <View style={styles.progressBar}>
+              {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+                <View
+                  key={s}
+                  style={[
+                    styles.progressDot,
+                    s <= step && styles.progressDotActive,
+                  ]}
+                />
+              ))}
+            </View>
 
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
-        {step === 5 && renderStep5()}
-        {step === 6 && renderStep6()}
-        {step === 7 && renderStep7()}
+            {step === 1 && renderStep1()}
+            {step === 2 && renderStep2()}
+            {step === 3 && renderStep3()}
+            {step === 4 && renderStep4()}
+            {step === 5 && renderStep5()}
+            {step === 6 && renderStep6()}
+            {step === 7 && renderStep7()}
 
-        <View style={styles.navigation}>
-          {step > 1 && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => {
-                console.log('[Onboarding] User tapped Back');
-                setStep(step - 1);
-              }}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              !canProceed() && styles.nextButtonDisabled,
-            ]}
-            onPress={() => {
-              if (step < 7) {
-                console.log('[Onboarding] User tapped Next');
-                setStep(step + 1);
-              } else {
-                saveProfile();
-              }
-            }}
-            disabled={!canProceed()}
-          >
-            <Text style={styles.nextButtonText}>
-              {step === 7 ? 'Start My Journey' : 'Next'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <View style={styles.navigation}>
+              {step > 1 && (
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => {
+                    console.log('[Onboarding] User tapped Back');
+                    setStep(step - 1);
+                  }}
+                >
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  !canProceed() && styles.nextButtonDisabled,
+                ]}
+                onPress={() => {
+                  if (step < 7) {
+                    console.log('[Onboarding] User tapped Next');
+                    setStep(step + 1);
+                  } else {
+                    saveProfile();
+                  }
+                }}
+                disabled={!canProceed()}
+              >
+                <Text style={styles.nextButtonText}>
+                  {step === 7 ? 'Start My Journey' : 'Next'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={showSuccessModal}
@@ -849,6 +863,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
