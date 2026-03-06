@@ -25,17 +25,15 @@ interface MacroMeal {
   C: number;
   F: number;
   category: 'high_protein' | 'high_carb' | 'balanced' | 'light';
-}
-
-interface SmartAddOption {
-  id: string;
-  label: string;
-  example: string;
-  kcal: number;
-  P: number;
-  C: number;
-  F: number;
-  color: string;
+  ingredients?: Array<{
+    name: string;
+    amount: string;
+    kcal: number;
+    P: number;
+    C: number;
+    F: number;
+  }>;
+  instructions?: string[];
 }
 
 interface NutritionLogEntry {
@@ -43,7 +41,7 @@ interface NutritionLogEntry {
   timestamp: string;
   mealSlot?: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks';
   label: string;
-  type: 'smart_add' | 'template' | 'manual' | 'macro_meal';
+  type: 'template' | 'manual' | 'macro_meal';
   kcal: number;
   P: number;
   C: number;
@@ -70,43 +68,476 @@ interface TodaysPlan {
 }
 
 const MACRO_MEALS_LIBRARY: MacroMeal[] = [
-  { id: 'skyr_whey_berries', label: 'Skyr + whey + berries', kcal: 350, P: 40, C: 30, F: 8, category: 'high_protein' },
-  { id: 'chicken_rice_bowl', label: 'Chicken rice bowl', kcal: 650, P: 50, C: 70, F: 15, category: 'balanced' },
-  { id: 'tuna_wrap', label: 'Tuna wrap', kcal: 400, P: 30, C: 40, F: 12, category: 'balanced' },
-  { id: 'oats_banana', label: 'Oats + banana', kcal: 300, P: 10, C: 50, F: 7, category: 'high_carb' },
-  { id: 'eggs_toast', label: 'Eggs + toast', kcal: 380, P: 25, C: 35, F: 15, category: 'balanced' },
-  { id: 'protein_shake', label: 'Protein shake', kcal: 180, P: 30, C: 8, F: 3, category: 'high_protein' },
-  { id: 'greek_yogurt_granola', label: 'Greek yogurt + granola', kcal: 320, P: 20, C: 40, F: 8, category: 'balanced' },
-  { id: 'salmon_sweet_potato', label: 'Salmon + sweet potato', kcal: 550, P: 40, C: 50, F: 18, category: 'balanced' },
-  { id: 'turkey_avocado_wrap', label: 'Turkey avocado wrap', kcal: 480, P: 35, C: 45, F: 16, category: 'balanced' },
-  { id: 'cottage_cheese_fruit', label: 'Cottage cheese + fruit', kcal: 250, P: 25, C: 30, F: 5, category: 'high_protein' },
-  { id: 'beef_quinoa_bowl', label: 'Beef quinoa bowl', kcal: 620, P: 45, C: 60, F: 20, category: 'balanced' },
-  { id: 'protein_pancakes', label: 'Protein pancakes', kcal: 420, P: 35, C: 45, F: 10, category: 'high_protein' },
-  { id: 'chicken_pasta', label: 'Chicken pasta', kcal: 680, P: 48, C: 75, F: 18, category: 'high_carb' },
-  { id: 'egg_white_omelette', label: 'Egg white omelette', kcal: 220, P: 28, C: 10, F: 8, category: 'high_protein' },
-  { id: 'rice_cakes_pb', label: 'Rice cakes + PB', kcal: 280, P: 12, C: 35, F: 12, category: 'high_carb' },
-  { id: 'tuna_salad', label: 'Tuna salad', kcal: 320, P: 35, C: 15, F: 14, category: 'high_protein' },
-  { id: 'smoothie_bowl', label: 'Smoothie bowl', kcal: 380, P: 20, C: 55, F: 10, category: 'high_carb' },
-  { id: 'steak_veggies', label: 'Steak + veggies', kcal: 520, P: 48, C: 25, F: 26, category: 'high_protein' },
-  { id: 'bagel_cream_cheese', label: 'Bagel + cream cheese', kcal: 350, P: 12, C: 50, F: 12, category: 'high_carb' },
-  { id: 'protein_bar', label: 'Protein bar', kcal: 200, P: 20, C: 22, F: 6, category: 'high_protein' },
-  { id: 'apple_almond_butter', label: 'Apple + almond butter', kcal: 220, P: 6, C: 28, F: 12, category: 'light' },
-  { id: 'chicken_salad', label: 'Chicken salad', kcal: 380, P: 40, C: 20, F: 16, category: 'high_protein' },
-  { id: 'pasta_marinara', label: 'Pasta marinara', kcal: 480, P: 18, C: 75, F: 12, category: 'high_carb' },
-  { id: 'turkey_sandwich', label: 'Turkey sandwich', kcal: 420, P: 32, C: 48, F: 12, category: 'balanced' },
-  { id: 'protein_oats', label: 'Protein oats', kcal: 380, P: 28, C: 50, F: 8, category: 'balanced' },
-  { id: 'shrimp_rice', label: 'Shrimp + rice', kcal: 450, P: 38, C: 55, F: 8, category: 'balanced' },
-  { id: 'nuts_mix', label: 'Mixed nuts', kcal: 180, P: 6, C: 8, F: 16, category: 'light' },
-  { id: 'hummus_veggies', label: 'Hummus + veggies', kcal: 200, P: 8, C: 24, F: 10, category: 'light' },
-  { id: 'chicken_wrap', label: 'Chicken wrap', kcal: 520, P: 42, C: 50, F: 16, category: 'balanced' },
-  { id: 'overnight_oats', label: 'Overnight oats', kcal: 340, P: 15, C: 52, F: 9, category: 'high_carb' },
-];
-
-const SMART_ADD_OPTIONS: SmartAddOption[] = [
-  { id: 'quick_meal', label: 'Quick Meal', example: 'Chicken + rice', kcal: 600, P: 35, C: 60, F: 15, color: '#459b9b' },
-  { id: 'protein_boost', label: 'Protein Boost', example: 'Skyr / whey', kcal: 200, P: 30, C: 5, F: 5, color: '#ef4444' },
-  { id: 'carb_boost', label: 'Carb Boost', example: 'Oats / banana', kcal: 280, P: 5, C: 60, F: 2, color: '#f59e0b' },
-  { id: 'fat_addon', label: 'Fat Add-on', example: 'Nuts / olive oil', kcal: 180, P: 0, C: 0, F: 20, color: '#8b5cf6' },
+  { 
+    id: 'skyr_whey_berries', 
+    label: 'Skyr + whey + berries', 
+    kcal: 350, 
+    P: 40, 
+    C: 30, 
+    F: 8, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Skyr (plain)', amount: '200g', kcal: 120, P: 20, C: 8, F: 0 },
+      { name: 'Whey protein', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
+      { name: 'Mixed berries', amount: '150g', kcal: 80, P: 1, C: 18, F: 0 },
+      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
+    ],
+    instructions: ['Mix skyr with whey protein', 'Top with fresh berries', 'Drizzle honey on top']
+  },
+  { 
+    id: 'chicken_rice_bowl', 
+    label: 'Chicken rice bowl', 
+    kcal: 650, 
+    P: 50, 
+    C: 70, 
+    F: 15, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Chicken breast', amount: '200g', kcal: 330, P: 62, C: 0, F: 7 },
+      { name: 'White rice (cooked)', amount: '200g', kcal: 260, P: 5, C: 58, F: 0 },
+      { name: 'Broccoli', amount: '100g', kcal: 35, P: 3, C: 7, F: 0 },
+      { name: 'Olive oil', amount: '5ml', kcal: 45, P: 0, C: 0, F: 5 }
+    ],
+    instructions: ['Grill chicken breast with seasoning', 'Cook rice according to package', 'Steam broccoli', 'Combine in bowl and drizzle with olive oil']
+  },
+  { 
+    id: 'tuna_wrap', 
+    label: 'Tuna wrap', 
+    kcal: 400, 
+    P: 30, 
+    C: 40, 
+    F: 12, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Tuna (canned in water)', amount: '150g', kcal: 165, P: 36, C: 0, F: 2 },
+      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
+      { name: 'Lettuce', amount: '50g', kcal: 8, P: 1, C: 2, F: 0 },
+      { name: 'Light mayo', amount: '15g', kcal: 50, P: 0, C: 2, F: 5 }
+    ],
+    instructions: ['Drain tuna and mix with mayo', 'Lay tortilla flat and add lettuce', 'Add tuna mixture', 'Roll tightly and cut in half']
+  },
+  { 
+    id: 'oats_banana', 
+    label: 'Oats + banana', 
+    kcal: 300, 
+    P: 10, 
+    C: 50, 
+    F: 7, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
+      { name: 'Banana', amount: '1 medium', kcal: 105, P: 1, C: 27, F: 0 },
+      { name: 'Almond butter', amount: '10g', kcal: 60, P: 2, C: 2, F: 5 }
+    ],
+    instructions: ['Cook oats with water or milk', 'Slice banana on top', 'Add a dollop of almond butter', 'Optional: sprinkle cinnamon']
+  },
+  { 
+    id: 'eggs_toast', 
+    label: 'Eggs + toast', 
+    kcal: 380, 
+    P: 25, 
+    C: 35, 
+    F: 15, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Eggs', amount: '3 large', kcal: 210, P: 18, C: 2, F: 15 },
+      { name: 'Whole wheat bread', amount: '2 slices', kcal: 160, P: 8, C: 30, F: 2 },
+      { name: 'Butter', amount: '5g', kcal: 36, P: 0, C: 0, F: 4 }
+    ],
+    instructions: ['Scramble or fry eggs', 'Toast bread', 'Spread butter on toast', 'Serve eggs on toast']
+  },
+  { 
+    id: 'protein_shake', 
+    label: 'Protein shake', 
+    kcal: 180, 
+    P: 30, 
+    C: 8, 
+    F: 3, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Whey protein', amount: '40g', kcal: 160, P: 32, C: 4, F: 2 },
+      { name: 'Almond milk', amount: '250ml', kcal: 30, P: 1, C: 1, F: 2 }
+    ],
+    instructions: ['Add protein powder to shaker', 'Pour in almond milk', 'Shake vigorously for 30 seconds', 'Drink immediately']
+  },
+  { 
+    id: 'greek_yogurt_granola', 
+    label: 'Greek yogurt + granola', 
+    kcal: 320, 
+    P: 20, 
+    C: 40, 
+    F: 8, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Greek yogurt (plain)', amount: '200g', kcal: 130, P: 20, C: 9, F: 0 },
+      { name: 'Granola', amount: '40g', kcal: 180, P: 4, C: 28, F: 6 },
+      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
+    ],
+    instructions: ['Spoon yogurt into bowl', 'Top with granola', 'Drizzle honey over top']
+  },
+  { 
+    id: 'salmon_sweet_potato', 
+    label: 'Salmon + sweet potato', 
+    kcal: 550, 
+    P: 40, 
+    C: 50, 
+    F: 18, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Salmon fillet', amount: '150g', kcal: 280, P: 34, C: 0, F: 17 },
+      { name: 'Sweet potato', amount: '200g', kcal: 180, P: 4, C: 42, F: 0 },
+      { name: 'Asparagus', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
+      { name: 'Olive oil', amount: '5ml', kcal: 45, P: 0, C: 0, F: 5 }
+    ],
+    instructions: ['Bake salmon at 200°C for 15 minutes', 'Roast sweet potato cubes', 'Grill asparagus with olive oil', 'Plate and season to taste']
+  },
+  { 
+    id: 'turkey_avocado_wrap', 
+    label: 'Turkey avocado wrap', 
+    kcal: 480, 
+    P: 35, 
+    C: 45, 
+    F: 16, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Turkey breast', amount: '120g', kcal: 135, P: 30, C: 0, F: 1 },
+      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
+      { name: 'Avocado', amount: '50g', kcal: 80, P: 1, C: 4, F: 7 },
+      { name: 'Tomato', amount: '50g', kcal: 9, P: 0, C: 2, F: 0 },
+      { name: 'Lettuce', amount: '30g', kcal: 5, P: 0, C: 1, F: 0 }
+    ],
+    instructions: ['Lay tortilla flat', 'Layer turkey, avocado, tomato, and lettuce', 'Roll tightly', 'Cut diagonally']
+  },
+  { 
+    id: 'cottage_cheese_fruit', 
+    label: 'Cottage cheese + fruit', 
+    kcal: 250, 
+    P: 25, 
+    C: 30, 
+    F: 5, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Cottage cheese (low-fat)', amount: '200g', kcal: 160, P: 28, C: 8, F: 4 },
+      { name: 'Pineapple chunks', amount: '100g', kcal: 50, P: 1, C: 13, F: 0 },
+      { name: 'Strawberries', amount: '50g', kcal: 16, P: 0, C: 4, F: 0 }
+    ],
+    instructions: ['Spoon cottage cheese into bowl', 'Top with fresh fruit', 'Mix gently before eating']
+  },
+  { 
+    id: 'beef_quinoa_bowl', 
+    label: 'Beef quinoa bowl', 
+    kcal: 620, 
+    P: 45, 
+    C: 60, 
+    F: 20, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Lean ground beef', amount: '150g', kcal: 310, P: 38, C: 0, F: 17 },
+      { name: 'Quinoa (cooked)', amount: '150g', kcal: 180, P: 6, C: 32, F: 3 },
+      { name: 'Bell peppers', amount: '100g', kcal: 31, P: 1, C: 6, F: 0 },
+      { name: 'Black beans', amount: '50g', kcal: 60, P: 4, C: 11, F: 0 }
+    ],
+    instructions: ['Brown ground beef in pan', 'Cook quinoa according to package', 'Sauté bell peppers', 'Combine all in bowl with black beans']
+  },
+  { 
+    id: 'protein_pancakes', 
+    label: 'Protein pancakes', 
+    kcal: 420, 
+    P: 35, 
+    C: 45, 
+    F: 10, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Protein powder', amount: '40g', kcal: 160, P: 32, C: 4, F: 2 },
+      { name: 'Oat flour', amount: '50g', kcal: 185, P: 7, C: 33, F: 3 },
+      { name: 'Egg whites', amount: '100ml', kcal: 52, P: 11, C: 1, F: 0 },
+      { name: 'Banana (mashed)', amount: '1 small', kcal: 90, P: 1, C: 23, F: 0 }
+    ],
+    instructions: ['Mix all ingredients until smooth', 'Heat non-stick pan', 'Pour batter to form pancakes', 'Flip when bubbles form', 'Serve with berries']
+  },
+  { 
+    id: 'chicken_pasta', 
+    label: 'Chicken pasta', 
+    kcal: 680, 
+    P: 48, 
+    C: 75, 
+    F: 18, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Chicken breast', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
+      { name: 'Whole wheat pasta', amount: '100g dry', kcal: 350, P: 13, C: 70, F: 3 },
+      { name: 'Tomato sauce', amount: '100g', kcal: 40, P: 2, C: 8, F: 0 },
+      { name: 'Parmesan cheese', amount: '10g', kcal: 43, P: 4, C: 0, F: 3 }
+    ],
+    instructions: ['Cook pasta al dente', 'Grill and slice chicken', 'Heat tomato sauce', 'Toss pasta with sauce and chicken', 'Top with parmesan']
+  },
+  { 
+    id: 'egg_white_omelette', 
+    label: 'Egg white omelette', 
+    kcal: 220, 
+    P: 28, 
+    C: 10, 
+    F: 8, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Egg whites', amount: '250ml', kcal: 130, P: 27, C: 2, F: 0 },
+      { name: 'Spinach', amount: '50g', kcal: 12, P: 1, C: 2, F: 0 },
+      { name: 'Mushrooms', amount: '50g', kcal: 11, P: 2, C: 2, F: 0 },
+      { name: 'Feta cheese', amount: '20g', kcal: 53, P: 4, C: 1, F: 4 },
+      { name: 'Olive oil', amount: '3ml', kcal: 27, P: 0, C: 0, F: 3 }
+    ],
+    instructions: ['Heat oil in pan', 'Sauté spinach and mushrooms', 'Pour egg whites over vegetables', 'Add feta and fold omelette']
+  },
+  { 
+    id: 'rice_cakes_pb', 
+    label: 'Rice cakes + PB', 
+    kcal: 280, 
+    P: 12, 
+    C: 35, 
+    F: 12, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Rice cakes', amount: '3 cakes', kcal: 105, P: 3, C: 24, F: 1 },
+      { name: 'Peanut butter', amount: '25g', kcal: 150, P: 7, C: 6, F: 13 },
+      { name: 'Banana slices', amount: '50g', kcal: 45, P: 1, C: 11, F: 0 }
+    ],
+    instructions: ['Spread peanut butter on rice cakes', 'Top with banana slices', 'Optional: drizzle honey']
+  },
+  { 
+    id: 'tuna_salad', 
+    label: 'Tuna salad', 
+    kcal: 320, 
+    P: 35, 
+    C: 15, 
+    F: 14, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Tuna (canned)', amount: '150g', kcal: 165, P: 36, C: 0, F: 2 },
+      { name: 'Mixed greens', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
+      { name: 'Cherry tomatoes', amount: '100g', kcal: 18, P: 1, C: 4, F: 0 },
+      { name: 'Cucumber', amount: '50g', kcal: 8, P: 0, C: 2, F: 0 },
+      { name: 'Olive oil dressing', amount: '15ml', kcal: 120, P: 0, C: 0, F: 14 }
+    ],
+    instructions: ['Arrange greens in bowl', 'Add tuna, tomatoes, and cucumber', 'Drizzle with olive oil dressing', 'Toss gently']
+  },
+  { 
+    id: 'smoothie_bowl', 
+    label: 'Smoothie bowl', 
+    kcal: 380, 
+    P: 20, 
+    C: 55, 
+    F: 10, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Frozen berries', amount: '150g', kcal: 80, P: 1, C: 18, F: 0 },
+      { name: 'Banana', amount: '1 medium', kcal: 105, P: 1, C: 27, F: 0 },
+      { name: 'Protein powder', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
+      { name: 'Almond milk', amount: '100ml', kcal: 13, P: 0, C: 1, F: 1 },
+      { name: 'Granola topping', amount: '20g', kcal: 90, P: 2, C: 14, F: 3 }
+    ],
+    instructions: ['Blend berries, banana, protein, and milk until thick', 'Pour into bowl', 'Top with granola and extra berries']
+  },
+  { 
+    id: 'steak_veggies', 
+    label: 'Steak + veggies', 
+    kcal: 520, 
+    P: 48, 
+    C: 25, 
+    F: 26, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Sirloin steak', amount: '200g', kcal: 380, P: 50, C: 0, F: 20 },
+      { name: 'Broccoli', amount: '150g', kcal: 52, P: 4, C: 10, F: 1 },
+      { name: 'Carrots', amount: '100g', kcal: 41, P: 1, C: 10, F: 0 },
+      { name: 'Butter', amount: '5g', kcal: 36, P: 0, C: 0, F: 4 }
+    ],
+    instructions: ['Season and grill steak to desired doneness', 'Steam broccoli and carrots', 'Toss vegetables with butter', 'Let steak rest before slicing']
+  },
+  { 
+    id: 'bagel_cream_cheese', 
+    label: 'Bagel + cream cheese', 
+    kcal: 350, 
+    P: 12, 
+    C: 50, 
+    F: 12, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Whole wheat bagel', amount: '1 bagel', kcal: 245, P: 10, C: 48, F: 2 },
+      { name: 'Light cream cheese', amount: '30g', kcal: 70, P: 3, C: 2, F: 6 },
+      { name: 'Smoked salmon', amount: '30g', kcal: 35, P: 7, C: 0, F: 1 }
+    ],
+    instructions: ['Toast bagel', 'Spread cream cheese', 'Top with smoked salmon', 'Optional: add capers and red onion']
+  },
+  { 
+    id: 'protein_bar', 
+    label: 'Protein bar', 
+    kcal: 200, 
+    P: 20, 
+    C: 22, 
+    F: 6, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Protein bar (store-bought)', amount: '1 bar (60g)', kcal: 200, P: 20, C: 22, F: 6 }
+    ],
+    instructions: ['Unwrap and enjoy', 'Great for on-the-go']
+  },
+  { 
+    id: 'apple_almond_butter', 
+    label: 'Apple + almond butter', 
+    kcal: 220, 
+    P: 6, 
+    C: 28, 
+    F: 12, 
+    category: 'light',
+    ingredients: [
+      { name: 'Apple', amount: '1 medium', kcal: 95, P: 0, C: 25, F: 0 },
+      { name: 'Almond butter', amount: '20g', kcal: 120, P: 4, C: 4, F: 11 }
+    ],
+    instructions: ['Slice apple into wedges', 'Serve with almond butter for dipping']
+  },
+  { 
+    id: 'chicken_salad', 
+    label: 'Chicken salad', 
+    kcal: 380, 
+    P: 40, 
+    C: 20, 
+    F: 16, 
+    category: 'high_protein',
+    ingredients: [
+      { name: 'Grilled chicken breast', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
+      { name: 'Mixed greens', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
+      { name: 'Cherry tomatoes', amount: '100g', kcal: 18, P: 1, C: 4, F: 0 },
+      { name: 'Avocado', amount: '50g', kcal: 80, P: 1, C: 4, F: 7 },
+      { name: 'Balsamic vinaigrette', amount: '15ml', kcal: 45, P: 0, C: 2, F: 4 }
+    ],
+    instructions: ['Arrange greens in bowl', 'Top with sliced chicken', 'Add tomatoes and avocado', 'Drizzle with vinaigrette']
+  },
+  { 
+    id: 'pasta_marinara', 
+    label: 'Pasta marinara', 
+    kcal: 480, 
+    P: 18, 
+    C: 75, 
+    F: 12, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Whole wheat pasta', amount: '100g dry', kcal: 350, P: 13, C: 70, F: 3 },
+      { name: 'Marinara sauce', amount: '150g', kcal: 60, P: 2, C: 12, F: 1 },
+      { name: 'Parmesan cheese', amount: '15g', kcal: 64, P: 6, C: 0, F: 4 },
+      { name: 'Fresh basil', amount: '5g', kcal: 1, P: 0, C: 0, F: 0 }
+    ],
+    instructions: ['Cook pasta al dente', 'Heat marinara sauce', 'Toss pasta with sauce', 'Top with parmesan and basil']
+  },
+  { 
+    id: 'turkey_sandwich', 
+    label: 'Turkey sandwich', 
+    kcal: 420, 
+    P: 32, 
+    C: 48, 
+    F: 12, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Whole wheat bread', amount: '2 slices', kcal: 160, P: 8, C: 30, F: 2 },
+      { name: 'Turkey breast', amount: '100g', kcal: 113, P: 25, C: 0, F: 1 },
+      { name: 'Swiss cheese', amount: '20g', kcal: 76, P: 6, C: 0, F: 6 },
+      { name: 'Lettuce & tomato', amount: '50g', kcal: 10, P: 1, C: 2, F: 0 },
+      { name: 'Mustard', amount: '10g', kcal: 5, P: 0, C: 1, F: 0 }
+    ],
+    instructions: ['Toast bread if desired', 'Layer turkey, cheese, lettuce, and tomato', 'Spread mustard', 'Close sandwich and cut']
+  },
+  { 
+    id: 'protein_oats', 
+    label: 'Protein oats', 
+    kcal: 380, 
+    P: 28, 
+    C: 50, 
+    F: 8, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
+      { name: 'Protein powder', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
+      { name: 'Blueberries', amount: '50g', kcal: 29, P: 0, C: 7, F: 0 },
+      { name: 'Cinnamon', amount: '2g', kcal: 6, P: 0, C: 2, F: 0 }
+    ],
+    instructions: ['Cook oats with water', 'Stir in protein powder', 'Top with blueberries and cinnamon']
+  },
+  { 
+    id: 'shrimp_rice', 
+    label: 'Shrimp + rice', 
+    kcal: 450, 
+    P: 38, 
+    C: 55, 
+    F: 8, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Shrimp', amount: '200g', kcal: 200, P: 46, C: 0, F: 3 },
+      { name: 'Jasmine rice (cooked)', amount: '150g', kcal: 195, P: 4, C: 43, F: 0 },
+      { name: 'Snap peas', amount: '100g', kcal: 42, P: 3, C: 8, F: 0 },
+      { name: 'Soy sauce', amount: '10ml', kcal: 9, P: 1, C: 1, F: 0 }
+    ],
+    instructions: ['Sauté shrimp until pink', 'Cook rice', 'Stir-fry snap peas', 'Combine and season with soy sauce']
+  },
+  { 
+    id: 'nuts_mix', 
+    label: 'Mixed nuts', 
+    kcal: 180, 
+    P: 6, 
+    C: 8, 
+    F: 16, 
+    category: 'light',
+    ingredients: [
+      { name: 'Mixed nuts (almonds, cashews, walnuts)', amount: '30g', kcal: 180, P: 6, C: 8, F: 16 }
+    ],
+    instructions: ['Portion out nuts', 'Enjoy as a snack']
+  },
+  { 
+    id: 'hummus_veggies', 
+    label: 'Hummus + veggies', 
+    kcal: 200, 
+    P: 8, 
+    C: 24, 
+    F: 10, 
+    category: 'light',
+    ingredients: [
+      { name: 'Hummus', amount: '80g', kcal: 160, P: 6, C: 14, F: 10 },
+      { name: 'Carrot sticks', amount: '100g', kcal: 41, P: 1, C: 10, F: 0 },
+      { name: 'Cucumber slices', amount: '50g', kcal: 8, P: 0, C: 2, F: 0 }
+    ],
+    instructions: ['Cut vegetables into sticks', 'Serve with hummus for dipping']
+  },
+  { 
+    id: 'chicken_wrap', 
+    label: 'Chicken wrap', 
+    kcal: 520, 
+    P: 42, 
+    C: 50, 
+    F: 16, 
+    category: 'balanced',
+    ingredients: [
+      { name: 'Grilled chicken', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
+      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
+      { name: 'Lettuce', amount: '30g', kcal: 5, P: 0, C: 1, F: 0 },
+      { name: 'Tomato', amount: '50g', kcal: 9, P: 0, C: 2, F: 0 },
+      { name: 'Ranch dressing', amount: '20g', kcal: 88, P: 1, C: 2, F: 9 }
+    ],
+    instructions: ['Lay tortilla flat', 'Add chicken, lettuce, and tomato', 'Drizzle ranch dressing', 'Roll tightly and cut']
+  },
+  { 
+    id: 'overnight_oats', 
+    label: 'Overnight oats', 
+    kcal: 340, 
+    P: 15, 
+    C: 52, 
+    F: 9, 
+    category: 'high_carb',
+    ingredients: [
+      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
+      { name: 'Greek yogurt', amount: '100g', kcal: 65, P: 10, C: 5, F: 0 },
+      { name: 'Chia seeds', amount: '10g', kcal: 49, P: 2, C: 4, F: 3 },
+      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
+    ],
+    instructions: ['Mix oats, yogurt, chia seeds in jar', 'Add honey and stir', 'Refrigerate overnight', 'Top with fruit before eating']
+  },
 ];
 
 const TEMPLATES = [
@@ -135,6 +566,8 @@ export default function NutritionScreen() {
   const [showTargetsModal, setShowTargetsModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [showMealDetailsModal, setShowMealDetailsModal] = useState(false);
+  const [selectedMealForDetails, setSelectedMealForDetails] = useState<MacroMeal | null>(null);
   const [selectedMealSlot, setSelectedMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
   const [swapMealSlot, setSwapMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
   const [manualKcal, setManualKcal] = useState('');
@@ -263,18 +696,6 @@ export default function NutritionScreen() {
     setDailyData(updatedData);
     saveDailyData(updatedData);
     console.log('[Nutrition] Deleted entry:', id);
-  };
-
-  const handleSmartAdd = (option: SmartAddOption) => {
-    console.log('[Nutrition] User tapped Smart Add:', option.label);
-    addEntry({
-      label: option.label,
-      type: 'smart_add',
-      kcal: option.kcal,
-      P: option.P,
-      C: option.C,
-      F: option.F,
-    });
   };
 
   const handlePlanMealTap = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
@@ -416,20 +837,6 @@ export default function NutritionScreen() {
     setShowMealModal(false);
   };
 
-  const handleQuickAdd = (option: SmartAddOption) => {
-    console.log('[Nutrition] User selected Quick Add:', option.label);
-    addEntry({
-      label: option.label,
-      type: 'smart_add',
-      mealSlot: selectedMealSlot,
-      kcal: option.kcal,
-      P: option.P,
-      C: option.C,
-      F: option.F,
-    });
-    setShowMealModal(false);
-  };
-
   const handleManualAdd = () => {
     const kcal = parseInt(manualKcal) || 0;
     const P = parseInt(manualP) || 0;
@@ -468,6 +875,12 @@ export default function NutritionScreen() {
     } catch (error) {
       console.error('[Nutrition] Error saving targets:', error);
     }
+  };
+
+  const handleMealTapForDetails = (meal: MacroMeal) => {
+    console.log('[Nutrition] User tapped meal for details:', meal.label);
+    setSelectedMealForDetails(meal);
+    setShowMealDetailsModal(true);
   };
 
   const consumed = dailyData.entries.reduce(
@@ -544,32 +957,6 @@ export default function NutritionScreen() {
               color={colors.text}
             />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Smart Add</Text>
-          <View style={styles.tilesGrid}>
-            {SMART_ADD_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.tile, { borderColor: option.color }]}
-                onPress={() => handleSmartAdd(option)}
-              >
-                <IconSymbol
-                  ios_icon_name="plus.circle.fill"
-                  android_material_icon_name="add-circle"
-                  size={32}
-                  color={option.color}
-                />
-                <Text style={styles.tileLabel}>{option.label}</Text>
-                <Text style={styles.tileKcal}>{option.kcal} kcal</Text>
-                <Text style={styles.tileMacros}>
-                  P{option.P} C{option.C} F{option.F}
-                </Text>
-                <Text style={styles.tileExample}>{option.example}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
 
         <TouchableOpacity
@@ -658,13 +1045,15 @@ export default function NutritionScreen() {
                   <View key={slot} style={styles.planTile}>
                     <TouchableOpacity
                       style={styles.planTileContent}
-                      onPress={() => handlePlanMealTap(slot)}
+                      onPress={() => handleMealTapForDetails(meal)}
+                      onLongPress={() => handlePlanMealTap(slot)}
                     >
                       <Text style={styles.planSlot}>{slot}</Text>
                       <Text style={styles.planMeal}>{meal.label}</Text>
                       <Text style={styles.planMacros}>
                         {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
                       </Text>
+                      <Text style={styles.tapHint}>Tap for recipe</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.swapButton}
@@ -701,8 +1090,9 @@ export default function NutritionScreen() {
                 <TouchableOpacity
                   key={meal.id}
                   style={styles.nextMoveItem}
-                  onPress={() => {
-                    console.log('[Nutrition] User tapped Next Move meal:', meal.label);
+                  onPress={() => handleMealTapForDetails(meal)}
+                  onLongPress={() => {
+                    console.log('[Nutrition] User long-pressed Next Move meal:', meal.label);
                     addEntry({
                       label: meal.label,
                       type: 'macro_meal',
@@ -721,8 +1111,8 @@ export default function NutritionScreen() {
                     </Text>
                   </View>
                   <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
+                    ios_icon_name="info.circle"
+                    android_material_icon_name="info"
                     size={24}
                     color={colors.primary}
                   />
@@ -792,6 +1182,115 @@ export default function NutritionScreen() {
       </ScrollView>
 
       <Modal
+        visible={showMealDetailsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowMealDetailsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{selectedMealForDetails?.label}</Text>
+            <TouchableOpacity onPress={() => setShowMealDetailsModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={28}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {selectedMealForDetails && (
+              <>
+                <View style={styles.detailsCard}>
+                  <Text style={styles.detailsTitle}>Total Macros</Text>
+                  <View style={styles.detailsMacrosRow}>
+                    <View style={styles.detailsMacroItem}>
+                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.kcal)}</Text>
+                      <Text style={styles.detailsMacroLabel}>kcal</Text>
+                    </View>
+                    <View style={styles.detailsMacroItem}>
+                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.P)}g</Text>
+                      <Text style={styles.detailsMacroLabel}>Protein</Text>
+                    </View>
+                    <View style={styles.detailsMacroItem}>
+                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.C)}g</Text>
+                      <Text style={styles.detailsMacroLabel}>Carbs</Text>
+                    </View>
+                    <View style={styles.detailsMacroItem}>
+                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.F)}g</Text>
+                      <Text style={styles.detailsMacroLabel}>Fat</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {selectedMealForDetails.ingredients && selectedMealForDetails.ingredients.length > 0 && (
+                  <View style={styles.detailsSection}>
+                    <Text style={styles.detailsSectionTitle}>Ingredients</Text>
+                    {selectedMealForDetails.ingredients.map((ingredient, index) => {
+                      const ingKcal = Math.round(ingredient.kcal);
+                      const ingP = Math.round(ingredient.P);
+                      const ingC = Math.round(ingredient.C);
+                      const ingF = Math.round(ingredient.F);
+                      
+                      return (
+                        <View key={index} style={styles.ingredientItem}>
+                          <View style={styles.ingredientHeader}>
+                            <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                            <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+                          </View>
+                          <Text style={styles.ingredientMacros}>
+                            {ingKcal} kcal • P{ingP}g C{ingC}g F{ingF}g
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {selectedMealForDetails.instructions && selectedMealForDetails.instructions.length > 0 && (
+                  <View style={styles.detailsSection}>
+                    <Text style={styles.detailsSectionTitle}>Instructions</Text>
+                    {selectedMealForDetails.instructions.map((instruction, index) => {
+                      const stepNumber = index + 1;
+                      
+                      return (
+                        <View key={index} style={styles.instructionItem}>
+                          <Text style={styles.instructionNumber}>{stepNumber}</Text>
+                          <Text style={styles.instructionText}>{instruction}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => {
+                    if (selectedMealForDetails) {
+                      console.log('[Nutrition] User added meal from details:', selectedMealForDetails.label);
+                      addEntry({
+                        label: selectedMealForDetails.label,
+                        type: 'macro_meal',
+                        kcal: selectedMealForDetails.kcal,
+                        P: selectedMealForDetails.P,
+                        C: selectedMealForDetails.C,
+                        F: selectedMealForDetails.F,
+                      });
+                      setShowMealDetailsModal(false);
+                    }
+                  }}
+                >
+                  <Text style={styles.addButtonText}>Add to Today</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
         visible={showMealModal}
         animationType="slide"
         presentationStyle="pageSheet"
@@ -824,6 +1323,7 @@ export default function NutritionScreen() {
                     key={meal.id}
                     style={styles.suggestedButton}
                     onPress={() => handleMacroMealSelect(meal)}
+                    onLongPress={() => handleMealTapForDetails(meal)}
                   >
                     <View style={styles.suggestedInfo}>
                       <Text style={styles.suggestedLabel}>{meal.label}</Text>
@@ -865,22 +1365,6 @@ export default function NutritionScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Smart Add</Text>
-              <View style={styles.quickAddGrid}>
-                {SMART_ADD_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[styles.quickAddTile, { borderColor: option.color }]}
-                    onPress={() => handleQuickAdd(option)}
-                  >
-                    <Text style={styles.quickAddLabel}>{option.label}</Text>
-                    <Text style={styles.quickAddKcal}>{option.kcal} kcal</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             <View style={styles.modalSection}>
@@ -1005,6 +1489,7 @@ export default function NutritionScreen() {
                   key={meal.id}
                   style={styles.swapOption}
                   onPress={() => confirmSwap(meal)}
+                  onLongPress={() => handleMealTapForDetails(meal)}
                 >
                   <View style={styles.swapInfo}>
                     <Text style={styles.swapLabel}>{meal.label}</Text>
@@ -1234,42 +1719,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  tilesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  tile: {
-    flex: 1,
-    minWidth: '47%',
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    gap: 4,
-  },
-  tileLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 4,
-  },
-  tileKcal: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  tileMacros: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  tileExample: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
   caloriesCard: {
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
@@ -1405,6 +1854,12 @@ const styles = StyleSheet.create({
   planMacros: {
     fontSize: 11,
     color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  tapHint: {
+    fontSize: 9,
+    color: colors.primary,
+    fontStyle: 'italic',
   },
   swapButton: {
     flexDirection: 'row',
@@ -1554,6 +2009,97 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
+  detailsCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+  },
+  detailsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  detailsMacrosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  detailsMacroItem: {
+    alignItems: 'center',
+  },
+  detailsMacroValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  detailsMacroLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  detailsSection: {
+    marginBottom: 24,
+  },
+  detailsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  ingredientItem: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  ingredientHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  ingredientName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  ingredientAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  ingredientMacros: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    gap: 12,
+  },
+  instructionNumber: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.primary,
+    width: 24,
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
   suggestedButton: {
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
     borderColor: colors.primary,
@@ -1597,30 +2143,6 @@ const styles = StyleSheet.create({
   },
   templateMacros: {
     fontSize: 13,
-    color: colors.textSecondary,
-  },
-  quickAddGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  quickAddTile: {
-    flex: 1,
-    minWidth: '47%',
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-  },
-  quickAddLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  quickAddKcal: {
-    fontSize: 11,
     color: colors.textSecondary,
   },
   manualButton: {
