@@ -22,7 +22,7 @@ export default function TabLayout() {
           {
             name: 'training',
             route: '/(tabs)/training',
-            icon: 'fitness_center',
+            icon: 'directions_run',
             label: 'Training',
           },
           {

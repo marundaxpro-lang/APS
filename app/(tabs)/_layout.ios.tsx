@@ -10,7 +10,7 @@ export default function TabLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="training" name="training">
-        <Icon sf="figure.strengthtraining.traditional" drawable="fitness_center" />
+        <Icon sf="figure.strengthtraining.traditional" drawable="directions_run" />
         <Label>Training</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="focus" name="focus">
