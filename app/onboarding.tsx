@@ -106,7 +106,7 @@ const calculateCaloricGoal = (
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[]; motivation?: string }>>({});
+  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[]; motivation?: string; selectedMotivationChips?: string[] }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
@@ -144,9 +144,9 @@ export default function OnboardingScreen() {
       weight,
       height,
       goal,
-      experienceLevel: 'beginner' as const, // Set default experience level
+      experienceLevel: 'beginner' as const,
       trainingDays: trainingDaysCount,
-      trainingFrequency: trainingDaysCount, // Also save as trainingFrequency for compatibility
+      trainingFrequency: trainingDaysCount,
       caloricGoal: nutritionGoals.caloricGoal,
       protein: nutritionGoals.protein,
       carbs: nutritionGoals.carbs,
@@ -155,6 +155,17 @@ export default function OnboardingScreen() {
     
     console.log('[Onboarding] Final profile before saving:', finalProfile);
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
+    
+    // Save motivation separately for later use
+    if (profile.motivation || profile.selectedMotivationChips) {
+      const motivationData = {
+        text: profile.motivation || '',
+        chips: profile.selectedMotivationChips || [],
+        savedAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem('userMotivation', JSON.stringify(motivationData));
+      console.log('[Onboarding] Motivation saved for future use:', motivationData);
+    }
     
     try {
       const activityLevel = trainingDaysCount >= 5 ? 'active' : 
@@ -226,7 +237,6 @@ export default function OnboardingScreen() {
         }
       } catch (caloricError) {
         console.error('[Onboarding] Error calculating caloric goal on backend:', caloricError);
-        // Continue with local calculation if backend fails
       }
       
       console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
@@ -244,7 +254,11 @@ export default function OnboardingScreen() {
 
   const canProceed = () => {
     if (step === 1) return true;
-    if (step === 2) return profile.motivation && profile.motivation.trim().length > 0;
+    if (step === 2) {
+      const hasChips = profile.selectedMotivationChips && profile.selectedMotivationChips.length > 0;
+      const hasText = profile.motivation && profile.motivation.trim().length > 0;
+      return hasChips || hasText;
+    }
     if (step === 3) return profile.goal;
     if (step === 4) return profile.selectedDays && profile.selectedDays.length > 0;
     if (step === 5) return profile.focusAreas && profile.focusAreas.length > 0;
@@ -253,12 +267,10 @@ export default function OnboardingScreen() {
     return false;
   };
 
-  // Dynamic helper text based on selections
   const getHelperText = () => {
     const daysCount = profile.selectedDays?.length || 0;
     const focusCount = profile.focusAreas?.length || 0;
     const equipment = profile.equipmentType;
-    const goal = profile.goal;
 
     if (step === 4 && daysCount > 0) {
       if (daysCount <= 2) {
@@ -292,65 +304,138 @@ export default function OnboardingScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What&apos;s your name?</Text>
-      <Text style={styles.stepSubtitle}>We&apos;ll use this to personalize your experience</Text>
+      <Text style={styles.stepTitle}>What do you want this app to help you do first?</Text>
+      <Text style={styles.stepSubtitle}>Let&apos;s make this immediately useful for you</Text>
       
       <View style={styles.nameInputContainer}>
         <TextInput
           style={styles.nameInput}
-          placeholder="Enter your name"
+          placeholder="e.g., Build muscle, lose weight, get stronger..."
           placeholderTextColor={colors.grey}
           value={profile.name || ''}
           onChangeText={(text) => {
-            console.log('[Onboarding] Name entered:', text);
+            console.log('[Onboarding] Primary goal entered:', text);
             setProfile({ ...profile, name: text });
           }}
-          autoCapitalize="words"
+          autoCapitalize="sentences"
           autoCorrect={false}
         />
+      </View>
+
+      <View style={styles.valuePropsContainer}>
+        <View style={styles.valuePropRow}>
+          <IconSymbol
+            ios_icon_name="checkmark.circle.fill"
+            android_material_icon_name="check-circle"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.valuePropText}>Personalized in under 2 minutes</Text>
+        </View>
+        <View style={styles.valuePropRow}>
+          <IconSymbol
+            ios_icon_name="checkmark.circle.fill"
+            android_material_icon_name="check-circle"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.valuePropText}>Built for gym, home, or bodyweight</Text>
+        </View>
+        <View style={styles.valuePropRow}>
+          <IconSymbol
+            ios_icon_name="checkmark.circle.fill"
+            android_material_icon_name="check-circle"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.valuePropText}>Tracks progress automatically</Text>
+        </View>
       </View>
     </View>
   );
 
-  const renderStep2 = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.emotionalHeader}>
-        <IconSymbol
-          ios_icon_name="heart.fill"
-          android_material_icon_name="favorite"
-          size={48}
-          color={colors.primary}
-        />
-        <Text style={styles.emotionalTitle}>Why now?</Text>
-      </View>
-      <Text style={styles.emotionalSubtitle}>
-        What made you decide to start today? Understanding your &quot;why&quot; keeps you going when motivation fades.
-      </Text>
-      
-      <View style={styles.motivationContainer}>
-        <TextInput
-          style={styles.motivationInput}
-          placeholder="I want to feel stronger and more confident..."
-          placeholderTextColor={colors.grey}
-          value={profile.motivation || ''}
-          onChangeText={(text) => {
-            console.log('[Onboarding] Motivation entered:', text);
-            setProfile({ ...profile, motivation: text });
-          }}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          autoCapitalize="sentences"
-        />
-      </View>
-      
-      <View style={styles.inspirationBox}>
-        <Text style={styles.inspirationText}>
-          💭 This is your anchor. We&apos;ll remind you of this on tough days.
+  const renderStep2 = () => {
+    const motivationChips = [
+      'Build confidence',
+      'Get disciplined',
+      'Feel healthier',
+      'Stop starting over',
+      'Look better',
+      'Gain strength',
+      'Improve energy',
+    ];
+
+    const selectedChips = profile.selectedMotivationChips || [];
+
+    const toggleChip = (chip: string) => {
+      console.log('[Onboarding] Motivation chip toggled:', chip);
+      const current = selectedChips;
+      const updated = current.includes(chip)
+        ? current.filter((c) => c !== chip)
+        : [...current, chip];
+      setProfile({ ...profile, selectedMotivationChips: updated });
+    };
+
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.emotionalHeader}>
+          <IconSymbol
+            ios_icon_name="heart.fill"
+            android_material_icon_name="favorite"
+            size={48}
+            color={colors.primary}
+          />
+          <Text style={styles.emotionalTitle}>Why now?</Text>
+        </View>
+        <Text style={styles.emotionalSubtitle}>
+          What made you decide to start today? Pick what resonates, or write your own.
         </Text>
+        
+        <View style={styles.motivationChipsContainer}>
+          {motivationChips.map((chip) => (
+            <TouchableOpacity
+              key={chip}
+              style={[
+                styles.motivationChip,
+                selectedChips.includes(chip) && styles.motivationChipSelected,
+              ]}
+              onPress={() => toggleChip(chip)}
+            >
+              <Text style={[
+                styles.motivationChipText,
+                selectedChips.includes(chip) && styles.motivationChipTextSelected
+              ]}>
+                {chip}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.motivationContainer}>
+          <TextInput
+            style={styles.motivationInput}
+            placeholder="Or write your own reason..."
+            placeholderTextColor={colors.grey}
+            value={profile.motivation || ''}
+            onChangeText={(text) => {
+              console.log('[Onboarding] Custom motivation entered:', text);
+              setProfile({ ...profile, motivation: text });
+            }}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            autoCapitalize="sentences"
+          />
+        </View>
+        
+        <View style={styles.inspirationBox}>
+          <Text style={styles.inspirationText}>
+            💭 We&apos;ll remind you of this when you need it most—on tough days, missed workouts, and comeback moments.
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderStep3 = () => {
     const goals = [
@@ -924,6 +1009,7 @@ const styles = StyleSheet.create({
   nameInputContainer: {
     width: '100%',
     maxWidth: 400,
+    marginBottom: 32,
   },
   nameInput: {
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -934,6 +1020,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.text,
     textAlign: 'center',
+  },
+  valuePropsContainer: {
+    gap: 16,
+    width: '100%',
+    maxWidth: 400,
+  },
+  valuePropRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  valuePropText: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
   },
   emotionalHeader: {
     alignItems: 'center',
@@ -953,6 +1055,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     lineHeight: 24,
   },
+  motivationChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  motivationChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  motivationChipSelected: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    borderColor: colors.primary,
+  },
+  motivationChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.grey,
+  },
+  motivationChipTextSelected: {
+    color: colors.primary,
+  },
   motivationContainer: {
     width: '100%',
     maxWidth: 400,
@@ -966,7 +1096,7 @@ const styles = StyleSheet.create({
     padding: 20,
     fontSize: 16,
     color: colors.text,
-    minHeight: 120,
+    minHeight: 100,
   },
   inspirationBox: {
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
