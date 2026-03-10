@@ -33,6 +33,11 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Email validation state
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   // Forgot password state
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -88,38 +93,60 @@ export default function AuthScreen() {
     setShowErrorModal(true);
   };
 
+  const validateEmail = (emailValue: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailValue) {
+      setEmailError("Email is required");
+      return false;
+    }
+    if (!emailRegex.test(emailValue)) {
+      setEmailError("Please enter a valid email");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  };
+
   const validatePassword = (pwd: string): { valid: boolean; message: string } => {
     if (pwd.length < 8) {
-      return { valid: false, message: "Password must be at least 8 characters long" };
+      return { valid: false, message: "Password must be at least 8 characters" };
     }
     if (!/[A-Z]/.test(pwd)) {
-      return { valid: false, message: "Password must contain at least one uppercase letter" };
+      return { valid: false, message: "Password must contain an uppercase letter" };
     }
     if (!/[a-z]/.test(pwd)) {
-      return { valid: false, message: "Password must contain at least one lowercase letter" };
+      return { valid: false, message: "Password must contain a lowercase letter" };
     }
     if (!/[0-9]/.test(pwd)) {
-      return { valid: false, message: "Password must contain at least one number" };
+      return { valid: false, message: "Password must contain a number" };
     }
     return { valid: true, message: "" };
   };
 
   const handleEmailAuth = async () => {
     console.log('[AuthScreen] User tapped email auth button');
-    if (!email || !password) {
-      showError("Please enter email and password");
+    
+    // Validate email
+    if (!validateEmail(email)) {
       return;
     }
 
-    // Validate password for signup
+    // Validate password
+    if (!password) {
+      setPasswordError("Password is required");
+      return;
+    }
+
+    // Validate password strength for signup
     if (mode === "signup") {
       const validation = validatePassword(password);
       if (!validation.valid) {
-        showError(validation.message);
+        setPasswordError(validation.message);
         return;
       }
     }
 
+    setPasswordError("");
     setLoading(true);
     try {
       if (mode === "signin") {
@@ -255,13 +282,6 @@ export default function AuthScreen() {
     }
   };
 
-  const modeTitle = mode === "signin" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password";
-  const modeSubtitle = mode === "signin" 
-    ? "Sign in to continue your fitness journey" 
-    : mode === "signup"
-    ? "Start your transformation today"
-    : "Create a new password for your account";
-
   // Reset password success screen
   if (mode === "reset-password" && resetSuccess) {
     return (
@@ -349,15 +369,28 @@ export default function AuthScreen() {
               <View style={styles.form}>
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>New Password</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter new password"
-                    placeholderTextColor={colors.grey}
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                  />
+                  <View style={styles.passwordInputWrapper}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      placeholder="Enter new password"
+                      placeholderTextColor={colors.grey}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeIcon}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <IconSymbol
+                        ios_icon_name={showPassword ? "eye.slash.fill" : "eye.fill"}
+                        android_material_icon_name={showPassword ? "visibility-off" : "visibility"}
+                        size={20}
+                        color={colors.grey}
+                      />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.passwordHint}>
                     Must be 8+ characters with uppercase, lowercase, and number
                   </Text>
@@ -370,7 +403,7 @@ export default function AuthScreen() {
                     placeholderTextColor={colors.grey}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                     autoCapitalize="none"
                   />
                 </View>
@@ -425,6 +458,11 @@ export default function AuthScreen() {
     );
   }
 
+  const modeTitle = mode === "signin" ? "Welcome Back" : "Start Your Journey";
+  const modeSubtitle = mode === "signin" 
+    ? "Adaptive training and nutrition, built around your schedule" 
+    : "Personalized fitness that adapts to you";
+
   return (
     <View style={styles.container}>
       <ParticleBackground />
@@ -447,7 +485,50 @@ export default function AuthScreen() {
                 color={colors.primary}
               />
               <Text style={styles.title}>{modeTitle}</Text>
-              <Text style={styles.subtitle}>{modeSubtitle}</Text>
+              <Text style={styles.valueProposition}>{modeSubtitle}</Text>
+              
+              {/* Trust indicators / Value bullets */}
+              <View style={styles.trustBullets}>
+                <View style={styles.bulletRow}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.bulletText}>Personalized in under 2 minutes</Text>
+                </View>
+                <View style={styles.bulletRow}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.bulletText}>Built for gym, home, or bodyweight</Text>
+                </View>
+                <View style={styles.bulletRow}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.bulletText}>Tracks progress automatically</Text>
+                </View>
+              </View>
+
+              {/* Why create an account */}
+              {mode === "signin" && (
+                <View style={styles.whySignInBox}>
+                  <Text style={styles.whySignInTitle}>Why sign in?</Text>
+                  <Text style={styles.whySignInText}>
+                    • Save your plan across devices{'\n'}
+                    • Sync progress automatically{'\n'}
+                    • Unlock adaptive updates
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.form}>
@@ -468,15 +549,22 @@ export default function AuthScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, emailError ? styles.inputError : null]}
                   placeholder="your@email.com"
                   placeholderTextColor={colors.grey}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (emailError) validateEmail(text);
+                  }}
+                  onBlur={() => validateEmail(email)}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="emailAddress"
+                  autoComplete="email"
                 />
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
               </View>
 
               <View style={styles.inputContainer}>
@@ -490,21 +578,41 @@ export default function AuthScreen() {
                         setForgotSuccess(false);
                         setShowForgotPasswordModal(true);
                       }}
+                      style={styles.forgotPasswordButton}
                     >
                       <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor={colors.grey}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                {mode === "signup" && (
+                <View style={styles.passwordInputWrapper}>
+                  <TextInput
+                    style={[styles.passwordInput, passwordError ? styles.inputError : null]}
+                    placeholder="Enter your password"
+                    placeholderTextColor={colors.grey}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (passwordError) setPasswordError("");
+                    }}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    textContentType={mode === "signin" ? "password" : "newPassword"}
+                    autoComplete={mode === "signin" ? "password" : "password-new"}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <IconSymbol
+                      ios_icon_name={showPassword ? "eye.slash.fill" : "eye.fill"}
+                      android_material_icon_name={showPassword ? "visibility-off" : "visibility"}
+                      size={20}
+                      color={colors.grey}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+                {mode === "signup" && !passwordError && (
                   <Text style={styles.passwordHint}>
                     Must be 8+ characters with uppercase, lowercase, and number
                   </Text>
@@ -520,7 +628,7 @@ export default function AuthScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.primaryButtonText}>
-                    {mode === "signin" ? "Sign In" : "Sign Up"}
+                    {mode === "signin" ? "Sign In" : "Create Account"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -530,6 +638,8 @@ export default function AuthScreen() {
                 onPress={() => {
                   console.log('[AuthScreen] User switched mode');
                   setMode(mode === "signin" ? "signup" : "signin");
+                  setEmailError("");
+                  setPasswordError("");
                 }}
               >
                 <Text style={styles.switchModeText}>
@@ -589,7 +699,7 @@ export default function AuthScreen() {
                   <Text style={styles.guestButtonText}>Continue as Guest</Text>
                 </TouchableOpacity>
                 <Text style={styles.guestNote}>
-                  You can create an account later to sync your progress
+                  Limited features • Create an account to save progress
                 </Text>
               </View>
             </View>
@@ -728,7 +838,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
   },
   title: {
     fontSize: 32,
@@ -738,10 +848,47 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.text,
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
+  valueProposition: {
+    fontSize: 17,
+    color: colors.text,
     textAlign: "center",
+    fontWeight: "600",
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  trustBullets: {
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 16,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  bulletText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  whySignInBox: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  whySignInTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  whySignInText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   form: {
     width: "100%",
@@ -766,6 +913,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: colors.card,
     color: colors.text,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: 6,
+  },
+  passwordInputWrapper: {
+    position: "relative",
+  },
+  passwordInput: {
+    height: 50,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingRight: 50,
+    fontSize: 16,
+    backgroundColor: colors.card,
+    color: colors.text,
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 16,
+    top: 15,
+    padding: 4,
   },
   passwordHint: {
     fontSize: 12,
@@ -850,10 +1025,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   guestButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.textSecondary,
     fontWeight: "500",
-    textDecorationLine: "underline",
   },
   guestNote: {
     fontSize: 12,
@@ -936,11 +1110,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 8,
+  },
+  forgotPasswordButton: {
+    padding: 4,
   },
   forgotPasswordLink: {
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
   },
   forgotInputContainer: {
     width: "100%",
