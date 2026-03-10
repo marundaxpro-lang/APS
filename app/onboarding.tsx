@@ -34,7 +34,7 @@ const DAYS_OF_WEEK = [
 
 // Mifflin-St Jeor Equation for BMR calculation
 const calculateCaloricGoal = (
-  gender: 'male' | 'female',
+  gender: 'male' | 'female' | 'prefer-not-to-say',
   weight: number,
   height: number,
   age: number,
@@ -54,8 +54,11 @@ const calculateCaloricGoal = (
   let bmr: number;
   if (gender === 'male') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-  } else {
+  } else if (gender === 'female') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+  } else {
+    // Use average for prefer-not-to-say
+    bmr = (10 * weight) + (6.25 * height) - (5 * age) - 78;
   }
 
   console.log('[Onboarding] BMR calculated:', bmr);
@@ -117,6 +120,10 @@ export default function OnboardingScreen() {
     sessionLength?: string;
     homeEquipmentDetails?: string[];
     trainingConfidence?: string;
+    trainingExperience?: string;
+    activityLevelOutsideTraining?: string;
+    injuries?: string;
+    nutritionPreference?: string;
   }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -137,7 +144,7 @@ export default function OnboardingScreen() {
     const goal = profile.primaryGoal || 'build-muscle';
     
     const nutritionGoals = calculateCaloricGoal(
-      gender,
+      gender as 'male' | 'female' | 'prefer-not-to-say',
       weight,
       height,
       age,
@@ -281,7 +288,11 @@ export default function OnboardingScreen() {
       }
       return profile.trainingConfidence;
     }
-    if (step === 9) return profile.gender && profile.weight && profile.height && profile.age;
+    if (step === 9) {
+      return profile.gender && profile.weight && profile.height && profile.age && 
+             profile.trainingExperience && profile.activityLevelOutsideTraining && 
+             profile.nutritionPreference;
+    }
     return false;
   };
 
@@ -311,7 +322,6 @@ export default function OnboardingScreen() {
     }
 
     if (step === 6 && focusCount > 0 && daysCount > 0) {
-      const areasText = focusCount === 1 ? 'area' : 'areas';
       return `💡 We'll give these areas extra attention without neglecting full-body balance.`;
     }
 
@@ -1003,23 +1013,53 @@ export default function OnboardingScreen() {
 
   const renderStep9 = () => {
     const daysCount = profile.selectedDays?.length || 0;
+    const selectedDayNames = profile.selectedDays?.map(dayId => DAYS_OF_WEEK[dayId].full) || [];
+    const dayScheduleText = selectedDayNames.length > 0 
+      ? selectedDayNames.slice(0, 3).join('-') + (selectedDayNames.length > 3 ? '...' : '')
+      : 'your schedule';
+    
     const focusAreasText = profile.focusAreas && profile.focusAreas.length > 0 
       ? profile.focusAreas.map(a => a.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
-      : 'full body';
-    const equipmentText = profile.equipmentType === 'gym' ? 'gym equipment' : 
+      : null;
+    
+    const equipmentText = profile.equipmentType === 'gym' ? 'gym-based' : 
                          profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
+    
     const primaryGoalLabel = profile.primaryGoal ? 
       profile.primaryGoal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    
     const secondaryGoalLabel = profile.secondaryGoal ? 
       profile.secondaryGoal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
-    const sessionLengthText = profile.sessionLength === '20-30' ? '20-30 minute' :
-                             profile.sessionLength === '30-45' ? '30-45 minute' :
-                             profile.sessionLength === '45-60' ? '45-60 minute' : '60+ minute';
+    
+    const sessionLengthText = profile.sessionLength === '20-30' ? '20–30' :
+                             profile.sessionLength === '30-45' ? '30–45' :
+                             profile.sessionLength === '45-60' ? '45–55' : '60+';
+
+    const trainingExperienceOptions = [
+      { id: 'beginner', label: 'Beginner', description: 'New to structured training' },
+      { id: 'returning', label: 'Returning', description: 'Getting back after a break' },
+      { id: 'intermediate', label: 'Intermediate', description: '6+ months consistent training' },
+      { id: 'advanced', label: 'Advanced', description: '2+ years of experience' },
+    ];
+
+    const activityLevelOptions = [
+      { id: 'sedentary', label: 'Sedentary', description: 'Desk job, minimal movement' },
+      { id: 'lightly-active', label: 'Lightly Active', description: 'Some walking, light activity' },
+      { id: 'moderately-active', label: 'Moderately Active', description: 'Active job or daily movement' },
+      { id: 'very-active', label: 'Very Active', description: 'Physical job or high activity' },
+    ];
+
+    const nutritionPreferenceOptions = [
+      { id: 'just-calories', label: 'Just Calories', description: 'Simple calorie tracking' },
+      { id: 'macros', label: 'Macros', description: 'Protein, carbs, and fats' },
+      { id: 'meal-ideas', label: 'Meal Ideas', description: 'Suggestions and recipes' },
+      { id: 'full-structure', label: 'Full Structure', description: 'Complete meal plans' },
+    ];
 
     return (
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.step8ScrollContent}
+        contentContainerStyle={styles.step9ScrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.finalHeader}>
@@ -1032,13 +1072,119 @@ export default function OnboardingScreen() {
           <Text style={styles.finalTitle}>Almost there!</Text>
         </View>
         <Text style={styles.finalSubtitle}>
-          Just a few details to personalize your plan
+          Final details to personalize your plan
         </Text>
-        
-        <View style={styles.genderSelection}>
-          <Text style={styles.inputLabel}>Gender</Text>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Training Experience</Text>
+          <View style={styles.optionsGrid}>
+            {trainingExperienceOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.optionCard,
+                  profile.trainingExperience === option.id && styles.optionCardSelected,
+                ]}
+                onPress={() => {
+                  console.log('[Onboarding] Training experience selected:', option.id);
+                  setProfile({ ...profile, trainingExperience: option.id });
+                }}
+              >
+                <Text style={[
+                  styles.optionCardLabel,
+                  profile.trainingExperience === option.id && styles.optionCardLabelSelected
+                ]}>
+                  {option.label}
+                </Text>
+                <Text style={styles.optionCardDescription}>
+                  {option.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Activity Level Outside Training</Text>
+          <View style={styles.optionsGrid}>
+            {activityLevelOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.optionCard,
+                  profile.activityLevelOutsideTraining === option.id && styles.optionCardSelected,
+                ]}
+                onPress={() => {
+                  console.log('[Onboarding] Activity level selected:', option.id);
+                  setProfile({ ...profile, activityLevelOutsideTraining: option.id });
+                }}
+              >
+                <Text style={[
+                  styles.optionCardLabel,
+                  profile.activityLevelOutsideTraining === option.id && styles.optionCardLabelSelected
+                ]}>
+                  {option.label}
+                </Text>
+                <Text style={styles.optionCardDescription}>
+                  {option.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Injuries or Limitations (Optional)</Text>
+          <TextInput
+            style={styles.textAreaInput}
+            placeholder="e.g., Lower back issues, shoulder mobility..."
+            placeholderTextColor={colors.grey}
+            value={profile.injuries || ''}
+            onChangeText={(text) => {
+              console.log('[Onboarding] Injuries entered:', text);
+              setProfile({ ...profile, injuries: text });
+            }}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            autoCapitalize="sentences"
+          />
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Nutrition Preference</Text>
+          <View style={styles.optionsGrid}>
+            {nutritionPreferenceOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.optionCard,
+                  profile.nutritionPreference === option.id && styles.optionCardSelected,
+                ]}
+                onPress={() => {
+                  console.log('[Onboarding] Nutrition preference selected:', option.id);
+                  setProfile({ ...profile, nutritionPreference: option.id });
+                }}
+              >
+                <Text style={[
+                  styles.optionCardLabel,
+                  profile.nutritionPreference === option.id && styles.optionCardLabelSelected
+                ]}>
+                  {option.label}
+                </Text>
+                <Text style={styles.optionCardDescription}>
+                  {option.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Sex for Calculation Purposes</Text>
+          <Text style={styles.sectionBlockSubtitle}>Used for metabolic calculations only</Text>
           <View style={styles.genderButtons}>
-            {(['male', 'female'] as const).map((gender) => (
+            {(['male', 'female', 'prefer-not-to-say'] as const).map((gender) => (
               <TouchableOpacity
                 key={gender}
                 style={[
@@ -1054,7 +1200,7 @@ export default function OnboardingScreen() {
                   styles.genderButtonText,
                   profile.gender === gender && styles.genderButtonTextSelected
                 ]}>
-                  {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                  {gender === 'prefer-not-to-say' ? 'Prefer not to say' : gender.charAt(0).toUpperCase() + gender.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -1120,54 +1266,42 @@ export default function OnboardingScreen() {
           </View>
           
           <View style={styles.summaryContent}>
-            <View style={styles.summaryRow}>
-              <IconSymbol
-                ios_icon_name="target"
-                android_material_icon_name="track-changes"
-                size={20}
-                color={colors.primary}
-              />
+            <View style={styles.summaryBullet}>
+              <Text style={styles.summaryBulletDot}>•</Text>
               <Text style={styles.summaryText}>
-                Primary: {primaryGoalLabel}
-                {secondaryGoalLabel && ` • Secondary: ${secondaryGoalLabel}`}
+                {daysCount} strength sessions/week built around your {dayScheduleText} schedule
               </Text>
             </View>
 
-            <View style={styles.summaryRow}>
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={styles.summaryText}>
-                {daysCount} days per week • {sessionLengthText} sessions
-              </Text>
-            </View>
-            
-            {profile.focusAreas && profile.focusAreas.length > 0 && (
-              <View style={styles.summaryRow}>
-                <IconSymbol
-                  ios_icon_name="figure.strengthtraining.traditional"
-                  android_material_icon_name="fitness-center"
-                  size={20}
-                  color={colors.primary}
-                />
+            {focusAreasText && (
+              <View style={styles.summaryBullet}>
+                <Text style={styles.summaryBulletDot}>•</Text>
                 <Text style={styles.summaryText}>
-                  Extra focus on {focusAreasText}
+                  Extra {focusAreasText.toLowerCase()} emphasis without neglecting legs
                 </Text>
               </View>
             )}
-            
-            <View style={styles.summaryRow}>
-              <IconSymbol
-                ios_icon_name="dumbbell.fill"
-                android_material_icon_name="fitness-center"
-                size={20}
-                color={colors.primary}
-              />
+
+            <View style={styles.summaryBullet}>
+              <Text style={styles.summaryBulletDot}>•</Text>
               <Text style={styles.summaryText}>
-                Using {equipmentText}
+                {equipmentText.charAt(0).toUpperCase() + equipmentText.slice(1)} plan with simple progression
+              </Text>
+            </View>
+
+            {profile.primaryGoal === 'improve-endurance' && (
+              <View style={styles.summaryBullet}>
+                <Text style={styles.summaryBulletDot}>•</Text>
+                <Text style={styles.summaryText}>
+                  Endurance finishers 2x/week
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.summaryBullet}>
+              <Text style={styles.summaryBulletDot}>•</Text>
+              <Text style={styles.summaryText}>
+                Estimated session length: {sessionLengthText} min
               </Text>
             </View>
           </View>
@@ -1331,6 +1465,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
+  },
+  step9ScrollContent: {
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   stepTitle: {
     fontSize: 28,
@@ -1801,17 +1939,61 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
   },
-  genderSelection: {
-    width: '100%',
-    marginBottom: 28,
+  sectionBlock: {
+    marginBottom: 32,
+  },
+  sectionBlockTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  sectionBlockSubtitle: {
+    fontSize: 14,
+    color: colors.grey,
+    marginBottom: 16,
+  },
+  optionsGrid: {
+    gap: 12,
+  },
+  optionCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 16,
+  },
+  optionCardSelected: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    borderColor: colors.primary,
+  },
+  optionCardLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.grey,
+    marginBottom: 4,
+  },
+  optionCardLabelSelected: {
+    color: colors.primary,
+  },
+  optionCardDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  textAreaInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 100,
   },
   genderButtons: {
-    flexDirection: 'row',
     gap: 12,
-    marginTop: 12,
   },
   genderButton: {
-    flex: 1,
     paddingVertical: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
@@ -1873,18 +2055,25 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   summaryContent: {
-    gap: 16,
+    gap: 12,
     marginBottom: 20,
   },
-  summaryRow: {
+  summaryBullet: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  summaryBulletDot: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '700',
+    marginTop: 2,
   },
   summaryText: {
+    flex: 1,
     fontSize: 16,
     color: colors.text,
-    flex: 1,
+    lineHeight: 22,
   },
   confidenceBox: {
     backgroundColor: 'rgba(69, 155, 155, 0.15)',

@@ -37,6 +37,7 @@ export default function HomeScreen() {
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
   const [motivation, setMotivation] = useState('');
   const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -69,6 +70,13 @@ export default function HomeScreen() {
         const tasksForToday = allTasks.filter(task => task.dayOfWeek === today);
         setTodayTasks(tasksForToday);
         console.log('[Home] Loaded tasks for today:', tasksForToday.length);
+      }
+
+      const historyData = await AsyncStorage.getItem('workoutHistory');
+      if (historyData) {
+        const history = JSON.parse(historyData);
+        setWorkoutHistory(history);
+        console.log('[Home] Loaded workout history:', history.length);
       }
       
       try {
@@ -132,7 +140,6 @@ export default function HomeScreen() {
     return weeklyWorkouts.find(day => day.dayIndex === dayIndex) || null;
   };
 
-  // Get the next 3 days starting from today
   const getNextThreeDays = () => {
     const todayIndex = new Date().getDay();
     const nextThreeDays = [];
@@ -148,6 +155,56 @@ export default function HomeScreen() {
     
     console.log('[Home] Next 3 days:', nextThreeDays);
     return nextThreeDays;
+  };
+
+  const getDynamicContextLine = () => {
+    const todayIndex = new Date().getDay();
+    const todayWorkout = getDayWorkout(todayIndex);
+    const completedTasksCount = todayTasks.filter(t => t.completed).length;
+    const totalTasksCount = todayTasks.length;
+    const mealsLogged = stats?.mealsLogged || 0;
+
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+    const workoutsRemaining = Math.max(0, totalWeeklyWorkouts - workoutsThisWeek);
+
+    if (workoutsRemaining === 1) {
+      return "You're 1 workout away from completing this week 💪";
+    }
+
+    if (todayWorkout) {
+      const workoutName = todayWorkout.name;
+      return `Today is your scheduled ${workoutName} 🔥`;
+    }
+
+    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
+      const pendingTasks = totalTasksCount - completedTasksCount;
+      const taskText = pendingTasks === 1 ? 'task' : 'tasks';
+      return `You have ${pendingTasks} pending ${taskText} today`;
+    }
+
+    if (mealsLogged === 0) {
+      return "You have 1 pending meal log today 🍽️";
+    }
+
+    if (workoutsThisWeek >= 5) {
+      return `You're on a ${workoutsThisWeek}-day consistency streak 🔥`;
+    }
+
+    if (workoutsRemaining > 0) {
+      return `${workoutsRemaining} workouts left this week`;
+    }
+
+    return "You're crushing it this week! 🎯";
   };
 
   if (loading) {
@@ -185,6 +242,7 @@ export default function HomeScreen() {
                       greetingTime < 18 ? 'Good afternoon' : 
                       'Good evening';
 
+  const dynamicContextLine = getDynamicContextLine();
   const nextThreeDays = getNextThreeDays();
 
   return (
@@ -193,6 +251,7 @@ export default function HomeScreen() {
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>{greetingText},</Text>
           <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.contextLine}>{dynamicContextLine}</Text>
         </View>
         <TouchableOpacity style={styles.profileButton} onPress={handleNavigateToProfile}>
           <IconSymbol
@@ -500,6 +559,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
+    marginBottom: 6,
+  },
+  contextLine: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
   },
   profileButton: {
     width: 48,
