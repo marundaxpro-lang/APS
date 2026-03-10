@@ -80,9 +80,9 @@ const MACRO_MEALS_LIBRARY: MacroMeal[] = [
       { name: 'Skyr (plain)', amount: '200g', kcal: 120, P: 20, C: 8, F: 0 },
       { name: 'Whey protein', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
       { name: 'Mixed berries', amount: '150g', kcal: 80, P: 1, C: 18, F: 0 },
-      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
+      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 },
     ],
-    instructions: ['Mix skyr with whey protein', 'Top with fresh berries', 'Drizzle honey on top']
+    instructions: ['Mix skyr with whey protein', 'Top with fresh berries', 'Drizzle honey on top'],
   },
   { 
     id: 'chicken_rice_bowl', 
@@ -577,6 +577,24 @@ export default function NutritionScreen() {
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const generateTodaysPlan = useCallback(() => {
+    const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
+    const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
+    const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
+    
+    const plan: TodaysPlan = {
+      Breakfast: highCarb[Math.floor(Math.random() * highCarb.length)],
+      Lunch: balanced[Math.floor(Math.random() * balanced.length)],
+      Dinner: balanced[Math.floor(Math.random() * balanced.length)],
+      Snacks: highProtein[Math.floor(Math.random() * highProtein.length)],
+    };
+    
+    setTodaysPlan(plan);
+    const today = new Date().toISOString().split('T')[0];
+    AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan }));
+    console.log('[Nutrition] Generated new today plan');
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -634,29 +652,11 @@ export default function NutritionScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [generateTodaysPlan]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const generateTodaysPlan = () => {
-    const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-    const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
-    const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
-    
-    const plan: TodaysPlan = {
-      Breakfast: highCarb[Math.floor(Math.random() * highCarb.length)],
-      Lunch: balanced[Math.floor(Math.random() * balanced.length)],
-      Dinner: balanced[Math.floor(Math.random() * balanced.length)],
-      Snacks: highProtein[Math.floor(Math.random() * highProtein.length)],
-    };
-    
-    setTodaysPlan(plan);
-    const today = new Date().toISOString().split('T')[0];
-    AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan }));
-    console.log('[Nutrition] Generated new today plan');
-  };
 
   const saveDailyData = async (data: DailyNutritionData) => {
     try {

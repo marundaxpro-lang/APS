@@ -133,7 +133,7 @@ export default function HomeScreen() {
   };
 
   const determineMotivationCardType = () => {
-    const types: Array<'user' | 'coach' | 'target' | 'streak' | 'recovery'> = ['user', 'coach', 'target', 'streak', 'recovery'];
+    const types: ('user' | 'coach' | 'target' | 'streak' | 'recovery')[] = ['user', 'coach', 'target', 'streak', 'recovery'];
     const randomType = types[Math.floor(Math.random() * types.length)];
     setMotivationCardType(randomType);
   };
@@ -667,7 +667,7 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workout ? (
-                      <React.Fragment>
+                      <React.Fragment key={`workout-${index}`}>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="figure.strengthtraining.traditional"
@@ -686,7 +686,7 @@ export default function HomeScreen() {
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
                       </React.Fragment>
                     ) : (
-                      <React.Fragment>
+                      <React.Fragment key={`rest-${index}`}>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="bed.double.fill"
