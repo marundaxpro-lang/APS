@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,14 +25,14 @@ interface MacroMeal {
   C: number;
   F: number;
   category: 'high_protein' | 'high_carb' | 'balanced' | 'light';
-  ingredients?: Array<{
+  ingredients?: {
     name: string;
     amount: string;
     kcal: number;
     P: number;
     C: number;
     F: number;
-  }>;
+  }[];
   instructions?: string[];
 }
 
@@ -577,11 +577,7 @@ export default function NutritionScreen() {
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
@@ -638,7 +634,11 @@ export default function NutritionScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const generateTodaysPlan = () => {
     const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');

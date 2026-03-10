@@ -29,15 +29,28 @@ interface DashboardStats {
 
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const COACH_INSIGHTS = [
+  "Consistency beats intensity. Show up, even when it's hard.",
+  "Recovery is where the magic happens. Don't skip rest days.",
+  "Small daily improvements lead to stunning long-term results.",
+  "Your body achieves what your mind believes.",
+  "Progress isn't linear. Trust the process.",
+  "The best workout is the one you actually do.",
+  "Nutrition fuels performance. You can't out-train a bad diet.",
+  "Sleep is your secret weapon for gains.",
+];
+
 export default function HomeScreen() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Athlete');
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
-  const [motivation, setMotivation] = useState('');
+  const [userMotivation, setUserMotivation] = useState('');
   const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
   const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [measurements, setMeasurements] = useState<any[]>([]);
+  const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
 
   useEffect(() => {
     loadData();
@@ -55,12 +68,17 @@ export default function HomeScreen() {
         if (profile?.name) {
           setUserName(profile.name);
         }
-        const motivationText = (profile as any).motivation || '';
-        setMotivation(motivationText);
 
         const workoutSplit = generateWorkoutSplit(profile);
         console.log('[Home] Generated weekly workout split:', workoutSplit);
         setWeeklyWorkouts(workoutSplit);
+      }
+
+      const motivationData = await AsyncStorage.getItem('userMotivation');
+      if (motivationData) {
+        const parsed = JSON.parse(motivationData);
+        const motivationText = parsed.customText || parsed.chips?.join(', ') || '';
+        setUserMotivation(motivationText);
       }
       
       const tasksData = await AsyncStorage.getItem('focusTasks');
@@ -77,6 +95,13 @@ export default function HomeScreen() {
         const history = JSON.parse(historyData);
         setWorkoutHistory(history);
         console.log('[Home] Loaded workout history:', history.length);
+      }
+
+      const measurementsData = await AsyncStorage.getItem('measurements');
+      if (measurementsData) {
+        const parsed = JSON.parse(measurementsData);
+        setMeasurements(parsed);
+        console.log('[Home] Loaded measurements:', parsed.length);
       }
       
       try {
@@ -99,11 +124,19 @@ export default function HomeScreen() {
           lastUpdated: new Date().toISOString(),
         });
       }
+
+      determineMotivationCardType();
     } catch (error) {
       console.error('[Home] Error loading data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const determineMotivationCardType = () => {
+    const types: Array<'user' | 'coach' | 'target' | 'streak' | 'recovery'> = ['user', 'coach', 'target', 'streak', 'recovery'];
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    setMotivationCardType(randomType);
   };
 
   const toggleTask = async (taskId: string) => {
@@ -207,6 +240,256 @@ export default function HomeScreen() {
     return "You're crushing it this week! 🎯";
   };
 
+  const getMotivationCardContent = () => {
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+
+    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    switch (motivationCardType) {
+      case 'user':
+        if (userMotivation) {
+          return {
+            icon: 'favorite',
+            text: `Your why: "${userMotivation}"`,
+            color: colors.primary,
+          };
+        }
+        return {
+          icon: 'lightbulb',
+          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
+          color: '#FFA500',
+        };
+      
+      case 'coach':
+        return {
+          icon: 'lightbulb',
+          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
+          color: '#FFA500',
+        };
+      
+      case 'target':
+        const remaining = totalWeeklyWorkouts - workoutsThisWeek;
+        if (remaining > 0) {
+          return {
+            icon: 'flag',
+            text: `Weekly target: ${remaining} workout${remaining === 1 ? '' : 's'} remaining to hit your goal`,
+            color: '#4CAF50',
+          };
+        }
+        return {
+          icon: 'check-circle',
+          text: `Weekly target complete! You've hit all ${totalWeeklyWorkouts} workouts this week 🎯`,
+          color: '#4CAF50',
+        };
+      
+      case 'streak':
+        if (workoutsThisWeek >= 3) {
+          return {
+            icon: 'local-fire-department',
+            text: `${workoutsThisWeek}-day streak! Keep the momentum going 🔥`,
+            color: '#FF5722',
+          };
+        } else if (daysSinceLastWorkout > 3) {
+          return {
+            icon: 'warning',
+            text: `It's been ${daysSinceLastWorkout} days since your last workout. Time to get back on track!`,
+            color: '#FF9800',
+          };
+        }
+        return {
+          icon: 'trending-up',
+          text: `You're building momentum. ${workoutsThisWeek} workout${workoutsThisWeek === 1 ? '' : 's'} this week!`,
+          color: colors.primary,
+        };
+      
+      case 'recovery':
+        const todayIndex = new Date().getDay();
+        const todayWorkout = getDayWorkout(todayIndex);
+        if (!todayWorkout) {
+          return {
+            icon: 'self-improvement',
+            text: 'Rest day: Focus on mobility, hydration, and quality sleep for optimal recovery',
+            color: '#9C27B0',
+          };
+        } else if (workoutsThisWeek >= 3) {
+          return {
+            icon: 'spa',
+            text: 'You're training hard. Don't forget to prioritize sleep and nutrition for recovery',
+            color: '#9C27B0',
+          };
+        }
+        return {
+          icon: 'self-improvement',
+          text: 'Listen to your body. Recovery is when you get stronger',
+          color: '#9C27B0',
+        };
+      
+      default:
+        return {
+          icon: 'favorite',
+          text: userMotivation || COACH_INSIGHTS[0],
+          color: colors.primary,
+        };
+    }
+  };
+
+  const getPrimaryAction = () => {
+    const todayIndex = new Date().getDay();
+    const todayWorkout = getDayWorkout(todayIndex);
+    const completedTasksCount = todayTasks.filter(t => t.completed).length;
+    const totalTasksCount = todayTasks.length;
+    const mealsLogged = stats?.mealsLogged || 0;
+
+    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    const lastMeasurement = measurements.length > 0 ? measurements[measurements.length - 1] : null;
+    const daysSinceWeighIn = lastMeasurement ? Math.floor((Date.now() - new Date(lastMeasurement.date).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    if (daysSinceLastWorkout > 7) {
+      return {
+        title: 'Resume After Break',
+        subtitle: `It's been ${daysSinceLastWorkout} days. Let's get back on track`,
+        icon: 'refresh',
+        route: '/(tabs)/training',
+      };
+    }
+
+    if (daysSinceWeighIn > 7) {
+      return {
+        title: 'Complete Your Weigh-In',
+        subtitle: 'Track your progress this week',
+        icon: 'monitor-weight',
+        route: '/(tabs)/progress',
+      };
+    }
+
+    if (todayWorkout && workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const today = new Date();
+      return workoutDate.toDateString() === today.toDateString();
+    }).length === 0) {
+      return {
+        title: `Do Today's ${todayWorkout.name}`,
+        subtitle: `${todayWorkout.exercises.length} exercises ready`,
+        icon: 'fitness-center',
+        route: '/(tabs)/training',
+      };
+    }
+
+    if (mealsLogged === 0) {
+      const hour = new Date().getHours();
+      const mealTime = hour < 10 ? 'Breakfast' : hour < 14 ? 'Lunch' : hour < 18 ? 'Snack' : 'Dinner';
+      return {
+        title: `Log ${mealTime}`,
+        subtitle: 'Track your nutrition for today',
+        icon: 'restaurant',
+        route: '/(tabs)/nutrition',
+      };
+    }
+
+    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
+      return {
+        title: 'Complete Your Tasks',
+        subtitle: `${totalTasksCount - completedTasksCount} tasks remaining`,
+        icon: 'check-circle',
+        route: '/(tabs)/focus',
+      };
+    }
+
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+
+    if (workoutsThisWeek >= 4) {
+      return {
+        title: 'Review Recovery',
+        subtitle: 'You're training hard. Check your rest needs',
+        icon: 'spa',
+        route: '/(tabs)/plan',
+      };
+    }
+
+    return {
+      title: 'Start Today\'s Workout',
+      subtitle: 'Your workout is ready',
+      icon: 'fitness-center',
+      route: '/(tabs)/training',
+    };
+  };
+
+  const getProgressMetric = () => {
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+
+    if (measurements.length >= 2) {
+      const latest = measurements[measurements.length - 1];
+      const previous = measurements[measurements.length - 2];
+      const weightChange = latest.weight - previous.weight;
+      const changeText = weightChange > 0 ? `+${weightChange.toFixed(1)}` : weightChange.toFixed(1);
+      return `Weight: ${changeText} kg this month`;
+    }
+
+    if (workoutsThisWeek > 0) {
+      return `Workouts: ${workoutsThisWeek}/${totalWeeklyWorkouts} this week`;
+    }
+
+    const mealsLogged = stats?.mealsLogged || 0;
+    if (mealsLogged > 0) {
+      return `Nutrition: ${mealsLogged} meals logged today`;
+    }
+
+    return 'Track your progress';
+  };
+
+  const getWorkoutDuration = (workout: WorkoutDay): string => {
+    const exerciseCount = workout.exercises.length;
+    if (exerciseCount <= 4) return '30-40 min';
+    if (exerciseCount <= 6) return '45-55 min';
+    return '60-75 min';
+  };
+
+  const getWorkoutEmphasis = (workout: WorkoutDay): string => {
+    const exerciseCount = workout.exercises.length;
+    if (exerciseCount <= 4) return 'Light';
+    if (exerciseCount <= 6) return 'Moderate';
+    return 'Intense';
+  };
+
+  const getRestDayActivity = (dayIndex: number): { activity: string; icon: string } => {
+    const activities = [
+      { activity: 'Active recovery: 20-min walk', icon: 'directions-walk' },
+      { activity: 'Mobility: 15-min stretching', icon: 'self-improvement' },
+      { activity: 'Light cardio: 30-min bike', icon: 'directions-bike' },
+      { activity: 'Recovery: Foam rolling', icon: 'spa' },
+    ];
+    return activities[dayIndex % activities.length];
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -217,25 +500,7 @@ export default function HomeScreen() {
 
   const completedTasksCount = todayTasks.filter(t => t.completed).length;
   const totalTasksCount = todayTasks.length;
-  const hasIncompleteTasks = totalTasksCount > 0 && completedTasksCount < totalTasksCount;
   const allTasksComplete = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
-
-  const mealsLogged = stats?.mealsLogged || 0;
-  const needsNutritionLog = mealsLogged === 0;
-
-  const primaryActionText = hasIncompleteTasks ? 'Complete Your Tasks' : 
-                           needsNutritionLog ? 'Log Your First Meal' : 
-                           'Start Today\'s Workout';
-  const primaryActionRoute = hasIncompleteTasks ? '/(tabs)/focus' : 
-                            needsNutritionLog ? '/(tabs)/nutrition' : 
-                            '/(tabs)/training';
-  const primaryActionIcon = hasIncompleteTasks ? 'check-circle' : 
-                           needsNutritionLog ? 'restaurant' : 
-                           'fitness-center';
-
-  const secondaryActionText = hasIncompleteTasks ? 'View Weekly Plan' : 'Track Progress';
-  const secondaryActionRoute = hasIncompleteTasks ? '/(tabs)/plan' : '/(tabs)/progress';
-  const secondaryActionIcon = hasIncompleteTasks ? 'calendar-today' : 'show-chart';
 
   const greetingTime = new Date().getHours();
   const greetingText = greetingTime < 12 ? 'Good morning' : 
@@ -244,6 +509,9 @@ export default function HomeScreen() {
 
   const dynamicContextLine = getDynamicContextLine();
   const nextThreeDays = getNextThreeDays();
+  const motivationContent = getMotivationCardContent();
+  const primaryAction = getPrimaryAction();
+  const progressMetric = getProgressMetric();
 
   return (
     <View style={styles.container}>
@@ -268,17 +536,19 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {motivation && (
-          <View style={styles.motivationCard}>
-            <IconSymbol
-              ios_icon_name="heart.fill"
-              android_material_icon_name="favorite"
-              size={20}
-              color={colors.primary}
-            />
-            <Text style={styles.motivationText}>&quot;{motivation}&quot;</Text>
-          </View>
-        )}
+        <TouchableOpacity 
+          style={styles.motivationCard}
+          onPress={determineMotivationCardType}
+          activeOpacity={0.8}
+        >
+          <IconSymbol
+            ios_icon_name="heart.fill"
+            android_material_icon_name={motivationContent.icon}
+            size={20}
+            color={motivationContent.color}
+          />
+          <Text style={styles.motivationText}>{motivationContent.text}</Text>
+        </TouchableOpacity>
 
         <View style={styles.nextActionSection}>
           <Text style={styles.nextActionLabel}>Your next move</Text>
@@ -286,26 +556,22 @@ export default function HomeScreen() {
           <TouchableOpacity 
             style={styles.primaryAction}
             onPress={() => {
-              console.log('[Home] User tapped primary action:', primaryActionRoute);
-              router.push(primaryActionRoute as any);
+              console.log('[Home] User tapped primary action:', primaryAction.route);
+              router.push(primaryAction.route as any);
             }}
           >
             <View style={styles.primaryActionContent}>
               <View style={styles.primaryActionIcon}>
                 <IconSymbol
                   ios_icon_name="bolt.fill"
-                  android_material_icon_name={primaryActionIcon}
+                  android_material_icon_name={primaryAction.icon}
                   size={32}
                   color="#fff"
                 />
               </View>
               <View style={styles.primaryActionText}>
-                <Text style={styles.primaryActionTitle}>{primaryActionText}</Text>
-                <Text style={styles.primaryActionSubtitle}>
-                  {hasIncompleteTasks ? `${totalTasksCount - completedTasksCount} tasks remaining` : 
-                   needsNutritionLog ? 'Track what you eat today' : 
-                   'Your workout is ready'}
-                </Text>
+                <Text style={styles.primaryActionTitle}>{primaryAction.title}</Text>
+                <Text style={styles.primaryActionSubtitle}>{primaryAction.subtitle}</Text>
               </View>
             </View>
             <IconSymbol
@@ -319,17 +585,20 @@ export default function HomeScreen() {
           <TouchableOpacity 
             style={styles.secondaryAction}
             onPress={() => {
-              console.log('[Home] User tapped secondary action:', secondaryActionRoute);
-              router.push(secondaryActionRoute as any);
+              console.log('[Home] User tapped View Progress');
+              router.push('/(tabs)/progress');
             }}
           >
             <IconSymbol
               ios_icon_name="chart.line.uptrend.xyaxis"
-              android_material_icon_name={secondaryActionIcon}
+              android_material_icon_name="show-chart"
               size={20}
               color={colors.primary}
             />
-            <Text style={styles.secondaryActionText}>{secondaryActionText}</Text>
+            <View style={styles.secondaryActionTextContainer}>
+              <Text style={styles.secondaryActionText}>Check Weekly Progress</Text>
+              <Text style={styles.secondaryActionMetric}>{progressMetric}</Text>
+            </View>
             <IconSymbol
               ios_icon_name="chevron.right"
               android_material_icon_name="chevron-right"
@@ -370,6 +639,9 @@ export default function HomeScreen() {
             >
               {nextThreeDays.map((dayInfo, index) => {
                 const workout = getDayWorkout(dayInfo.dayIndex);
+                const duration = workout ? getWorkoutDuration(workout) : '';
+                const emphasis = workout ? getWorkoutEmphasis(workout) : '';
+                const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
                 return (
                   <TouchableOpacity
@@ -379,7 +651,14 @@ export default function HomeScreen() {
                       dayInfo.isToday && styles.weekDayCardToday,
                       !workout && styles.weekDayCardRest,
                     ]}
-                    onPress={handleViewFullPlan}
+                    onPress={() => {
+                      console.log('[Home] User tapped day card:', dayInfo.dayName);
+                      if (workout) {
+                        router.push('/(tabs)/training');
+                      } else {
+                        router.push('/(tabs)/plan');
+                      }
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text style={[
@@ -394,28 +673,33 @@ export default function HomeScreen() {
                           <IconSymbol
                             ios_icon_name="figure.strengthtraining.traditional"
                             android_material_icon_name="fitness-center"
-                            size={48}
+                            size={40}
                             color={dayInfo.isToday ? colors.primary : colors.textSecondary}
                           />
                         </View>
                         <Text style={[
                           styles.weekDayWorkout,
                           dayInfo.isToday && styles.weekDayWorkoutToday,
-                        ]} numberOfLines={2}>
+                        ]} numberOfLines={1}>
                           {workout.name}
                         </Text>
+                        <Text style={styles.weekDayDuration}>{duration}</Text>
+                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="bed.double.fill"
-                            android_material_icon_name="hotel"
-                            size={48}
+                            android_material_icon_name={restActivity?.icon || 'hotel'}
+                            size={40}
                             color={colors.grey}
                           />
                         </View>
                         <Text style={styles.weekDayRest}>Rest</Text>
+                        {restActivity && (
+                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
+                        )}
                       </React.Fragment>
                     )}
                   </TouchableOpacity>
@@ -458,7 +742,7 @@ export default function HomeScreen() {
                 <Text style={styles.overviewLabel}>Meals</Text>
               </View>
               <Text style={styles.overviewValue}>
-                {mealsLogged}
+                {stats?.mealsLogged || 0}
               </Text>
               <Text style={styles.overviewSubtext}>
                 logged
@@ -595,9 +879,9 @@ const styles = StyleSheet.create({
   motivationText: {
     flex: 1,
     fontSize: 14,
-    fontStyle: 'italic',
     color: colors.text,
     lineHeight: 20,
+    fontWeight: '500',
   },
   nextActionSection: {
     marginBottom: 32,
@@ -661,11 +945,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
-  secondaryActionText: {
+  secondaryActionTextContainer: {
     flex: 1,
+  },
+  secondaryActionText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    marginBottom: 2,
+  },
+  secondaryActionMetric: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   celebrationCard: {
     flexDirection: 'row',
@@ -705,8 +996,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   weekDayCard: {
-    width: 120,
-    height: 160,
+    width: 140,
+    height: 180,
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1,
@@ -739,8 +1030,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weekDayWorkout: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
     marginTop: 8,
@@ -748,11 +1039,31 @@ const styles = StyleSheet.create({
   weekDayWorkoutToday: {
     color: colors.primary,
   },
-  weekDayRest: {
+  weekDayDuration: {
     fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  weekDayEmphasis: {
+    fontSize: 11,
+    color: colors.grey,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  weekDayRest: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.grey,
     textAlign: 'center',
     marginTop: 8,
+  },
+  weekDayRestActivity: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 14,
   },
   todayOverview: {
     marginBottom: 32,
