@@ -80,10 +80,12 @@ const calculateCaloricGoal = (
 
   // Adjust for goal
   let caloricGoal: number;
-  if (goal === 'weight-loss') {
+  if (goal === 'lose-fat' || goal === 'weight-loss') {
     caloricGoal = tdee * 0.85;
-  } else if (goal === 'muscle' || goal === 'strength') {
+  } else if (goal === 'build-muscle' || goal === 'muscle') {
     caloricGoal = tdee * 1.10;
+  } else if (goal === 'get-stronger' || goal === 'strength') {
+    caloricGoal = tdee * 1.05;
   } else {
     caloricGoal = tdee;
   }
@@ -106,7 +108,14 @@ const calculateCaloricGoal = (
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<FitnessProfile & { selectedDays?: number[]; motivation?: string; selectedMotivationChips?: string[] }>>({});
+  const [profile, setProfile] = useState<Partial<FitnessProfile & { 
+    selectedDays?: number[]; 
+    motivation?: string; 
+    selectedMotivationChips?: string[];
+    primaryGoal?: string;
+    secondaryGoal?: string;
+    sessionLength?: string;
+  }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
@@ -123,7 +132,7 @@ export default function OnboardingScreen() {
     const gender = profile.gender || 'male';
     const weight = profile.weight || 70;
     const height = profile.height || 175;
-    const goal = profile.goal || 'muscle';
+    const goal = profile.primaryGoal || 'build-muscle';
     
     const nutritionGoals = calculateCaloricGoal(
       gender,
@@ -193,13 +202,13 @@ export default function OnboardingScreen() {
       
       // Map frontend goal values to backend expected values
       let backendGoal: 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' = 'muscle_gain';
-      if (goal === 'weight-loss') {
+      if (goal === 'lose-fat' || goal === 'weight-loss') {
         backendGoal = 'weight_loss';
-      } else if (goal === 'muscle') {
+      } else if (goal === 'build-muscle' || goal === 'muscle') {
         backendGoal = 'muscle_gain';
-      } else if (goal === 'strength') {
+      } else if (goal === 'get-stronger' || goal === 'strength') {
         backendGoal = 'strength';
-      } else if (goal === 'endurance') {
+      } else if (goal === 'improve-endurance' || goal === 'endurance') {
         backendGoal = 'endurance';
       }
       
@@ -259,35 +268,46 @@ export default function OnboardingScreen() {
       const hasText = profile.motivation && profile.motivation.trim().length > 0;
       return hasChips || hasText;
     }
-    if (step === 3) return profile.goal;
+    if (step === 3) return profile.primaryGoal;
     if (step === 4) return profile.selectedDays && profile.selectedDays.length > 0;
-    if (step === 5) return profile.focusAreas && profile.focusAreas.length > 0;
-    if (step === 6) return profile.equipmentType;
-    if (step === 7) return profile.gender && profile.weight && profile.height && profile.age;
+    if (step === 5) return profile.sessionLength;
+    if (step === 6) return profile.focusAreas && profile.focusAreas.length > 0;
+    if (step === 7) return profile.equipmentType;
+    if (step === 8) return profile.gender && profile.weight && profile.height && profile.age;
     return false;
   };
 
   const getHelperText = () => {
     const daysCount = profile.selectedDays?.length || 0;
+    const sessionLength = profile.sessionLength;
     const focusCount = profile.focusAreas?.length || 0;
     const equipment = profile.equipmentType;
 
     if (step === 4 && daysCount > 0) {
       if (daysCount <= 2) {
-        return '💡 Perfect for beginners. We\'ll focus on full-body compound movements to maximize your limited time.';
-      } else if (daysCount <= 4) {
-        return '💡 Great balance! We\'ll create an upper/lower split that fits your schedule perfectly.';
+        return '💡 Based on 2 available days, we\'ll likely build a 2-day full-body split. You can adjust later.';
+      } else if (daysCount === 3) {
+        return '💡 Based on 3 available days, we\'ll likely build a 3-day full-body or upper/lower rotation. You can adjust later.';
+      } else if (daysCount === 4) {
+        return '💡 Based on 4 available days, we\'ll likely build an upper/lower or push/pull split. You can adjust later.';
       } else {
-        return '💡 Excellent commitment! We\'ll design a targeted split to optimize muscle recovery and growth.';
+        return '💡 Based on 5+ available days, we\'ll likely build a targeted body-part split. You can adjust later.';
       }
     }
 
-    if (step === 5 && focusCount > 0 && daysCount > 0) {
+    if (step === 5 && sessionLength) {
+      const sessionText = sessionLength === '20-30' ? '20-30 minute' :
+                         sessionLength === '30-45' ? '30-45 minute' :
+                         sessionLength === '45-60' ? '45-60 minute' : '60+ minute';
+      return `💡 Your ${daysCount}-day plan with ${sessionText} sessions will be optimized for maximum efficiency.`;
+    }
+
+    if (step === 6 && focusCount > 0 && daysCount > 0) {
       const areasText = focusCount === 1 ? 'area' : 'areas';
       return `💡 Your ${daysCount}-day plan will prioritize your ${focusCount} focus ${areasText} with specialized exercises.`;
     }
 
-    if (step === 6 && equipment) {
+    if (step === 7 && equipment) {
       if (equipment === 'gym') {
         return '💡 Full gym access unlocks advanced training techniques and progressive overload strategies.';
       } else if (equipment === 'home') {
@@ -440,39 +460,61 @@ export default function OnboardingScreen() {
   const renderStep3 = () => {
     const goals = [
       { 
-        id: 'strength', 
-        label: 'Get Stronger', 
-        description: 'Lift heavier, feel powerful',
-        iosIcon: 'bolt.fill', 
-        androidIcon: 'flash-on' 
-      },
-      { 
-        id: 'muscle', 
+        id: 'build-muscle', 
         label: 'Build Muscle', 
-        description: 'Sculpt your physique',
+        description: 'Hypertrophy-focused training',
         iosIcon: 'figure.strengthtraining.traditional', 
         androidIcon: 'fitness-center' 
       },
       { 
-        id: 'endurance', 
-        label: 'Boost Endurance', 
-        description: 'Go longer, push harder',
+        id: 'get-stronger', 
+        label: 'Get Stronger', 
+        description: 'Strength and power gains',
+        iosIcon: 'bolt.fill', 
+        androidIcon: 'flash-on' 
+      },
+      { 
+        id: 'lose-fat', 
+        label: 'Lose Fat', 
+        description: 'Fat loss and definition',
+        iosIcon: 'flame.fill', 
+        androidIcon: 'local-fire-department' 
+      },
+      { 
+        id: 'improve-fitness', 
+        label: 'Improve Fitness', 
+        description: 'Overall health and wellness',
+        iosIcon: 'heart.fill', 
+        androidIcon: 'favorite' 
+      },
+      { 
+        id: 'improve-endurance', 
+        label: 'Improve Endurance', 
+        description: 'Stamina and conditioning',
         iosIcon: 'figure.run', 
         androidIcon: 'directions-run' 
       },
       { 
-        id: 'weight-loss', 
-        label: 'Lose Weight', 
-        description: 'Feel lighter, move better',
-        iosIcon: 'flame.fill', 
-        androidIcon: 'local-fire-department' 
+        id: 'feel-better', 
+        label: 'Feel Better / General Health', 
+        description: 'Energy and well-being',
+        iosIcon: 'sparkles', 
+        androidIcon: 'auto-awesome' 
       },
     ];
+
+    const primaryGoal = profile.primaryGoal;
+    const secondaryGoal = profile.secondaryGoal;
 
     return (
       <View style={styles.stepContainer}>
         <Text style={styles.stepTitle}>What matters most to you?</Text>
-        <Text style={styles.stepSubtitle}>Choose the goal that excites you most right now</Text>
+        <Text style={styles.stepSubtitle}>Choose your primary goal, then optionally add a secondary goal</Text>
+        
+        <View style={styles.goalSectionHeader}>
+          <Text style={styles.goalSectionTitle}>Primary Goal</Text>
+          <Text style={styles.goalSectionSubtitle}>Your main focus</Text>
+        </View>
         
         <View style={styles.goalsContainer}>
           {goals.map((goal) => (
@@ -480,23 +522,27 @@ export default function OnboardingScreen() {
               key={goal.id}
               style={[
                 styles.goalCardEnhanced,
-                profile.goal === goal.id && styles.selectedCard,
+                primaryGoal === goal.id && styles.selectedCard,
+                secondaryGoal === goal.id && styles.disabledCard,
               ]}
               onPress={() => {
-                console.log('[Onboarding] Goal selected:', goal.id);
-                setProfile({ ...profile, goal: goal.id as any });
+                if (secondaryGoal !== goal.id) {
+                  console.log('[Onboarding] Primary goal selected:', goal.id);
+                  setProfile({ ...profile, primaryGoal: goal.id });
+                }
               }}
+              disabled={secondaryGoal === goal.id}
             >
               <IconSymbol
                 ios_icon_name={goal.iosIcon}
                 android_material_icon_name={goal.androidIcon}
-                size={40}
-                color={profile.goal === goal.id ? colors.primary : colors.grey}
+                size={32}
+                color={primaryGoal === goal.id ? colors.primary : colors.grey}
               />
               <View style={styles.goalTextContainer}>
                 <Text style={[
                   styles.goalLabel,
-                  profile.goal === goal.id && styles.selectedText
+                  primaryGoal === goal.id && styles.selectedText
                 ]}>
                   {goal.label}
                 </Text>
@@ -507,6 +553,62 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {primaryGoal && (
+          <React.Fragment>
+            <View style={styles.goalSectionHeader}>
+              <Text style={styles.goalSectionTitle}>Secondary Goal (Optional)</Text>
+              <Text style={styles.goalSectionSubtitle}>Complement your primary focus</Text>
+            </View>
+            
+            <View style={styles.goalsContainer}>
+              {goals.filter(g => g.id !== primaryGoal).map((goal) => (
+                <TouchableOpacity
+                  key={goal.id}
+                  style={[
+                    styles.goalCardEnhanced,
+                    styles.secondaryGoalCard,
+                    secondaryGoal === goal.id && styles.selectedSecondaryCard,
+                  ]}
+                  onPress={() => {
+                    console.log('[Onboarding] Secondary goal selected:', goal.id);
+                    const newSecondary = secondaryGoal === goal.id ? undefined : goal.id;
+                    setProfile({ ...profile, secondaryGoal: newSecondary });
+                  }}
+                >
+                  <IconSymbol
+                    ios_icon_name={goal.iosIcon}
+                    android_material_icon_name={goal.androidIcon}
+                    size={28}
+                    color={secondaryGoal === goal.id ? colors.primary : colors.grey}
+                  />
+                  <View style={styles.goalTextContainer}>
+                    <Text style={[
+                      styles.goalLabelSecondary,
+                      secondaryGoal === goal.id && styles.selectedText
+                    ]}>
+                      {goal.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </React.Fragment>
+        )}
+
+        {primaryGoal && secondaryGoal && (
+          <View style={styles.goalCombinationBox}>
+            <IconSymbol
+              ios_icon_name="checkmark.seal.fill"
+              android_material_icon_name="verified"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={styles.goalCombinationText}>
+              Your plan will prioritize {goals.find(g => g.id === primaryGoal)?.label.toLowerCase()} while supporting {goals.find(g => g.id === secondaryGoal)?.label.toLowerCase()}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -581,6 +683,80 @@ export default function OnboardingScreen() {
   };
 
   const renderStep5 = () => {
+    const sessionLengths = [
+      { id: '20-30', label: '20-30 min', description: 'Quick and efficient' },
+      { id: '30-45', label: '30-45 min', description: 'Balanced approach' },
+      { id: '45-60', label: '45-60 min', description: 'Standard workout' },
+      { id: '60+', label: '60+ min', description: 'Extended training' },
+    ];
+
+    const daysCount = profile.selectedDays?.length || 0;
+
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>How much time do you realistically have per session?</Text>
+        <Text style={styles.stepSubtitle}>This helps us design workouts that fit your schedule</Text>
+        
+        <View style={styles.sessionLengthContainer}>
+          {sessionLengths.map((length) => (
+            <TouchableOpacity
+              key={length.id}
+              style={[
+                styles.sessionLengthCard,
+                profile.sessionLength === length.id && styles.selectedCard,
+              ]}
+              onPress={() => {
+                console.log('[Onboarding] Session length selected:', length.id);
+                setProfile({ ...profile, sessionLength: length.id });
+              }}
+            >
+              <View style={styles.sessionLengthContent}>
+                <Text style={[
+                  styles.sessionLengthLabel,
+                  profile.sessionLength === length.id && styles.selectedText
+                ]}>
+                  {length.label}
+                </Text>
+                <Text style={styles.sessionLengthDescription}>
+                  {length.description}
+                </Text>
+              </View>
+              {profile.sessionLength === length.id && (
+                <IconSymbol
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={28}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {profile.sessionLength && (
+          <View style={styles.sessionInfoBox}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.sessionInfoText}>
+              A {daysCount}-day plan with {profile.sessionLength === '20-30' ? '20-30 minute' : profile.sessionLength === '30-45' ? '30-45 minute' : profile.sessionLength === '45-60' ? '45-60 minute' : '60+ minute'} sessions requires different exercise selection and volume than longer workouts.
+            </Text>
+          </View>
+        )}
+
+        {helperText && (
+          <View style={styles.dynamicHelperBox}>
+            <Text style={styles.dynamicHelperText}>{helperText}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderStep6 = () => {
     const areas = profile.gender === 'female'
       ? ['Glutes', 'Legs', 'Core', 'Upper Body', 'Full Body']
       : ['Chest', 'Back', 'Arms', 'Legs', 'Shoulders'];
@@ -626,7 +802,7 @@ export default function OnboardingScreen() {
     );
   };
 
-  const renderStep6 = () => (
+  const renderStep7 = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What equipment do you have?</Text>
       <Text style={styles.stepSubtitle}>We&apos;ll adapt every workout to what you have available</Text>
@@ -672,19 +848,23 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderStep7 = () => {
+  const renderStep8 = () => {
     const daysCount = profile.selectedDays?.length || 0;
     const focusAreasText = profile.focusAreas?.join(', ') || 'full body';
     const equipmentText = profile.equipmentType === 'gym' ? 'gym equipment' : 
                          profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
-    const goalText = profile.goal === 'strength' ? 'build strength' :
-                    profile.goal === 'muscle' ? 'gain muscle' :
-                    profile.goal === 'endurance' ? 'boost endurance' : 'lose weight';
+    const primaryGoalLabel = profile.primaryGoal ? 
+      profile.primaryGoal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    const secondaryGoalLabel = profile.secondaryGoal ? 
+      profile.secondaryGoal.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    const sessionLengthText = profile.sessionLength === '20-30' ? '20-30 minute' :
+                             profile.sessionLength === '30-45' ? '30-45 minute' :
+                             profile.sessionLength === '45-60' ? '45-60 minute' : '60+ minute';
 
     return (
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.step7ScrollContent}
+        contentContainerStyle={styles.step8ScrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.finalHeader}>
@@ -787,20 +967,33 @@ export default function OnboardingScreen() {
           <View style={styles.summaryContent}>
             <View style={styles.summaryRow}>
               <IconSymbol
+                ios_icon_name="target"
+                android_material_icon_name="track-changes"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.summaryText}>
+                Primary: {primaryGoalLabel}
+                {secondaryGoalLabel && ` • Secondary: ${secondaryGoalLabel}`}
+              </Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <IconSymbol
                 ios_icon_name="calendar"
                 android_material_icon_name="calendar-today"
                 size={20}
                 color={colors.primary}
               />
               <Text style={styles.summaryText}>
-                {daysCount} days per week
+                {daysCount} days per week • {sessionLengthText} sessions
               </Text>
             </View>
             
             <View style={styles.summaryRow}>
               <IconSymbol
-                ios_icon_name="target"
-                android_material_icon_name="track-changes"
+                ios_icon_name="figure.strengthtraining.traditional"
+                android_material_icon_name="fitness-center"
                 size={20}
                 color={colors.primary}
               />
@@ -818,18 +1011,6 @@ export default function OnboardingScreen() {
               />
               <Text style={styles.summaryText}>
                 Using {equipmentText}
-              </Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <IconSymbol
-                ios_icon_name="flame.fill"
-                android_material_icon_name="local-fire-department"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={styles.summaryText}>
-                Designed to {goalText}
               </Text>
             </View>
           </View>
@@ -862,7 +1043,7 @@ export default function OnboardingScreen() {
         >
           <View style={styles.content}>
             <View style={styles.progressBar}>
-              {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                 <View
                   key={s}
                   style={[
@@ -880,6 +1061,7 @@ export default function OnboardingScreen() {
             {step === 5 && renderStep5()}
             {step === 6 && renderStep6()}
             {step === 7 && renderStep7()}
+            {step === 8 && renderStep8()}
 
             <View style={styles.navigation}>
               {step > 1 && (
@@ -900,7 +1082,7 @@ export default function OnboardingScreen() {
                   !canProceed() && styles.nextButtonDisabled,
                 ]}
                 onPress={() => {
-                  if (step < 7) {
+                  if (step < 8) {
                     console.log('[Onboarding] User tapped Next');
                     setStep(step + 1);
                   } else {
@@ -910,7 +1092,7 @@ export default function OnboardingScreen() {
                 disabled={!canProceed()}
               >
                 <Text style={styles.nextButtonText}>
-                  {step === 7 ? 'Start My Journey' : 'Next'}
+                  {step === 8 ? 'Start My Journey' : 'Next'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -967,11 +1149,11 @@ const styles = StyleSheet.create({
   progressBar: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     marginBottom: 40,
   },
   progressDot: {
-    width: 28,
+    width: 24,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
@@ -987,7 +1169,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  step7ScrollContent: {
+  step8ScrollContent: {
     paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
@@ -1110,10 +1292,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  goalSectionHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 12,
+  },
+  goalSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  goalSectionSubtitle: {
+    fontSize: 14,
+    color: colors.grey,
+  },
   goalsContainer: {
     gap: 12,
     width: '100%',
     maxWidth: 400,
+    marginBottom: 20,
   },
   goalCardEnhanced: {
     flexDirection: 'row',
@@ -1125,9 +1323,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.1)',
   },
+  secondaryGoalCard: {
+    padding: 16,
+  },
   selectedCard: {
     backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
+  },
+  selectedSecondaryCard: {
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderColor: colors.primary,
+  },
+  disabledCard: {
+    opacity: 0.4,
   },
   goalTextContainer: {
     flex: 1,
@@ -1138,12 +1346,32 @@ const styles = StyleSheet.create({
     color: colors.grey,
     marginBottom: 4,
   },
+  goalLabelSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.grey,
+  },
   goalDescription: {
     fontSize: 14,
     color: colors.textSecondary,
   },
   selectedText: {
     color: colors.primary,
+  },
+  goalCombinationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 400,
+  },
+  goalCombinationText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -1194,6 +1422,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
+  },
+  sessionLengthContainer: {
+    gap: 12,
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 20,
+  },
+  sessionLengthCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  sessionLengthContent: {
+    flex: 1,
+  },
+  sessionLengthLabel: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.grey,
+    marginBottom: 4,
+  },
+  sessionLengthDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  sessionInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 400,
+    marginBottom: 16,
+  },
+  sessionInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   dynamicHelperBox: {
     backgroundColor: 'rgba(69, 155, 155, 0.1)',
