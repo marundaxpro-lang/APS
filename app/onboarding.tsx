@@ -115,6 +115,8 @@ export default function OnboardingScreen() {
     primaryGoal?: string;
     secondaryGoal?: string;
     sessionLength?: string;
+    homeEquipmentDetails?: string[];
+    trainingConfidence?: string;
   }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -271,9 +273,15 @@ export default function OnboardingScreen() {
     if (step === 3) return profile.primaryGoal;
     if (step === 4) return profile.selectedDays && profile.selectedDays.length > 0;
     if (step === 5) return profile.sessionLength;
-    if (step === 6) return profile.focusAreas && profile.focusAreas.length > 0;
+    if (step === 6) return true;
     if (step === 7) return profile.equipmentType;
-    if (step === 8) return profile.gender && profile.weight && profile.height && profile.age;
+    if (step === 8) {
+      if (profile.equipmentType === 'home' && (!profile.homeEquipmentDetails || profile.homeEquipmentDetails.length === 0)) {
+        return false;
+      }
+      return profile.trainingConfidence;
+    }
+    if (step === 9) return profile.gender && profile.weight && profile.height && profile.age;
     return false;
   };
 
@@ -304,14 +312,14 @@ export default function OnboardingScreen() {
 
     if (step === 6 && focusCount > 0 && daysCount > 0) {
       const areasText = focusCount === 1 ? 'area' : 'areas';
-      return `💡 Your ${daysCount}-day plan will prioritize your ${focusCount} focus ${areasText} with specialized exercises.`;
+      return `💡 We'll give these areas extra attention without neglecting full-body balance.`;
     }
 
     if (step === 7 && equipment) {
       if (equipment === 'gym') {
         return '💡 Full gym access unlocks advanced training techniques and progressive overload strategies.';
       } else if (equipment === 'home') {
-        return '💡 Home equipment is perfect! We\'ll design effective workouts with dumbbells, bands, and bodyweight.';
+        return '💡 Home equipment is perfect! We\'ll design effective workouts with what you have available.';
       } else {
         return '💡 Bodyweight training builds incredible strength and control. No equipment needed, just dedication.';
       }
@@ -757,41 +765,78 @@ export default function OnboardingScreen() {
   };
 
   const renderStep6 = () => {
-    const areas = profile.gender === 'female'
-      ? ['Glutes', 'Legs', 'Core', 'Upper Body', 'Full Body']
-      : ['Chest', 'Back', 'Arms', 'Legs', 'Shoulders'];
+    const areas = [
+      { id: 'upper-body', label: 'Upper Body', iosIcon: 'figure.arms.open', androidIcon: 'accessibility' },
+      { id: 'lower-body', label: 'Lower Body', iosIcon: 'figure.walk', androidIcon: 'directions-walk' },
+      { id: 'glutes', label: 'Glutes', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
+      { id: 'core', label: 'Core', iosIcon: 'figure.core.training', androidIcon: 'fitness-center' },
+      { id: 'arms', label: 'Arms', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
+      { id: 'back', label: 'Back', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
+      { id: 'posture', label: 'Posture', iosIcon: 'figure.stand', androidIcon: 'accessibility-new' },
+      { id: 'cardio', label: 'Cardio Capacity', iosIcon: 'heart.fill', androidIcon: 'favorite' },
+    ];
+
+    const selectedAreas = profile.focusAreas || [];
+
+    const toggleArea = (areaId: string) => {
+      console.log('[Onboarding] Focus area toggled:', areaId);
+      const current = selectedAreas;
+      const updated = current.includes(areaId)
+        ? current.filter((a) => a !== areaId)
+        : [...current, areaId];
+      setProfile({ ...profile, focusAreas: updated });
+    };
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>What areas do you want to focus on?</Text>
-        <Text style={styles.stepSubtitle}>Select one or more</Text>
-        
-        <View style={styles.areasGrid}>
-          {areas.map((area) => (
-            <TouchableOpacity
-              key={area}
-              style={[
-                styles.areaChip,
-                profile.focusAreas?.includes(area) && styles.selectedChip,
-              ]}
-              onPress={() => {
-                console.log('[Onboarding] Focus area toggled:', area);
-                const current = profile.focusAreas || [];
-                const updated = current.includes(area)
-                  ? current.filter((a) => a !== area)
-                  : [...current, area];
-                setProfile({ ...profile, focusAreas: updated });
-              }}
-            >
-              <Text style={[
-                styles.chipText,
-                profile.focusAreas?.includes(area) && styles.selectedChipText
-              ]}>
-                {area}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.optionalBadge}>
+          <Text style={styles.optionalBadgeText}>OPTIONAL</Text>
         </View>
+        <Text style={styles.stepTitle}>Any areas you want extra attention on?</Text>
+        <Text style={styles.stepSubtitle}>We&apos;ll prioritize these without neglecting full-body balance</Text>
+        
+        <View style={styles.focusAreasGrid}>
+          {areas.map((area) => {
+            const isSelected = selectedAreas.includes(area.id);
+            return (
+              <TouchableOpacity
+                key={area.id}
+                style={[
+                  styles.focusAreaCard,
+                  isSelected && styles.focusAreaCardSelected,
+                ]}
+                onPress={() => toggleArea(area.id)}
+              >
+                <IconSymbol
+                  ios_icon_name={area.iosIcon}
+                  android_material_icon_name={area.androidIcon}
+                  size={32}
+                  color={isSelected ? colors.primary : colors.grey}
+                />
+                <Text style={[
+                  styles.focusAreaText,
+                  isSelected && styles.focusAreaTextSelected
+                ]}>
+                  {area.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {selectedAreas.length > 0 && (
+          <View style={styles.focusInfoBox}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.focusInfoText}>
+              We&apos;ll give these areas extra attention without neglecting full-body balance.
+            </Text>
+          </View>
+        )}
 
         {helperText && (
           <View style={styles.dynamicHelperBox}>
@@ -807,7 +852,7 @@ export default function OnboardingScreen() {
       <Text style={styles.stepTitle}>What equipment do you have?</Text>
       <Text style={styles.stepSubtitle}>We&apos;ll adapt every workout to what you have available</Text>
       
-      <View style={styles.optionsContainer}>
+      <View style={styles.equipmentOptionsContainer}>
         {[
           { id: 'gym', label: 'Full Gym', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
           { id: 'home', label: 'Home Equipment', iosIcon: 'house.fill', androidIcon: 'home' },
@@ -849,8 +894,118 @@ export default function OnboardingScreen() {
   );
 
   const renderStep8 = () => {
+    const homeEquipmentOptions = [
+      { id: 'dumbbells', label: 'Dumbbells', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
+      { id: 'bench', label: 'Bench', iosIcon: 'rectangle.fill', androidIcon: 'weekend' },
+      { id: 'resistance-bands', label: 'Resistance Bands', iosIcon: 'link', androidIcon: 'link' },
+      { id: 'pull-up-bar', label: 'Pull-up Bar', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
+      { id: 'kettlebell', label: 'Kettlebell', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
+      { id: 'treadmill-bike', label: 'Treadmill/Bike', iosIcon: 'figure.run', androidIcon: 'directions-run' },
+      { id: 'cable-machine', label: 'Cable Machine', iosIcon: 'arrow.up.arrow.down', androidIcon: 'swap-vert' },
+      { id: 'barbell-rack', label: 'Barbell/Rack', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
+    ];
+
+    const confidenceLevels = [
+      { id: 'expert', label: 'I know my way around the gym', iosIcon: 'star.fill', androidIcon: 'star' },
+      { id: 'intermediate', label: 'I know the basics', iosIcon: 'star.leadinghalf.filled', androidIcon: 'star-half' },
+      { id: 'beginner', label: 'I need simple guidance', iosIcon: 'star', androidIcon: 'star-border' },
+    ];
+
+    const selectedEquipment = profile.homeEquipmentDetails || [];
+
+    const toggleEquipment = (equipmentId: string) => {
+      console.log('[Onboarding] Home equipment toggled:', equipmentId);
+      const current = selectedEquipment;
+      const updated = current.includes(equipmentId)
+        ? current.filter((e) => e !== equipmentId)
+        : [...current, equipmentId];
+      setProfile({ ...profile, homeEquipmentDetails: updated });
+    };
+
+    return (
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.step8ScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {profile.equipmentType === 'home' && (
+          <React.Fragment>
+            <Text style={styles.stepTitle}>What home equipment do you have?</Text>
+            <Text style={styles.stepSubtitle}>Select all that apply</Text>
+            
+            <View style={styles.homeEquipmentGrid}>
+              {homeEquipmentOptions.map((equipment) => {
+                const isSelected = selectedEquipment.includes(equipment.id);
+                return (
+                  <TouchableOpacity
+                    key={equipment.id}
+                    style={[
+                      styles.homeEquipmentCard,
+                      isSelected && styles.homeEquipmentCardSelected,
+                    ]}
+                    onPress={() => toggleEquipment(equipment.id)}
+                  >
+                    <IconSymbol
+                      ios_icon_name={equipment.iosIcon}
+                      android_material_icon_name={equipment.androidIcon}
+                      size={28}
+                      color={isSelected ? colors.primary : colors.grey}
+                    />
+                    <Text style={[
+                      styles.homeEquipmentText,
+                      isSelected && styles.homeEquipmentTextSelected
+                    ]}>
+                      {equipment.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.sectionDivider} />
+          </React.Fragment>
+        )}
+
+        <Text style={styles.stepTitle}>How confident are you with training?</Text>
+        <Text style={styles.stepSubtitle}>This helps us adjust exercise complexity and coaching tone</Text>
+        
+        <View style={styles.confidenceContainer}>
+          {confidenceLevels.map((level) => (
+            <TouchableOpacity
+              key={level.id}
+              style={[
+                styles.confidenceCard,
+                profile.trainingConfidence === level.id && styles.selectedCard,
+              ]}
+              onPress={() => {
+                console.log('[Onboarding] Training confidence selected:', level.id);
+                setProfile({ ...profile, trainingConfidence: level.id });
+              }}
+            >
+              <IconSymbol
+                ios_icon_name={level.iosIcon}
+                android_material_icon_name={level.androidIcon}
+                size={32}
+                color={profile.trainingConfidence === level.id ? colors.primary : colors.grey}
+              />
+              <Text style={[
+                styles.confidenceLevelText,
+                profile.trainingConfidence === level.id && styles.selectedText
+              ]}>
+                {level.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderStep9 = () => {
     const daysCount = profile.selectedDays?.length || 0;
-    const focusAreasText = profile.focusAreas?.join(', ') || 'full body';
+    const focusAreasText = profile.focusAreas && profile.focusAreas.length > 0 
+      ? profile.focusAreas.map(a => a.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
+      : 'full body';
     const equipmentText = profile.equipmentType === 'gym' ? 'gym equipment' : 
                          profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
     const primaryGoalLabel = profile.primaryGoal ? 
@@ -990,17 +1145,19 @@ export default function OnboardingScreen() {
               </Text>
             </View>
             
-            <View style={styles.summaryRow}>
-              <IconSymbol
-                ios_icon_name="figure.strengthtraining.traditional"
-                android_material_icon_name="fitness-center"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={styles.summaryText}>
-                Focused on {focusAreasText}
-              </Text>
-            </View>
+            {profile.focusAreas && profile.focusAreas.length > 0 && (
+              <View style={styles.summaryRow}>
+                <IconSymbol
+                  ios_icon_name="figure.strengthtraining.traditional"
+                  android_material_icon_name="fitness-center"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.summaryText}>
+                  Extra focus on {focusAreasText}
+                </Text>
+              </View>
+            )}
             
             <View style={styles.summaryRow}>
               <IconSymbol
@@ -1043,7 +1200,7 @@ export default function OnboardingScreen() {
         >
           <View style={styles.content}>
             <View style={styles.progressBar}>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((s) => (
                 <View
                   key={s}
                   style={[
@@ -1062,6 +1219,7 @@ export default function OnboardingScreen() {
             {step === 6 && renderStep6()}
             {step === 7 && renderStep7()}
             {step === 8 && renderStep8()}
+            {step === 9 && renderStep9()}
 
             <View style={styles.navigation}>
               {step > 1 && (
@@ -1082,7 +1240,7 @@ export default function OnboardingScreen() {
                   !canProceed() && styles.nextButtonDisabled,
                 ]}
                 onPress={() => {
-                  if (step < 8) {
+                  if (step < 9) {
                     console.log('[Onboarding] User tapped Next');
                     setStep(step + 1);
                   } else {
@@ -1092,7 +1250,7 @@ export default function OnboardingScreen() {
                 disabled={!canProceed()}
               >
                 <Text style={styles.nextButtonText}>
-                  {step === 8 ? 'Start My Journey' : 'Next'}
+                  {step === 9 ? 'Start My Journey' : step === 6 ? 'Skip' : 'Next'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1153,7 +1311,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   progressDot: {
-    width: 24,
+    width: 20,
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
@@ -1187,6 +1345,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 40,
     paddingHorizontal: 20,
+  },
+  optionalBadge: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  optionalBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 1,
   },
   nameInputContainer: {
     width: '100%',
@@ -1481,7 +1652,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 20,
   },
-  areasGrid: {
+  focusAreasGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
@@ -1489,27 +1660,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  areaChip: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+  focusAreaCard: {
+    width: '45%',
+    minWidth: 140,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 25,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    gap: 8,
   },
-  selectedChip: {
+  focusAreaCardSelected: {
     backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
-  chipText: {
-    fontSize: 16,
+  focusAreaText: {
+    fontSize: 15,
     fontWeight: '600',
     color: colors.grey,
+    textAlign: 'center',
   },
-  selectedChipText: {
+  focusAreaTextSelected: {
     color: colors.primary,
   },
-  optionsContainer: {
+  focusInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    maxWidth: 400,
+    marginBottom: 16,
+  },
+  focusInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  equipmentOptionsContainer: {
     flexDirection: 'row',
     gap: 20,
     flexWrap: 'wrap',
@@ -1534,6 +1726,64 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.grey,
+  },
+  homeEquipmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  homeEquipmentCard: {
+    width: '45%',
+    minWidth: 140,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    gap: 8,
+  },
+  homeEquipmentCardSelected: {
+    backgroundColor: 'rgba(69, 155, 155, 0.2)',
+    borderColor: colors.primary,
+  },
+  homeEquipmentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.grey,
+    textAlign: 'center',
+  },
+  homeEquipmentTextSelected: {
+    color: colors.primary,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 32,
+  },
+  confidenceContainer: {
+    gap: 12,
+    width: '100%',
+    marginBottom: 20,
+  },
+  confidenceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  confidenceLevelText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.grey,
+    flex: 1,
   },
   finalHeader: {
     alignItems: 'center',
