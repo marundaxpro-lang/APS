@@ -68,476 +68,35 @@ interface TodaysPlan {
 }
 
 const MACRO_MEALS_LIBRARY: MacroMeal[] = [
-  { 
-    id: 'skyr_whey_berries', 
-    label: 'Skyr + whey + berries', 
-    kcal: 350, 
-    P: 40, 
-    C: 30, 
-    F: 8, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Skyr (plain)', amount: '200g', kcal: 120, P: 20, C: 8, F: 0 },
-      { name: 'Whey protein', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
-      { name: 'Mixed berries', amount: '150g', kcal: 80, P: 1, C: 18, F: 0 },
-      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 },
-    ],
-    instructions: ['Mix skyr with whey protein', 'Top with fresh berries', 'Drizzle honey on top'],
-  },
-  { 
-    id: 'chicken_rice_bowl', 
-    label: 'Chicken rice bowl', 
-    kcal: 650, 
-    P: 50, 
-    C: 70, 
-    F: 15, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Chicken breast', amount: '200g', kcal: 330, P: 62, C: 0, F: 7 },
-      { name: 'White rice (cooked)', amount: '200g', kcal: 260, P: 5, C: 58, F: 0 },
-      { name: 'Broccoli', amount: '100g', kcal: 35, P: 3, C: 7, F: 0 },
-      { name: 'Olive oil', amount: '5ml', kcal: 45, P: 0, C: 0, F: 5 }
-    ],
-    instructions: ['Grill chicken breast with seasoning', 'Cook rice according to package', 'Steam broccoli', 'Combine in bowl and drizzle with olive oil']
-  },
-  { 
-    id: 'tuna_wrap', 
-    label: 'Tuna wrap', 
-    kcal: 400, 
-    P: 30, 
-    C: 40, 
-    F: 12, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Tuna (canned in water)', amount: '150g', kcal: 165, P: 36, C: 0, F: 2 },
-      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
-      { name: 'Lettuce', amount: '50g', kcal: 8, P: 1, C: 2, F: 0 },
-      { name: 'Light mayo', amount: '15g', kcal: 50, P: 0, C: 2, F: 5 }
-    ],
-    instructions: ['Drain tuna and mix with mayo', 'Lay tortilla flat and add lettuce', 'Add tuna mixture', 'Roll tightly and cut in half']
-  },
-  { 
-    id: 'oats_banana', 
-    label: 'Oats + banana', 
-    kcal: 300, 
-    P: 10, 
-    C: 50, 
-    F: 7, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
-      { name: 'Banana', amount: '1 medium', kcal: 105, P: 1, C: 27, F: 0 },
-      { name: 'Almond butter', amount: '10g', kcal: 60, P: 2, C: 2, F: 5 }
-    ],
-    instructions: ['Cook oats with water or milk', 'Slice banana on top', 'Add a dollop of almond butter', 'Optional: sprinkle cinnamon']
-  },
-  { 
-    id: 'eggs_toast', 
-    label: 'Eggs + toast', 
-    kcal: 380, 
-    P: 25, 
-    C: 35, 
-    F: 15, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Eggs', amount: '3 large', kcal: 210, P: 18, C: 2, F: 15 },
-      { name: 'Whole wheat bread', amount: '2 slices', kcal: 160, P: 8, C: 30, F: 2 },
-      { name: 'Butter', amount: '5g', kcal: 36, P: 0, C: 0, F: 4 }
-    ],
-    instructions: ['Scramble or fry eggs', 'Toast bread', 'Spread butter on toast', 'Serve eggs on toast']
-  },
-  { 
-    id: 'protein_shake', 
-    label: 'Protein shake', 
-    kcal: 180, 
-    P: 30, 
-    C: 8, 
-    F: 3, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Whey protein', amount: '40g', kcal: 160, P: 32, C: 4, F: 2 },
-      { name: 'Almond milk', amount: '250ml', kcal: 30, P: 1, C: 1, F: 2 }
-    ],
-    instructions: ['Add protein powder to shaker', 'Pour in almond milk', 'Shake vigorously for 30 seconds', 'Drink immediately']
-  },
-  { 
-    id: 'greek_yogurt_granola', 
-    label: 'Greek yogurt + granola', 
-    kcal: 320, 
-    P: 20, 
-    C: 40, 
-    F: 8, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Greek yogurt (plain)', amount: '200g', kcal: 130, P: 20, C: 9, F: 0 },
-      { name: 'Granola', amount: '40g', kcal: 180, P: 4, C: 28, F: 6 },
-      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
-    ],
-    instructions: ['Spoon yogurt into bowl', 'Top with granola', 'Drizzle honey over top']
-  },
-  { 
-    id: 'salmon_sweet_potato', 
-    label: 'Salmon + sweet potato', 
-    kcal: 550, 
-    P: 40, 
-    C: 50, 
-    F: 18, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Salmon fillet', amount: '150g', kcal: 280, P: 34, C: 0, F: 17 },
-      { name: 'Sweet potato', amount: '200g', kcal: 180, P: 4, C: 42, F: 0 },
-      { name: 'Asparagus', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
-      { name: 'Olive oil', amount: '5ml', kcal: 45, P: 0, C: 0, F: 5 }
-    ],
-    instructions: ['Bake salmon at 200°C for 15 minutes', 'Roast sweet potato cubes', 'Grill asparagus with olive oil', 'Plate and season to taste']
-  },
-  { 
-    id: 'turkey_avocado_wrap', 
-    label: 'Turkey avocado wrap', 
-    kcal: 480, 
-    P: 35, 
-    C: 45, 
-    F: 16, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Turkey breast', amount: '120g', kcal: 135, P: 30, C: 0, F: 1 },
-      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
-      { name: 'Avocado', amount: '50g', kcal: 80, P: 1, C: 4, F: 7 },
-      { name: 'Tomato', amount: '50g', kcal: 9, P: 0, C: 2, F: 0 },
-      { name: 'Lettuce', amount: '30g', kcal: 5, P: 0, C: 1, F: 0 }
-    ],
-    instructions: ['Lay tortilla flat', 'Layer turkey, avocado, tomato, and lettuce', 'Roll tightly', 'Cut diagonally']
-  },
-  { 
-    id: 'cottage_cheese_fruit', 
-    label: 'Cottage cheese + fruit', 
-    kcal: 250, 
-    P: 25, 
-    C: 30, 
-    F: 5, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Cottage cheese (low-fat)', amount: '200g', kcal: 160, P: 28, C: 8, F: 4 },
-      { name: 'Pineapple chunks', amount: '100g', kcal: 50, P: 1, C: 13, F: 0 },
-      { name: 'Strawberries', amount: '50g', kcal: 16, P: 0, C: 4, F: 0 }
-    ],
-    instructions: ['Spoon cottage cheese into bowl', 'Top with fresh fruit', 'Mix gently before eating']
-  },
-  { 
-    id: 'beef_quinoa_bowl', 
-    label: 'Beef quinoa bowl', 
-    kcal: 620, 
-    P: 45, 
-    C: 60, 
-    F: 20, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Lean ground beef', amount: '150g', kcal: 310, P: 38, C: 0, F: 17 },
-      { name: 'Quinoa (cooked)', amount: '150g', kcal: 180, P: 6, C: 32, F: 3 },
-      { name: 'Bell peppers', amount: '100g', kcal: 31, P: 1, C: 6, F: 0 },
-      { name: 'Black beans', amount: '50g', kcal: 60, P: 4, C: 11, F: 0 }
-    ],
-    instructions: ['Brown ground beef in pan', 'Cook quinoa according to package', 'Sauté bell peppers', 'Combine all in bowl with black beans']
-  },
-  { 
-    id: 'protein_pancakes', 
-    label: 'Protein pancakes', 
-    kcal: 420, 
-    P: 35, 
-    C: 45, 
-    F: 10, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Protein powder', amount: '40g', kcal: 160, P: 32, C: 4, F: 2 },
-      { name: 'Oat flour', amount: '50g', kcal: 185, P: 7, C: 33, F: 3 },
-      { name: 'Egg whites', amount: '100ml', kcal: 52, P: 11, C: 1, F: 0 },
-      { name: 'Banana (mashed)', amount: '1 small', kcal: 90, P: 1, C: 23, F: 0 }
-    ],
-    instructions: ['Mix all ingredients until smooth', 'Heat non-stick pan', 'Pour batter to form pancakes', 'Flip when bubbles form', 'Serve with berries']
-  },
-  { 
-    id: 'chicken_pasta', 
-    label: 'Chicken pasta', 
-    kcal: 680, 
-    P: 48, 
-    C: 75, 
-    F: 18, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Chicken breast', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
-      { name: 'Whole wheat pasta', amount: '100g dry', kcal: 350, P: 13, C: 70, F: 3 },
-      { name: 'Tomato sauce', amount: '100g', kcal: 40, P: 2, C: 8, F: 0 },
-      { name: 'Parmesan cheese', amount: '10g', kcal: 43, P: 4, C: 0, F: 3 }
-    ],
-    instructions: ['Cook pasta al dente', 'Grill and slice chicken', 'Heat tomato sauce', 'Toss pasta with sauce and chicken', 'Top with parmesan']
-  },
-  { 
-    id: 'egg_white_omelette', 
-    label: 'Egg white omelette', 
-    kcal: 220, 
-    P: 28, 
-    C: 10, 
-    F: 8, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Egg whites', amount: '250ml', kcal: 130, P: 27, C: 2, F: 0 },
-      { name: 'Spinach', amount: '50g', kcal: 12, P: 1, C: 2, F: 0 },
-      { name: 'Mushrooms', amount: '50g', kcal: 11, P: 2, C: 2, F: 0 },
-      { name: 'Feta cheese', amount: '20g', kcal: 53, P: 4, C: 1, F: 4 },
-      { name: 'Olive oil', amount: '3ml', kcal: 27, P: 0, C: 0, F: 3 }
-    ],
-    instructions: ['Heat oil in pan', 'Sauté spinach and mushrooms', 'Pour egg whites over vegetables', 'Add feta and fold omelette']
-  },
-  { 
-    id: 'rice_cakes_pb', 
-    label: 'Rice cakes + PB', 
-    kcal: 280, 
-    P: 12, 
-    C: 35, 
-    F: 12, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Rice cakes', amount: '3 cakes', kcal: 105, P: 3, C: 24, F: 1 },
-      { name: 'Peanut butter', amount: '25g', kcal: 150, P: 7, C: 6, F: 13 },
-      { name: 'Banana slices', amount: '50g', kcal: 45, P: 1, C: 11, F: 0 }
-    ],
-    instructions: ['Spread peanut butter on rice cakes', 'Top with banana slices', 'Optional: drizzle honey']
-  },
-  { 
-    id: 'tuna_salad', 
-    label: 'Tuna salad', 
-    kcal: 320, 
-    P: 35, 
-    C: 15, 
-    F: 14, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Tuna (canned)', amount: '150g', kcal: 165, P: 36, C: 0, F: 2 },
-      { name: 'Mixed greens', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
-      { name: 'Cherry tomatoes', amount: '100g', kcal: 18, P: 1, C: 4, F: 0 },
-      { name: 'Cucumber', amount: '50g', kcal: 8, P: 0, C: 2, F: 0 },
-      { name: 'Olive oil dressing', amount: '15ml', kcal: 120, P: 0, C: 0, F: 14 }
-    ],
-    instructions: ['Arrange greens in bowl', 'Add tuna, tomatoes, and cucumber', 'Drizzle with olive oil dressing', 'Toss gently']
-  },
-  { 
-    id: 'smoothie_bowl', 
-    label: 'Smoothie bowl', 
-    kcal: 380, 
-    P: 20, 
-    C: 55, 
-    F: 10, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Frozen berries', amount: '150g', kcal: 80, P: 1, C: 18, F: 0 },
-      { name: 'Banana', amount: '1 medium', kcal: 105, P: 1, C: 27, F: 0 },
-      { name: 'Protein powder', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
-      { name: 'Almond milk', amount: '100ml', kcal: 13, P: 0, C: 1, F: 1 },
-      { name: 'Granola topping', amount: '20g', kcal: 90, P: 2, C: 14, F: 3 }
-    ],
-    instructions: ['Blend berries, banana, protein, and milk until thick', 'Pour into bowl', 'Top with granola and extra berries']
-  },
-  { 
-    id: 'steak_veggies', 
-    label: 'Steak + veggies', 
-    kcal: 520, 
-    P: 48, 
-    C: 25, 
-    F: 26, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Sirloin steak', amount: '200g', kcal: 380, P: 50, C: 0, F: 20 },
-      { name: 'Broccoli', amount: '150g', kcal: 52, P: 4, C: 10, F: 1 },
-      { name: 'Carrots', amount: '100g', kcal: 41, P: 1, C: 10, F: 0 },
-      { name: 'Butter', amount: '5g', kcal: 36, P: 0, C: 0, F: 4 }
-    ],
-    instructions: ['Season and grill steak to desired doneness', 'Steam broccoli and carrots', 'Toss vegetables with butter', 'Let steak rest before slicing']
-  },
-  { 
-    id: 'bagel_cream_cheese', 
-    label: 'Bagel + cream cheese', 
-    kcal: 350, 
-    P: 12, 
-    C: 50, 
-    F: 12, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Whole wheat bagel', amount: '1 bagel', kcal: 245, P: 10, C: 48, F: 2 },
-      { name: 'Light cream cheese', amount: '30g', kcal: 70, P: 3, C: 2, F: 6 },
-      { name: 'Smoked salmon', amount: '30g', kcal: 35, P: 7, C: 0, F: 1 }
-    ],
-    instructions: ['Toast bagel', 'Spread cream cheese', 'Top with smoked salmon', 'Optional: add capers and red onion']
-  },
-  { 
-    id: 'protein_bar', 
-    label: 'Protein bar', 
-    kcal: 200, 
-    P: 20, 
-    C: 22, 
-    F: 6, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Protein bar (store-bought)', amount: '1 bar (60g)', kcal: 200, P: 20, C: 22, F: 6 }
-    ],
-    instructions: ['Unwrap and enjoy', 'Great for on-the-go']
-  },
-  { 
-    id: 'apple_almond_butter', 
-    label: 'Apple + almond butter', 
-    kcal: 220, 
-    P: 6, 
-    C: 28, 
-    F: 12, 
-    category: 'light',
-    ingredients: [
-      { name: 'Apple', amount: '1 medium', kcal: 95, P: 0, C: 25, F: 0 },
-      { name: 'Almond butter', amount: '20g', kcal: 120, P: 4, C: 4, F: 11 }
-    ],
-    instructions: ['Slice apple into wedges', 'Serve with almond butter for dipping']
-  },
-  { 
-    id: 'chicken_salad', 
-    label: 'Chicken salad', 
-    kcal: 380, 
-    P: 40, 
-    C: 20, 
-    F: 16, 
-    category: 'high_protein',
-    ingredients: [
-      { name: 'Grilled chicken breast', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
-      { name: 'Mixed greens', amount: '100g', kcal: 20, P: 2, C: 4, F: 0 },
-      { name: 'Cherry tomatoes', amount: '100g', kcal: 18, P: 1, C: 4, F: 0 },
-      { name: 'Avocado', amount: '50g', kcal: 80, P: 1, C: 4, F: 7 },
-      { name: 'Balsamic vinaigrette', amount: '15ml', kcal: 45, P: 0, C: 2, F: 4 }
-    ],
-    instructions: ['Arrange greens in bowl', 'Top with sliced chicken', 'Add tomatoes and avocado', 'Drizzle with vinaigrette']
-  },
-  { 
-    id: 'pasta_marinara', 
-    label: 'Pasta marinara', 
-    kcal: 480, 
-    P: 18, 
-    C: 75, 
-    F: 12, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Whole wheat pasta', amount: '100g dry', kcal: 350, P: 13, C: 70, F: 3 },
-      { name: 'Marinara sauce', amount: '150g', kcal: 60, P: 2, C: 12, F: 1 },
-      { name: 'Parmesan cheese', amount: '15g', kcal: 64, P: 6, C: 0, F: 4 },
-      { name: 'Fresh basil', amount: '5g', kcal: 1, P: 0, C: 0, F: 0 }
-    ],
-    instructions: ['Cook pasta al dente', 'Heat marinara sauce', 'Toss pasta with sauce', 'Top with parmesan and basil']
-  },
-  { 
-    id: 'turkey_sandwich', 
-    label: 'Turkey sandwich', 
-    kcal: 420, 
-    P: 32, 
-    C: 48, 
-    F: 12, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Whole wheat bread', amount: '2 slices', kcal: 160, P: 8, C: 30, F: 2 },
-      { name: 'Turkey breast', amount: '100g', kcal: 113, P: 25, C: 0, F: 1 },
-      { name: 'Swiss cheese', amount: '20g', kcal: 76, P: 6, C: 0, F: 6 },
-      { name: 'Lettuce & tomato', amount: '50g', kcal: 10, P: 1, C: 2, F: 0 },
-      { name: 'Mustard', amount: '10g', kcal: 5, P: 0, C: 1, F: 0 }
-    ],
-    instructions: ['Toast bread if desired', 'Layer turkey, cheese, lettuce, and tomato', 'Spread mustard', 'Close sandwich and cut']
-  },
-  { 
-    id: 'protein_oats', 
-    label: 'Protein oats', 
-    kcal: 380, 
-    P: 28, 
-    C: 50, 
-    F: 8, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
-      { name: 'Protein powder', amount: '30g', kcal: 120, P: 24, C: 2, F: 1 },
-      { name: 'Blueberries', amount: '50g', kcal: 29, P: 0, C: 7, F: 0 },
-      { name: 'Cinnamon', amount: '2g', kcal: 6, P: 0, C: 2, F: 0 }
-    ],
-    instructions: ['Cook oats with water', 'Stir in protein powder', 'Top with blueberries and cinnamon']
-  },
-  { 
-    id: 'shrimp_rice', 
-    label: 'Shrimp + rice', 
-    kcal: 450, 
-    P: 38, 
-    C: 55, 
-    F: 8, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Shrimp', amount: '200g', kcal: 200, P: 46, C: 0, F: 3 },
-      { name: 'Jasmine rice (cooked)', amount: '150g', kcal: 195, P: 4, C: 43, F: 0 },
-      { name: 'Snap peas', amount: '100g', kcal: 42, P: 3, C: 8, F: 0 },
-      { name: 'Soy sauce', amount: '10ml', kcal: 9, P: 1, C: 1, F: 0 }
-    ],
-    instructions: ['Sauté shrimp until pink', 'Cook rice', 'Stir-fry snap peas', 'Combine and season with soy sauce']
-  },
-  { 
-    id: 'nuts_mix', 
-    label: 'Mixed nuts', 
-    kcal: 180, 
-    P: 6, 
-    C: 8, 
-    F: 16, 
-    category: 'light',
-    ingredients: [
-      { name: 'Mixed nuts (almonds, cashews, walnuts)', amount: '30g', kcal: 180, P: 6, C: 8, F: 16 }
-    ],
-    instructions: ['Portion out nuts', 'Enjoy as a snack']
-  },
-  { 
-    id: 'hummus_veggies', 
-    label: 'Hummus + veggies', 
-    kcal: 200, 
-    P: 8, 
-    C: 24, 
-    F: 10, 
-    category: 'light',
-    ingredients: [
-      { name: 'Hummus', amount: '80g', kcal: 160, P: 6, C: 14, F: 10 },
-      { name: 'Carrot sticks', amount: '100g', kcal: 41, P: 1, C: 10, F: 0 },
-      { name: 'Cucumber slices', amount: '50g', kcal: 8, P: 0, C: 2, F: 0 }
-    ],
-    instructions: ['Cut vegetables into sticks', 'Serve with hummus for dipping']
-  },
-  { 
-    id: 'chicken_wrap', 
-    label: 'Chicken wrap', 
-    kcal: 520, 
-    P: 42, 
-    C: 50, 
-    F: 16, 
-    category: 'balanced',
-    ingredients: [
-      { name: 'Grilled chicken', amount: '150g', kcal: 248, P: 47, C: 0, F: 5 },
-      { name: 'Whole wheat tortilla', amount: '1 large', kcal: 170, P: 6, C: 30, F: 4 },
-      { name: 'Lettuce', amount: '30g', kcal: 5, P: 0, C: 1, F: 0 },
-      { name: 'Tomato', amount: '50g', kcal: 9, P: 0, C: 2, F: 0 },
-      { name: 'Ranch dressing', amount: '20g', kcal: 88, P: 1, C: 2, F: 9 }
-    ],
-    instructions: ['Lay tortilla flat', 'Add chicken, lettuce, and tomato', 'Drizzle ranch dressing', 'Roll tightly and cut']
-  },
-  { 
-    id: 'overnight_oats', 
-    label: 'Overnight oats', 
-    kcal: 340, 
-    P: 15, 
-    C: 52, 
-    F: 9, 
-    category: 'high_carb',
-    ingredients: [
-      { name: 'Rolled oats', amount: '60g', kcal: 220, P: 8, C: 40, F: 4 },
-      { name: 'Greek yogurt', amount: '100g', kcal: 65, P: 10, C: 5, F: 0 },
-      { name: 'Chia seeds', amount: '10g', kcal: 49, P: 2, C: 4, F: 3 },
-      { name: 'Honey', amount: '10g', kcal: 30, P: 0, C: 8, F: 0 }
-    ],
-    instructions: ['Mix oats, yogurt, chia seeds in jar', 'Add honey and stir', 'Refrigerate overnight', 'Top with fruit before eating']
-  },
+  { id: 'protein_shake', label: 'Protein shake', kcal: 180, P: 30, C: 8, F: 3, category: 'high_protein' },
+  { id: 'chicken_rice_bowl', label: 'Chicken rice bowl', kcal: 650, P: 50, C: 70, F: 15, category: 'balanced' },
+  { id: 'oats_banana', label: 'Oats + banana', kcal: 300, P: 10, C: 50, F: 7, category: 'high_carb' },
+  { id: 'eggs_toast', label: 'Eggs + toast', kcal: 380, P: 25, C: 35, F: 15, category: 'balanced' },
+  { id: 'tuna_wrap', label: 'Tuna wrap', kcal: 400, P: 30, C: 40, F: 12, category: 'balanced' },
+  { id: 'greek_yogurt_granola', label: 'Greek yogurt + granola', kcal: 320, P: 20, C: 40, F: 8, category: 'balanced' },
+  { id: 'salmon_sweet_potato', label: 'Salmon + sweet potato', kcal: 550, P: 40, C: 50, F: 18, category: 'balanced' },
+  { id: 'turkey_avocado_wrap', label: 'Turkey avocado wrap', kcal: 480, P: 35, C: 45, F: 16, category: 'balanced' },
+  { id: 'cottage_cheese_fruit', label: 'Cottage cheese + fruit', kcal: 250, P: 25, C: 30, F: 5, category: 'high_protein' },
+  { id: 'beef_quinoa_bowl', label: 'Beef quinoa bowl', kcal: 620, P: 45, C: 60, F: 20, category: 'balanced' },
+  { id: 'protein_pancakes', label: 'Protein pancakes', kcal: 420, P: 35, C: 45, F: 10, category: 'high_protein' },
+  { id: 'chicken_pasta', label: 'Chicken pasta', kcal: 680, P: 48, C: 75, F: 18, category: 'high_carb' },
+  { id: 'egg_white_omelette', label: 'Egg white omelette', kcal: 220, P: 28, C: 10, F: 8, category: 'high_protein' },
+  { id: 'rice_cakes_pb', label: 'Rice cakes + PB', kcal: 280, P: 12, C: 35, F: 12, category: 'high_carb' },
+  { id: 'tuna_salad', label: 'Tuna salad', kcal: 320, P: 35, C: 15, F: 14, category: 'high_protein' },
+  { id: 'smoothie_bowl', label: 'Smoothie bowl', kcal: 380, P: 20, C: 55, F: 10, category: 'high_carb' },
+  { id: 'steak_veggies', label: 'Steak + veggies', kcal: 520, P: 48, C: 25, F: 26, category: 'high_protein' },
+  { id: 'bagel_cream_cheese', label: 'Bagel + cream cheese', kcal: 350, P: 12, C: 50, F: 12, category: 'high_carb' },
+  { id: 'protein_bar', label: 'Protein bar', kcal: 200, P: 20, C: 22, F: 6, category: 'high_protein' },
+  { id: 'apple_almond_butter', label: 'Apple + almond butter', kcal: 220, P: 6, C: 28, F: 12, category: 'light' },
+  { id: 'chicken_salad', label: 'Chicken salad', kcal: 380, P: 40, C: 20, F: 16, category: 'high_protein' },
+  { id: 'pasta_marinara', label: 'Pasta marinara', kcal: 480, P: 18, C: 75, F: 12, category: 'high_carb' },
+  { id: 'turkey_sandwich', label: 'Turkey sandwich', kcal: 420, P: 32, C: 48, F: 12, category: 'balanced' },
+  { id: 'protein_oats', label: 'Protein oats', kcal: 380, P: 28, C: 50, F: 8, category: 'balanced' },
+  { id: 'shrimp_rice', label: 'Shrimp + rice', kcal: 450, P: 38, C: 55, F: 8, category: 'balanced' },
+  { id: 'nuts_mix', label: 'Mixed nuts', kcal: 180, P: 6, C: 8, F: 16, category: 'light' },
+  { id: 'hummus_veggies', label: 'Hummus + veggies', kcal: 200, P: 8, C: 24, F: 10, category: 'light' },
+  { id: 'chicken_wrap', label: 'Chicken wrap', kcal: 520, P: 42, C: 50, F: 16, category: 'balanced' },
+  { id: 'overnight_oats', label: 'Overnight oats', kcal: 340, P: 15, C: 52, F: 9, category: 'high_carb' },
 ];
 
 const TEMPLATES = [
@@ -560,21 +119,7 @@ export default function NutritionScreen() {
     entries: [],
   });
   const [todaysPlan, setTodaysPlan] = useState<TodaysPlan | null>(null);
-  const [showMealModal, setShowMealModal] = useState(false);
-  const [showManualModal, setShowManualModal] = useState(false);
-  const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showTargetsModal, setShowTargetsModal] = useState(false);
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const [showPaywallModal, setShowPaywallModal] = useState(false);
-  const [showMealDetailsModal, setShowMealDetailsModal] = useState(false);
-  const [selectedMealForDetails, setSelectedMealForDetails] = useState<MacroMeal | null>(null);
-  const [selectedMealSlot, setSelectedMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
-  const [swapMealSlot, setSwapMealSlot] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'>('Breakfast');
-  const [manualKcal, setManualKcal] = useState('');
-  const [manualP, setManualP] = useState('');
-  const [manualC, setManualC] = useState('');
-  const [manualF, setManualF] = useState('');
-  const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
 
   const generateTodaysPlan = useCallback(() => {
@@ -713,871 +258,233 @@ export default function NutritionScreen() {
     });
   };
 
-  const handleSwapMeal = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
-    if (!isPremium) {
-      console.log('[Nutrition] User tried to swap (premium feature)');
-      setShowPaywallModal(true);
-      return;
-    }
-    console.log('[Nutrition] User tapped Swap for', slot);
-    setSwapMealSlot(slot);
-    setShowSwapModal(true);
+  const saveTargets = async () => {
+    await AsyncStorage.setItem('nutritionTargets', JSON.stringify(targets));
+    console.log('[Nutrition] Saved targets:', targets);
+    setShowTargetsModal(false);
   };
 
-  const confirmSwap = (newMeal: MacroMeal) => {
-    if (!todaysPlan) return;
-    const updatedPlan = { ...todaysPlan, [swapMealSlot]: newMeal };
-    setTodaysPlan(updatedPlan);
-    const today = new Date().toISOString().split('T')[0];
-    AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan: updatedPlan }));
-    console.log('[Nutrition] Swapped meal for', swapMealSlot, 'to', newMeal.label);
-    setShowSwapModal(false);
+  const getMealEntries = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks'): NutritionLogEntry[] => {
+    return dailyData.entries.filter(e => e.mealSlot === slot);
   };
 
-  const openMealSlot = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') => {
-    console.log('[Nutrition] User tapped Add to', slot);
-    setSelectedMealSlot(slot);
-    setShowMealModal(true);
+  const consumed = dailyData.entries.reduce(
+    (acc, entry) => ({
+      kcal: acc.kcal + entry.kcal,
+      P: acc.P + entry.P,
+      C: acc.C + entry.C,
+      F: acc.F + entry.F,
+    }),
+    { kcal: 0, P: 0, C: 0, F: 0 }
+  );
+
+  const remaining = {
+    kcal: targets.calorieGoal - consumed.kcal,
+    P: targets.proteinGoal - consumed.P,
+    C: targets.carbsGoal - consumed.C,
+    F: targets.fatGoal - consumed.F,
   };
 
-  const getSuggestedMeals = (): MacroMeal[] => {
-    const remaining = {
-      kcal: targets.calorieGoal - consumed.kcal,
-      P: targets.proteinGoal - consumed.P,
-      C: targets.carbsGoal - consumed.C,
-      F: targets.fatGoal - consumed.F,
-    };
-    
-    let filtered: MacroMeal[] = [];
-    
-    if (remaining.P > remaining.C && remaining.P > remaining.F) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
-    } else if (remaining.C > remaining.P && remaining.C > remaining.F) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
-    } else if (remaining.kcal < 400) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light');
-    } else {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === I'll fix the lint errors. Looking at the errors:
-
-1. **Lines 326 in index.ios.tsx and 327 in index.tsx**: Missing comma in React.Fragment key prop
-2. **Line 775 in nutrition.tsx**: Array type using `Array<T>` instead of `T[]`
-
-Let me fix these issues:
-
-<write file="app/(tabs)/(home)/index.ios.tsx">
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { colors } from '@/styles/commonStyles';
-import { WeeklyTask, FitnessProfile, WorkoutDay } from '@/types/fitness';
-import { authenticatedGet } from '@/utils/api';
-import { IconSymbol } from '@/components/IconSymbol';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useState, useEffect } from 'react';
-import { generateWorkoutSplit } from '@/data/workouts';
-
-interface DashboardStats {
-  dailyCalorieGoal: number;
-  caloriesConsumed: number;
-  caloriesRemaining: number;
-  percentageConsumed: number;
-  goalMet: boolean;
-  mealsLogged: number;
-  lastUpdated: string;
-}
-
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const COACH_INSIGHTS = [
-  "Consistency beats intensity. Show up, even when it's hard.",
-  "Recovery is where the magic happens. Don't skip rest days.",
-  "Small daily improvements lead to stunning long-term results.",
-  "Your body achieves what your mind believes.",
-  "Progress isn't linear. Trust the process.",
-  "The best workout is the one you actually do.",
-  "Nutrition fuels performance. You can't out-train a bad diet.",
-  "Sleep is your secret weapon for gains.",
-];
-
-export default function HomeScreen() {
-  const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('Athlete');
-  const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
-  const [userMotivation, setUserMotivation] = useState('');
-  const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
-  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
-  const [measurements, setMeasurements] = useState<any[]>([]);
-  const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      const profileData = await AsyncStorage.getItem('fitnessProfile');
-      let profile: FitnessProfile | null = null;
-      
-      if (profileData) {
-        profile = JSON.parse(profileData);
-        if (profile?.name) {
-          setUserName(profile.name);
-        }
-
-        const workoutSplit = generateWorkoutSplit(profile);
-        console.log('[Home] Generated weekly workout split:', workoutSplit);
-        setWeeklyWorkouts(workoutSplit);
-      }
-
-      const motivationData = await AsyncStorage.getItem('userMotivation');
-      if (motivationData) {
-        const parsed = JSON.parse(motivationData);
-        const motivationText = parsed.customText || parsed.chips?.join(', ') || '';
-        setUserMotivation(motivationText);
-      }
-      
-      const tasksData = await AsyncStorage.getItem('focusTasks');
-      if (tasksData) {
-        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
-        const today = new Date().getDay();
-        const tasksForToday = allTasks.filter(task => task.dayOfWeek === today);
-        setTodayTasks(tasksForToday);
-        console.log('[Home] Loaded tasks for today:', tasksForToday.length);
-      }
-
-      const historyData = await AsyncStorage.getItem('workoutHistory');
-      if (historyData) {
-        const history = JSON.parse(historyData);
-        setWorkoutHistory(history);
-        console.log('[Home] Loaded workout history:', history.length);
-      }
-
-      const measurementsData = await AsyncStorage.getItem('measurements');
-      if (measurementsData) {
-        const parsed = JSON.parse(measurementsData);
-        setMeasurements(parsed);
-        console.log('[Home] Loaded measurements:', parsed.length);
-      }
-      
-      try {
-        const dashboardStats = await authenticatedGet('/api/dashboard/home');
-        setStats(dashboardStats);
-        console.log('[Home] Dashboard stats loaded from backend');
-      } catch (error) {
-        console.log('[Home] Could not load stats from backend, using local data');
-        
-        const caloricGoal = profile?.caloricGoal || 2500;
-        console.log('[Home] Using caloric goal from profile:', caloricGoal);
-        
-        setStats({
-          dailyCalorieGoal: caloricGoal,
-          caloriesConsumed: 0,
-          caloriesRemaining: caloricGoal,
-          percentageConsumed: 0,
-          goalMet: false,
-          mealsLogged: 0,
-          lastUpdated: new Date().toISOString(),
-        });
-      }
-
-      determineMotivationCardType();
-    } catch (error) {
-      console.error('[Home] Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const percentages = {
+    kcal: Math.min(100, Math.round((consumed.kcal / targets.calorieGoal) * 100)),
+    P: Math.min(100, Math.round((consumed.P / targets.proteinGoal) * 100)),
+    C: Math.min(100, Math.round((consumed.C / targets.carbsGoal) * 100)),
+    F: Math.min(100, Math.round((consumed.F / targets.fatGoal) * 100)),
   };
-
-  const determineMotivationCardType = () => {
-    const types: ('user' | 'coach' | 'target' | 'streak' | 'recovery')[] = ['user', 'coach', 'target', 'streak', 'recovery'];
-    const randomType = types[Math.floor(Math.random() * types.length)];
-    setMotivationCardType(randomType);
-  };
-
-  const toggleTask = async (taskId: string) => {
-    console.log('[Home] User toggled task:', taskId);
-    try {
-      const tasksData = await AsyncStorage.getItem('focusTasks');
-      if (tasksData) {
-        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
-        const updatedTasks = allTasks.map(task => 
-          task.id === taskId ? { ...task, completed: !task.completed } : task
-        );
-        await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
-        
-        const today = new Date().getDay();
-        const tasksForToday = updatedTasks.filter(task => task.dayOfWeek === today);
-        setTodayTasks(tasksForToday);
-      }
-    } catch (error) {
-      console.error('[Home] Error toggling task:', error);
-    }
-  };
-
-  const handleNavigateToProfile = () => {
-    console.log('[Home] User tapped profile button');
-    router.push('/(tabs)/profile');
-  };
-
-  const handleViewFullPlan = () => {
-    console.log('[Home] User tapped View Full Plan');
-    router.push('/(tabs)/plan');
-  };
-
-  const getDayWorkout = (dayIndex: number): WorkoutDay | null => {
-    return weeklyWorkouts.find(day => day.dayIndex === dayIndex) || null;
-  };
-
-  const getNextThreeDays = () => {
-    const todayIndex = new Date().getDay();
-    const nextThreeDays = [];
-    
-    for (let i = 0; i < 3; i++) {
-      const dayIndex = (todayIndex + i) % 7;
-      nextThreeDays.push({
-        dayIndex,
-        dayName: DAYS_SHORT[dayIndex],
-        isToday: i === 0,
-      });
-    }
-    
-    console.log('[Home] Next 3 days:', nextThreeDays);
-    return nextThreeDays;
-  };
-
-  const getDynamicContextLine = () => {
-    const todayIndex = new Date().getDay();
-    const todayWorkout = getDayWorkout(todayIndex);
-    const completedTasksCount = todayTasks.filter(t => t.completed).length;
-    const totalTasksCount = todayTasks.length;
-    const mealsLogged = stats?.mealsLogged || 0;
-
-    const thisWeekWorkouts = workoutHistory.filter(w => {
-      const workoutDate = new Date(w.completedAt);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return workoutDate >= weekStart;
-    });
-
-    const workoutsThisWeek = thisWeekWorkouts.length;
-    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
-    const workoutsRemaining = Math.max(0, totalWeeklyWorkouts - workoutsThisWeek);
-
-    if (workoutsRemaining === 1) {
-      return "You're 1 workout away from completing this week 💪";
-    }
-
-    if (todayWorkout) {
-      const workoutName = todayWorkout.name;
-      return `Today is your scheduled ${workoutName} 🔥`;
-    }
-
-    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
-      const pendingTasks = totalTasksCount - completedTasksCount;
-      const taskText = pendingTasks === 1 ? 'task' : 'tasks';
-      return `You have ${pendingTasks} pending ${taskText} today`;
-    }
-
-    if (mealsLogged === 0) {
-      return "You have 1 pending meal log today 🍽️";
-    }
-
-    if (workoutsThisWeek >= 5) {
-      return `You're on a ${workoutsThisWeek}-day consistency streak 🔥`;
-    }
-
-    if (workoutsRemaining > 0) {
-      return `${workoutsRemaining} workouts left this week`;
-    }
-
-    return "You're crushing it this week! 🎯";
-  };
-
-  const getMotivationCardContent = () => {
-    const thisWeekWorkouts = workoutHistory.filter(w => {
-      const workoutDate = new Date(w.completedAt);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return workoutDate >= weekStart;
-    });
-    const workoutsThisWeek = thisWeekWorkouts.length;
-    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
-
-    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
-    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-
-    switch (motivationCardType) {
-      case 'user':
-        if (userMotivation) {
-          return {
-            icon: 'favorite',
-            text: `Your why: "${userMotivation}"`,
-            color: colors.primary,
-          };
-        }
-        return {
-          icon: 'lightbulb',
-          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
-          color: '#FFA500',
-        };
-      
-      case 'coach':
-        return {
-          icon: 'lightbulb',
-          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
-          color: '#FFA500',
-        };
-      
-      case 'target':
-        const remaining = totalWeeklyWorkouts - workoutsThisWeek;
-        if (remaining > 0) {
-          return {
-            icon: 'flag',
-            text: `Weekly target: ${remaining} workout${remaining === 1 ? '' : 's'} remaining to hit your goal`,
-            color: '#4CAF50',
-          };
-        }
-        return {
-          icon: 'check-circle',
-          text: `Weekly target complete! You've hit all ${totalWeeklyWorkouts} workouts this week 🎯`,
-          color: '#4CAF50',
-        };
-      
-      case 'streak':
-        if (workoutsThisWeek >= 3) {
-          return {
-            icon: 'local-fire-department',
-            text: `${workoutsThisWeek}-day streak! Keep the momentum going 🔥`,
-            color: '#FF5722',
-          };
-        } else if (daysSinceLastWorkout > 3) {
-          return {
-            icon: 'warning',
-            text: `It's been ${daysSinceLastWorkout} days since your last workout. Time to get back on track!`,
-            color: '#FF9800',
-          };
-        }
-        return {
-          icon: 'trending-up',
-          text: `You're building momentum. ${workoutsThisWeek} workout${workoutsThisWeek === 1 ? '' : 's'} this week!`,
-          color: colors.primary,
-        };
-      
-      case 'recovery':
-        const todayIndex = new Date().getDay();
-        const todayWorkout = getDayWorkout(todayIndex);
-        if (!todayWorkout) {
-          return {
-            icon: 'self-improvement',
-            text: 'Rest day: Focus on mobility, hydration, and quality sleep for optimal recovery',
-            color: '#9C27B0',
-          };
-        } else if (workoutsThisWeek >= 3) {
-          return {
-            icon: 'spa',
-            text: 'You're training hard. Don't forget to prioritize sleep and nutrition for recovery',
-            color: '#9C27B0',
-          };
-        }
-        return {
-          icon: 'self-improvement',
-          text: 'Listen to your body. Recovery is when you get stronger',
-          color: '#9C27B0',
-        };
-      
-      default:
-        return {
-          icon: 'favorite',
-          text: userMotivation || COACH_INSIGHTS[0],
-          color: colors.primary,
-        };
-    }
-  };
-
-  const getPrimaryAction = () => {
-    const todayIndex = new Date().getDay();
-    const todayWorkout = getDayWorkout(todayIndex);
-    const completedTasksCount = todayTasks.filter(t => t.completed).length;
-    const totalTasksCount = todayTasks.length;
-    const mealsLogged = stats?.mealsLogged || 0;
-
-    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
-    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-
-    const lastMeasurement = measurements.length > 0 ? measurements[measurements.length - 1] : null;
-    const daysSinceWeighIn = lastMeasurement ? Math.floor((Date.now() - new Date(lastMeasurement.date).getTime()) / (1000 * 60 * 60 * 24)) : 999;
-
-    if (daysSinceLastWorkout > 7) {
-      return {
-        title: 'Resume After Break',
-        subtitle: `It's been ${daysSinceLastWorkout} days. Let's get back on track`,
-        icon: 'refresh',
-        route: '/(tabs)/training',
-      };
-    }
-
-    if (daysSinceWeighIn > 7) {
-      return {
-        title: 'Complete Your Weigh-In',
-        subtitle: 'Track your progress this week',
-        icon: 'monitor-weight',
-        route: '/(tabs)/progress',
-      };
-    }
-
-    if (todayWorkout && workoutHistory.filter(w => {
-      const workoutDate = new Date(w.completedAt);
-      const today = new Date();
-      return workoutDate.toDateString() === today.toDateString();
-    }).length === 0) {
-      return {
-        title: `Do Today's ${todayWorkout.name}`,
-        subtitle: `${todayWorkout.exercises.length} exercises ready`,
-        icon: 'fitness-center',
-        route: '/(tabs)/training',
-      };
-    }
-
-    if (mealsLogged === 0) {
-      const hour = new Date().getHours();
-      const mealTime = hour < 10 ? 'Breakfast' : hour < 14 ? 'Lunch' : hour < 18 ? 'Snack' : 'Dinner';
-      return {
-        title: `Log ${mealTime}`,
-        subtitle: 'Track your nutrition for today',
-        icon: 'restaurant',
-        route: '/(tabs)/nutrition',
-      };
-    }
-
-    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
-      return {
-        title: 'Complete Your Tasks',
-        subtitle: `${totalTasksCount - completedTasksCount} tasks remaining`,
-        icon: 'check-circle',
-        route: '/(tabs)/focus',
-      };
-    }
-
-    const thisWeekWorkouts = workoutHistory.filter(w => {
-      const workoutDate = new Date(w.completedAt);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return workoutDate >= weekStart;
-    });
-    const workoutsThisWeek = thisWeekWorkouts.length;
-
-    if (workoutsThisWeek >= 4) {
-      return {
-        title: 'Review Recovery',
-        subtitle: 'You're training hard. Check your rest needs',
-        icon: 'spa',
-        route: '/(tabs)/plan',
-      };
-    }
-
-    return {
-      title: 'Start Today\'s Workout',
-      subtitle: 'Your workout is ready',
-      icon: 'fitness-center',
-      route: '/(tabs)/training',
-    };
-  };
-
-  const getProgressMetric = () => {
-    const thisWeekWorkouts = workoutHistory.filter(w => {
-      const workoutDate = new Date(w.completedAt);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return workoutDate >= weekStart;
-    });
-    const workoutsThisWeek = thisWeekWorkouts.length;
-    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
-
-    if (measurements.length >= 2) {
-      const latest = measurements[measurements.length - 1];
-      const previous = measurements[measurements.length - 2];
-      const weightChange = latest.weight - previous.weight;
-      const changeText = weightChange > 0 ? `+${weightChange.toFixed(1)}` : weightChange.toFixed(1);
-      return `Weight: ${changeText} kg this month`;
-    }
-
-    if (workoutsThisWeek > 0) {
-      return `Workouts: ${workoutsThisWeek}/${totalWeeklyWorkouts} this week`;
-    }
-
-    const mealsLogged = stats?.mealsLogged || 0;
-    if (mealsLogged > 0) {
-      return `Nutrition: ${mealsLogged} meals logged today`;
-    }
-
-    return 'Track your progress';
-  };
-
-  const getWorkoutDuration = (workout: WorkoutDay): string => {
-    const exerciseCount = workout.exercises.length;
-    if (exerciseCount <= 4) return '30-40 min';
-    if (exerciseCount <= 6) return '45-55 min';
-    return '60-75 min';
-  };
-
-  const getWorkoutEmphasis = (workout: WorkoutDay): string => {
-    const exerciseCount = workout.exercises.length;
-    if (exerciseCount <= 4) return 'Light';
-    if (exerciseCount <= 6) return 'Moderate';
-    return 'Intense';
-  };
-
-  const getRestDayActivity = (dayIndex: number): { activity: string; icon: string } => {
-    const activities = [
-      { activity: 'Active recovery: 20-min walk', icon: 'directions-walk' },
-      { activity: 'Mobility: 15-min stretching', icon: 'self-improvement' },
-      { activity: 'Light cardio: 30-min bike', icon: 'directions-bike' },
-      { activity: 'Recovery: Foam rolling', icon: 'spa' },
-    ];
-    return activities[dayIndex % activities.length];
-  };
-
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  const completedTasksCount = todayTasks.filter(t => t.completed).length;
-  const totalTasksCount = todayTasks.length;
-  const allTasksComplete = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
-
-  const greetingTime = new Date().getHours();
-  const greetingText = greetingTime < 12 ? 'Good morning' : 
-                      greetingTime < 18 ? 'Good afternoon' : 
-                      'Good evening';
-
-  const dynamicContextLine = getDynamicContextLine();
-  const nextThreeDays = getNextThreeDays();
-  const motivationContent = getMotivationCardContent();
-  const primaryAction = getPrimaryAction();
-  const progressMetric = getProgressMetric();
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>{greetingText},</Text>
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.contextLine}>{dynamicContextLine}</Text>
-        </View>
-        <TouchableOpacity style={styles.profileButton} onPress={handleNavigateToProfile}>
+        <Text style={styles.headerTitle}>Nutrition</Text>
+        <TouchableOpacity onPress={() => setShowTargetsModal(true)}>
           <IconSymbol
-            ios_icon_name="person.circle.fill"
-            android_material_icon_name="account-circle"
-            size={40}
+            ios_icon_name="slider.horizontal.3"
+            android_material_icon_name="tune"
+            size={24}
             color={colors.primary}
           />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity 
-          style={styles.motivationCard}
-          onPress={determineMotivationCardType}
-          activeOpacity={0.8}
-        >
-          <IconSymbol
-            ios_icon_name="heart.fill"
-            android_material_icon_name={motivationContent.icon}
-            size={20}
-            color={motivationContent.color}
-          />
-          <Text style={styles.motivationText}>{motivationContent.text}</Text>
-        </TouchableOpacity>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <View style={styles.macroOverview}>
+          <View style={styles.calorieCircle}>
+            <Text style={styles.calorieValue}>{consumed.kcal}</Text>
+            <Text style={styles.calorieLabel}>of {targets.calorieGoal} kcal</Text>
+            <Text style={styles.calorieRemaining}>{remaining.kcal} remaining</Text>
+          </View>
 
-        <View style={styles.nextActionSection}>
-          <Text style={styles.nextActionLabel}>Your next move</Text>
-          
-          <TouchableOpacity 
-            style={styles.primaryAction}
-            onPress={() => {
-              console.log('[Home] User tapped primary action:', primaryAction.route);
-              router.push(primaryAction.route as any);
-            }}
-          >
-            <View style={styles.primaryActionContent}>
-              <View style={styles.primaryActionIcon}>
-                <IconSymbol
-                  ios_icon_name="bolt.fill"
-                  android_material_icon_name={primaryAction.icon}
-                  size={32}
-                  color="#fff"
-                />
+          <View style={styles.macroGrid}>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>{consumed.P}g</Text>
+              <View style={styles.macroBar}>
+                <View style={[styles.macroBarFill, { width: `${percentages.P}%`, backgroundColor: colors.primary }]} />
               </View>
-              <View style={styles.primaryActionText}>
-                <Text style={styles.primaryActionTitle}>{primaryAction.title}</Text>
-                <Text style={styles.primaryActionSubtitle}>{primaryAction.subtitle}</Text>
+              <Text style={styles.macroTarget}>of {targets.proteinGoal}g</Text>
+            </View>
+
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{consumed.C}g</Text>
+              <View style={styles.macroBar}>
+                <View style={[styles.macroBarFill, { width: `${percentages.C}%`, backgroundColor: '#FFA500' }]} />
               </View>
+              <Text style={styles.macroTarget}>of {targets.carbsGoal}g</Text>
             </View>
-            <IconSymbol
-              ios_icon_name="chevron.right"
-              android_material_icon_name="chevron-right"
-              size={24}
-              color="#fff"
-            />
-          </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.secondaryAction}
-            onPress={() => {
-              console.log('[Home] User tapped View Progress');
-              router.push('/(tabs)/progress');
-            }}
-          >
-            <IconSymbol
-              ios_icon_name="chart.line.uptrend.xyaxis"
-              android_material_icon_name="show-chart"
-              size={20}
-              color={colors.primary}
-            />
-            <View style={styles.secondaryActionTextContainer}>
-              <Text style={styles.secondaryActionText}>Check Weekly Progress</Text>
-              <Text style={styles.secondaryActionMetric}>{progressMetric}</Text>
-            </View>
-            <IconSymbol
-              ios_icon_name="chevron.right"
-              android_material_icon_name="chevron-right"
-              size={16}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {allTasksComplete && (
-          <View style={styles.celebrationCard}>
-            <IconSymbol
-              ios_icon_name="party.popper.fill"
-              android_material_icon_name="celebration"
-              size={32}
-              color={colors.primary}
-            />
-            <View style={styles.celebrationText}>
-              <Text style={styles.celebrationTitle}>All tasks complete!</Text>
-              <Text style={styles.celebrationSubtitle}>You&apos;re crushing it today 🔥</Text>
+            <View style={styles.macroCard}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>{consumed.F}g</Text>
+              <View style={styles.macroBar}>
+                <View style={[styles.macroBarFill, { width: `${percentages.F}%`, backgroundColor: '#FF5722' }]} />
+              </View>
+              <Text style={styles.macroTarget}>of {targets.fatGoal}g</Text>
             </View>
           </View>
-        )}
+        </View>
 
-        {weeklyWorkouts.length > 0 && (
-          <View style={styles.weeklyPlanSection}>
-            <View style={styles.weeklyPlanHeader}>
-              <Text style={styles.sectionTitle}>Next 3 Days</Text>
-              <TouchableOpacity onPress={handleViewFullPlan}>
-                <Text style={styles.viewAllLink}>View Full Plan</Text>
-              </TouchableOpacity>
-            </View>
+        {todaysPlan && (
+          <View style={styles.todaysPlanSection}>
+            <Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
+            {(['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as const).map((slot) => {
+              const meal = todaysPlan[slot];
+              const entries = getMealEntries(slot);
+              const logged = entries.length > 0;
 
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.weeklyPlanScrollContent}
-            >
-              {nextThreeDays.map((dayInfo, index) => {
-                const workout = getDayWorkout(dayInfo.dayIndex);
-                const duration = workout ? getWorkoutDuration(workout) : '';
-                const emphasis = workout ? getWorkoutEmphasis(workout) : '';
-                const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
-
-                return (
+              return (
+                <View key={slot} style={styles.planMealCard}>
+                  <View style={styles.planMealHeader}>
+                    <Text style={styles.planMealSlot}>{slot}</Text>
+                  </View>
                   <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.weekDayCard,
-                      dayInfo.isToday && styles.weekDayCardToday,
-                      !workout && styles.weekDayCardRest,
-                    ]}
-                    onPress={() => {
-                      console.log('[Home] User tapped day card:', dayInfo.dayName);
-                      if (workout) {
-                        router.push('/(tabs)/training');
-                      } else {
-                        router.push('/(tabs)/plan');
-                      }
-                    }}
-                    activeOpacity={0.7}
+                    style={[styles.planMealContent, logged && styles.planMealLogged]}
+                    onPress={() => handlePlanMealTap(slot)}
+                    disabled={logged}
                   >
-                    <Text style={[
-                      styles.weekDayLabel,
-                      dayInfo.isToday && styles.weekDayLabelToday,
-                    ]}>
-                      {dayInfo.dayName}
+                    <Text style={styles.planMealLabel}>{meal.label}</Text>
+                    <Text style={styles.planMealMacros}>
+                      {meal.kcal} kcal • {meal.P}P • {meal.C}C • {meal.F}F
                     </Text>
-                    {workout ? (
-                      <React.Fragment key={`workout-${index}`}>
-                        <View style={styles.weekDayIconContainer}>
-                          <IconSymbol
-                            ios_icon_name="figure.strengthtraining.traditional"
-                            android_material_icon_name="fitness-center"
-                            size={40}
-                            color={dayInfo.isToday ? colors.primary : colors.textSecondary}
-                          />
-                        </View>
-                        <Text
-                          style={[
-                            styles.weekDayWorkout,
-                            dayInfo.isToday && styles.weekDayWorkoutToday,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {workout.name}
-                        </Text>
-                        <Text style={styles.weekDayDuration}>{duration}</Text>
-                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment key={`rest-${index}`}>
-                        <View style={styles.weekDayIconContainer}>
-                          <IconSymbol
-                            ios_icon_name="bed.double.fill"
-                            android_material_icon_name={restActivity?.icon || 'hotel'}
-                            size={40}
-                            color={colors.grey}
-                          />
-                        </View>
-                        <Text style={styles.weekDayRest}>Rest</Text>
-                        {restActivity && (
-                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
-                        )}
-                      </React.Fragment>
+                    {logged && (
+                      <View style={styles.loggedBadge}>
+                        <IconSymbol
+                          ios_icon_name="checkmark.circle.fill"
+                          android_material_icon_name="check-circle"
+                          size={16}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.loggedText}>Logged</Text>
+                      </View>
                     )}
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                </View>
+              );
+            })}
           </View>
         )}
 
-        <View style={styles.todayOverview}>
-          <Text style={styles.sectionTitle}>Today at a glance</Text>
-          
-          <View style={styles.overviewGrid}>
-            <View style={styles.overviewCard}>
-              <View style={styles.overviewHeader}>
-                <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={styles.overviewLabel}>Tasks</Text>
-              </View>
-              <Text style={styles.overviewValue}>
-                {completedTasksCount}
-              </Text>
-              <Text style={styles.overviewSubtext}>
-                of {totalTasksCount}
-              </Text>
-            </View>
+        <View style={styles.loggedMealsSection}>
+          <View style={styles.loggedMealsHeader}>
+            <Text style={styles.sectionTitle}>Logged Meals</Text>
+          </View>
 
-            <View style={styles.overviewCard}>
-              <View style={styles.overviewHeader}>
-                <IconSymbol
-                  ios_icon_name="fork.knife"
-                  android_material_icon_name="restaurant"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={styles.overviewLabel}>Meals</Text>
-              </View>
-              <Text style={styles.overviewValue}>
-                {stats?.mealsLogged || 0}
-              </Text>
-              <Text style={styles.overviewSubtext}>
-                logged
-              </Text>
+          {dailyData.entries.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol
+                ios_icon_name="fork.knife"
+                android_material_icon_name="restaurant"
+                size={48}
+                color={colors.grey}
+              />
+              <Text style={styles.emptyStateText}>No meals logged yet</Text>
+              <Text style={styles.emptyStateSubtext}>Tap a meal from Today&apos;s Plan to get started</Text>
             </View>
+          ) : (
+            <View style={styles.loggedMealsList}>
+              {dailyData.entries.map((entry) => (
+                <View key={entry.id} style={styles.loggedMealCard}>
+                  <View style={styles.loggedMealInfo}>
+                    <Text style={styles.loggedMealLabel}>{entry.label}</Text>
+                    <Text style={styles.loggedMealMacros}>
+                      {entry.kcal} kcal • {entry.P}P • {entry.C}C • {entry.F}F
+                    </Text>
+                    {entry.mealSlot && (
+                      <Text style={styles.loggedMealSlot}>{entry.mealSlot}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => deleteEntry(entry.id)}>
+                    <IconSymbol
+                      ios_icon_name="trash"
+                      android_material_icon_name="delete"
+                      size={20}
+                      color={colors.grey}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
-            <View style={styles.overviewCard}>
-              <View style={styles.overviewHeader}>
-                <IconSymbol
-                  ios_icon_name="flame.fill"
-                  android_material_icon_name="local-fire-department"
-                  size={20}
-                  color={colors.primary}
+      <Modal visible={showTargetsModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Nutrition Targets</Text>
+            <View style={styles.targetInputs}>
+              <View style={styles.targetInput}>
+                <Text style={styles.targetLabel}>Calories</Text>
+                <TextInput
+                  style={styles.targetField}
+                  value={targets.calorieGoal.toString()}
+                  onChangeText={(text) => setTargets({ ...targets, calorieGoal: parseInt(text) || 0 })}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.grey}
                 />
-                <Text style={styles.overviewLabel}>Calories</Text>
               </View>
-              <Text style={styles.overviewValue}>
-                {stats?.caloriesConsumed || 0}
-              </Text>
-              <Text style={styles.overviewSubtext}>
-                of {stats?.dailyCalorieGoal || 2500}
-              </Text>
+              <View style={styles.targetInput}>
+                <Text style={styles.targetLabel}>Protein (g)</Text>
+                <TextInput
+                  style={styles.targetField}
+                  value={targets.proteinGoal.toString()}
+                  onChangeText={(text) => setTargets({ ...targets, proteinGoal: parseInt(text) || 0 })}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.grey}
+                />
+              </View>
+              <View style={styles.targetInput}>
+                <Text style={styles.targetLabel}>Carbs (g)</Text>
+                <TextInput
+                  style={styles.targetField}
+                  value={targets.carbsGoal.toString()}
+                  onChangeText={(text) => setTargets({ ...targets, carbsGoal: parseInt(text) || 0 })}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.grey}
+                />
+              </View>
+              <View style={styles.targetInput}>
+                <Text style={styles.targetLabel}>Fat (g)</Text>
+                <TextInput
+                  style={styles.targetField}
+                  value={targets.fatGoal.toString()}
+                  onChangeText={(text) => setTargets({ ...targets, fatGoal: parseInt(text) || 0 })}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.grey}
+                />
+              </View>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setShowTargetsModal(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={saveTargets}>
+                <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>Save</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
-
-        {todayTasks.length > 0 && (
-          <View style={styles.quickTasksSection}>
-            <View style={styles.quickTasksHeader}>
-              <Text style={styles.sectionTitle}>Quick tasks</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/focus')}>
-                <Text style={styles.viewAllLink}>View all</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.quickTasksList}>
-              {todayTasks.slice(0, 3).map((task) => (
-                <TouchableOpacity
-                  key={task.id}
-                  style={styles.quickTaskItem}
-                  onPress={() => toggleTask(task.id)}
-                >
-                  <View style={[
-                    styles.taskCheckbox,
-                    task.completed && styles.taskCheckboxCompleted,
-                  ]}>
-                    {task.completed && (
-                      <IconSymbol
-                        ios_icon_name="checkmark"
-                        android_material_icon_name="check"
-                        size={12}
-                        color="#fff"
-                      />
-                    )}
-                  </View>
-                  <Text style={[
-                    styles.quickTaskText,
-                    task.completed && styles.quickTaskTextCompleted,
-                  ]}>
-                    {task.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
+      </Modal>
     </View>
   );
 }
@@ -1587,44 +494,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  headerLeft: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  userName: {
+  headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 6,
-  },
-  contextLine: {
-    fontSize: 15,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
@@ -1633,207 +514,74 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  motivationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  motivationText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  nextActionSection: {
+  macroOverview: {
     marginBottom: 32,
   },
-  nextActionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  primaryAction: {
-    backgroundColor: colors.primary,
-    borderRadius: 20,
+  calorieCircle: {
+    alignItems: 'center',
+    marginBottom: 24,
     padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  primaryActionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    flex: 1,
-  },
-  primaryActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryActionText: {
-    flex: 1,
-  },
-  primaryActionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  primaryActionSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  secondaryAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
+    borderRadius: 20,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
+    borderColor: colors.cardBorder,
   },
-  secondaryActionTextContainer: {
-    flex: 1,
+  calorieValue: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: colors.text,
   },
-  secondaryActionText: {
+  calorieLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  secondaryActionMetric: {
-    fontSize: 13,
     color: colors.textSecondary,
+    marginTop: 4,
   },
-  celebrationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-  },
-  celebrationText: {
-    flex: 1,
-  },
-  celebrationTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  celebrationSubtitle: {
+  calorieRemaining: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.primary,
+    marginTop: 8,
+    fontWeight: '600',
   },
-  weeklyPlanSection: {
-    marginBottom: 32,
-    marginHorizontal: -20,
-  },
-  weeklyPlanHeader: {
+  macroGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  weeklyPlanScrollContent: {
-    paddingHorizontal: 20,
     gap: 12,
   },
-  weekDayCard: {
-    width: 140,
-    height: 180,
+  macroCard: {
+    flex: 1,
     backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
     borderRadius: 16,
     padding: 16,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
-  weekDayCardToday: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    backgroundColor: 'rgba(69, 155, 155, 0.1)',
-  },
-  weekDayCardRest: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  weekDayLabel: {
-    fontSize: 14,
-    fontWeight: '700',
+  macroLabel: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textSecondary,
-    textTransform: 'uppercase',
     marginBottom: 8,
   },
-  weekDayLabelToday: {
-    color: colors.primary,
-  },
-  weekDayIconContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  weekDayWorkout: {
-    fontSize: 14,
-    fontWeight: '700',
+  macroValue: {
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.text,
-    textAlign: 'center',
-    marginTop: 8,
+    marginBottom: 8,
   },
-  weekDayWorkoutToday: {
-    color: colors.primary,
+  macroBar: {
+    height: 6,
+    backgroundColor: colors.cardBorder,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  weekDayDuration: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
+  macroBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
-  weekDayEmphasis: {
+  macroTarget: {
     fontSize: 11,
     color: colors.grey,
-    textAlign: 'center',
-    marginTop: 2,
   },
-  weekDayRest: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.grey,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  weekDayRestActivity: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 14,
-  },
-  todayOverview: {
+  todaysPlanSection: {
     marginBottom: 32,
   },
   sectionTitle: {
@@ -1842,87 +590,168 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
-  overviewGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  overviewCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-  },
-  overviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  planMealCard: {
     marginBottom: 12,
   },
-  overviewLabel: {
-    fontSize: 12,
+  planMealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  planMealSlot: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  overviewValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 2,
+  planMealContent: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
-  overviewSubtext: {
-    fontSize: 12,
+  planMealLogged: {
+    opacity: 0.6,
+  },
+  planMealLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  planMealMacros: {
+    fontSize: 13,
     color: colors.textSecondary,
   },
-  quickTasksSection: {
-    marginBottom: 24,
+  loggedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
   },
-  quickTasksHeader: {
+  loggedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  loggedMealsSection: {
+    marginBottom: 32,
+  },
+  loggedMealsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  viewAllLink: {
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  loggedMealsList: {
+    gap: 12,
+  },
+  loggedMealCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  loggedMealInfo: {
+    flex: 1,
+  },
+  loggedMealLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  loggedMealMacros: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  loggedMealSlot: {
+    fontSize: 12,
+    color: colors.grey,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 24,
+  },
+  targetInputs: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  targetInput: {
+    gap: 8,
+  },
+  targetLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.textSecondary,
   },
-  quickTasksList: {
-    gap: 10,
-  },
-  quickTaskItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    padding: 14,
+  targetField: {
+    backgroundColor: colors.background,
     borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
-  taskCheckbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.grey,
-    alignItems: 'center',
-    justifyContent: 'center',
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  taskCheckboxCompleted: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  quickTaskText: {
+  modalButton: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  modalButtonPrimary: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
   },
-  quickTaskTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: colors.grey,
+  modalButtonTextPrimary: {
+    color: '#fff',
   },
 });
