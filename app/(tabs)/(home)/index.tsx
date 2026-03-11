@@ -677,10 +677,13 @@ export default function HomeScreen() {
                             color={dayInfo.isToday ? colors.primary : colors.textSecondary}
                           />
                         </View>
-                        <Text style={[
-                          styles.weekDayWorkout,
-                          dayInfo.isToday && styles.weekDayWorkoutToday,
-                        ]} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.weekDayWorkout,
+                            dayInfo.isToday && styles.weekDayWorkoutToday,
+                          ]}
+                          numberOfLines={1}
+                        >
                           {workout.name}
                         </Text>
                         <Text style={styles.weekDayDuration}>{duration}</Text>

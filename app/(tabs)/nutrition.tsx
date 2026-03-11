@@ -764,7 +764,7 @@ export default function NutritionScreen() {
     return shuffled.slice(0, 3);
   };
 
-  const getNextMoveMeals = (): Array<MacroMeal & { reason: string }> => {
+  const getNextMoveMeals = (): (MacroMeal & { reason: string })[] => {
     const remaining = {
       kcal: targets.calorieGoal - consumed.kcal,
       P: targets.proteinGoal - consumed.P,
