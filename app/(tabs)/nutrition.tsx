@@ -757,919 +757,827 @@ export default function NutritionScreen() {
     } else if (remaining.kcal < 400) {
       filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light');
     } else {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-    }
-    
-    const shuffled = [...filtered].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3);
-  };
+      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === I'll fix the lint errors. Looking at the errors:
 
-  const getNextMoveMeals = (): (MacroMeal & { reason: string })[] => {
-    const remaining = {
-      kcal: targets.calorieGoal - consumed.kcal,
-      P: targets.proteinGoal - consumed.P,
-      C: targets.carbsGoal - consumed.C,
-      F: targets.fatGoal - consumed.F,
-    };
-    
-    const suggestions: Array<MacroMeal & { reason: string }> = [];
-    
-    if (remaining.P > 40) {
-      const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein' && m.P >= 30);
-      if (highProtein.length > 0) {
-        const meal = highProtein[Math.floor(Math.random() * highProtein.length)];
-        suggestions.push({ ...meal, reason: "You're low on protein" });
-      }
-    }
-    
-    if (remaining.C > 50) {
-      const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb' && m.C >= 40);
-      if (highCarb.length > 0) {
-        const meal = highCarb[Math.floor(Math.random() * highCarb.length)];
-        suggestions.push({ ...meal, reason: "You need more carbs" });
-      }
-    }
-    
-    if (remaining.kcal < 400) {
-      const light = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light' && m.kcal <= 300);
-      if (light.length > 0) {
-        const meal = light[Math.floor(Math.random() * light.length)];
-        suggestions.push({ ...meal, reason: "Light option for remaining calories" });
-      }
-    }
-    
-    while (suggestions.length < 3) {
-      const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-      const meal = balanced[Math.floor(Math.random() * balanced.length)];
-      if (!suggestions.find(s => s.id === meal.id)) {
-        suggestions.push({ ...meal, reason: "Balanced macro option" });
-      }
-    }
-    
-    return suggestions.slice(0, 3);
-  };
+1. **Lines 326 in index.ios.tsx and 327 in index.tsx**: Missing comma in React.Fragment key prop
+2. **Line 775 in nutrition.tsx**: Array type using `Array<T>` instead of `T[]`
 
-  const handleMacroMealSelect = (meal: MacroMeal) => {
-    console.log('[Nutrition] User selected Macro Meal:', meal.label);
-    addEntry({
-      label: meal.label,
-      type: 'macro_meal',
-      mealSlot: selectedMealSlot,
-      kcal: meal.kcal,
-      P: meal.P,
-      C: meal.C,
-      F: meal.F,
-    });
-    setShowMealModal(false);
-  };
+Let me fix these issues:
 
-  const handleTemplate = (template: typeof TEMPLATES[0]) => {
-    console.log('[Nutrition] User selected Template:', template.label);
-    addEntry({
-      label: template.label,
-      type: 'template',
-      mealSlot: selectedMealSlot,
-      kcal: template.kcal,
-      P: template.P,
-      C: template.C,
-      F: template.F,
-    });
-    setShowMealModal(false);
-  };
+<write file="app/(tabs)/(home)/index.ios.tsx">
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { colors } from '@/styles/commonStyles';
+import { WeeklyTask, FitnessProfile, WorkoutDay } from '@/types/fitness';
+import { authenticatedGet } from '@/utils/api';
+import { IconSymbol } from '@/components/IconSymbol';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from 'react';
+import { generateWorkoutSplit } from '@/data/workouts';
 
-  const handleManualAdd = () => {
-    const kcal = parseInt(manualKcal) || 0;
-    const P = parseInt(manualP) || 0;
-    const C = parseInt(manualC) || 0;
-    const F = parseInt(manualF) || 0;
-    
-    if (kcal === 0) return;
-    
-    const label = manualLabel.trim() || 'Custom Entry';
-    
-    console.log('[Nutrition] User added Manual entry:', label, kcal, 'kcal');
-    addEntry({
-      label,
-      type: 'manual',
-      mealSlot: selectedMealSlot,
-      kcal,
-      P,
-      C,
-      F,
-    });
-    
-    setShowMealModal(false);
-    setShowManualModal(false);
-    setManualKcal('');
-    setManualP('');
-    setManualC('');
-    setManualF('');
-    setManualLabel('');
-  };
+interface DashboardStats {
+  dailyCalorieGoal: number;
+  caloriesConsumed: number;
+  caloriesRemaining: number;
+  percentageConsumed: number;
+  goalMet: boolean;
+  mealsLogged: number;
+  lastUpdated: string;
+}
 
-  const saveTargets = async () => {
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const COACH_INSIGHTS = [
+  "Consistency beats intensity. Show up, even when it's hard.",
+  "Recovery is where the magic happens. Don't skip rest days.",
+  "Small daily improvements lead to stunning long-term results.",
+  "Your body achieves what your mind believes.",
+  "Progress isn't linear. Trust the process.",
+  "The best workout is the one you actually do.",
+  "Nutrition fuels performance. You can't out-train a bad diet.",
+  "Sleep is your secret weapon for gains.",
+];
+
+export default function HomeScreen() {
+  const router = useRouter();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('Athlete');
+  const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
+  const [userMotivation, setUserMotivation] = useState('');
+  const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [measurements, setMeasurements] = useState<any[]>([]);
+  const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
     try {
-      await AsyncStorage.setItem('nutritionTargets', JSON.stringify(targets));
-      console.log('[Nutrition] Saved targets:', targets);
-      setShowTargetsModal(false);
+      setLoading(true);
+      
+      const profileData = await AsyncStorage.getItem('fitnessProfile');
+      let profile: FitnessProfile | null = null;
+      
+      if (profileData) {
+        profile = JSON.parse(profileData);
+        if (profile?.name) {
+          setUserName(profile.name);
+        }
+
+        const workoutSplit = generateWorkoutSplit(profile);
+        console.log('[Home] Generated weekly workout split:', workoutSplit);
+        setWeeklyWorkouts(workoutSplit);
+      }
+
+      const motivationData = await AsyncStorage.getItem('userMotivation');
+      if (motivationData) {
+        const parsed = JSON.parse(motivationData);
+        const motivationText = parsed.customText || parsed.chips?.join(', ') || '';
+        setUserMotivation(motivationText);
+      }
+      
+      const tasksData = await AsyncStorage.getItem('focusTasks');
+      if (tasksData) {
+        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
+        const today = new Date().getDay();
+        const tasksForToday = allTasks.filter(task => task.dayOfWeek === today);
+        setTodayTasks(tasksForToday);
+        console.log('[Home] Loaded tasks for today:', tasksForToday.length);
+      }
+
+      const historyData = await AsyncStorage.getItem('workoutHistory');
+      if (historyData) {
+        const history = JSON.parse(historyData);
+        setWorkoutHistory(history);
+        console.log('[Home] Loaded workout history:', history.length);
+      }
+
+      const measurementsData = await AsyncStorage.getItem('measurements');
+      if (measurementsData) {
+        const parsed = JSON.parse(measurementsData);
+        setMeasurements(parsed);
+        console.log('[Home] Loaded measurements:', parsed.length);
+      }
+      
+      try {
+        const dashboardStats = await authenticatedGet('/api/dashboard/home');
+        setStats(dashboardStats);
+        console.log('[Home] Dashboard stats loaded from backend');
+      } catch (error) {
+        console.log('[Home] Could not load stats from backend, using local data');
+        
+        const caloricGoal = profile?.caloricGoal || 2500;
+        console.log('[Home] Using caloric goal from profile:', caloricGoal);
+        
+        setStats({
+          dailyCalorieGoal: caloricGoal,
+          caloriesConsumed: 0,
+          caloriesRemaining: caloricGoal,
+          percentageConsumed: 0,
+          goalMet: false,
+          mealsLogged: 0,
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+
+      determineMotivationCardType();
     } catch (error) {
-      console.error('[Nutrition] Error saving targets:', error);
+      console.error('[Home] Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleMealTapForDetails = (meal: MacroMeal) => {
-    console.log('[Nutrition] User tapped meal for details:', meal.label);
-    setSelectedMealForDetails(meal);
-    setShowMealDetailsModal(true);
+  const determineMotivationCardType = () => {
+    const types: ('user' | 'coach' | 'target' | 'streak' | 'recovery')[] = ['user', 'coach', 'target', 'streak', 'recovery'];
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    setMotivationCardType(randomType);
   };
 
-  const consumed = dailyData.entries.reduce(
-    (acc, entry) => ({
-      kcal: acc.kcal + entry.kcal,
-      P: acc.P + entry.P,
-      C: acc.C + entry.C,
-      F: acc.F + entry.F,
-    }),
-    { kcal: 0, P: 0, C: 0, F: 0 }
-  );
-
-  const remaining = {
-    kcal: Math.max(0, targets.calorieGoal - consumed.kcal),
-    P: Math.max(0, targets.proteinGoal - consumed.P),
-    C: Math.max(0, targets.carbsGoal - consumed.C),
-    F: Math.max(0, targets.fatGoal - consumed.F),
+  const toggleTask = async (taskId: string) => {
+    console.log('[Home] User toggled task:', taskId);
+    try {
+      const tasksData = await AsyncStorage.getItem('focusTasks');
+      if (tasksData) {
+        const allTasks: WeeklyTask[] = JSON.parse(tasksData);
+        const updatedTasks = allTasks.map(task => 
+          task.id === taskId ? { ...task, completed: !task.completed } : task
+        );
+        await AsyncStorage.setItem('focusTasks', JSON.stringify(updatedTasks));
+        
+        const today = new Date().getDay();
+        const tasksForToday = updatedTasks.filter(task => task.dayOfWeek === today);
+        setTodayTasks(tasksForToday);
+      }
+    } catch (error) {
+      console.error('[Home] Error toggling task:', error);
+    }
   };
 
-  const getMealEntries = (slot: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks') =>
-    dailyData.entries.filter(e => e.mealSlot === slot);
+  const handleNavigateToProfile = () => {
+    console.log('[Home] User tapped profile button');
+    router.push('/(tabs)/profile');
+  };
 
-  const consumedKcal = Math.round(consumed.kcal);
-  const remainingKcal = Math.round(remaining.kcal);
-  const goalKcal = targets.calorieGoal;
-  const consumedP = Math.round(consumed.P);
-  const consumedC = Math.round(consumed.C);
-  const consumedF = Math.round(consumed.F);
-  const remainingP = Math.round(remaining.P);
-  const remainingC = Math.round(remaining.C);
-  const remainingF = Math.round(remaining.F);
-  const proteinGoal = targets.proteinGoal;
-  const carbsGoal = targets.carbsGoal;
-  const fatGoal = targets.fatGoal;
-  const proteinPercent = Math.min((consumed.P / targets.proteinGoal) * 100, 100);
-  const carbsPercent = Math.min((consumed.C / targets.carbsGoal) * 100, 100);
-  const fatPercent = Math.min((consumed.F / targets.fatGoal) * 100, 100);
-  const caloriesPercent = Math.min((consumed.kcal / targets.calorieGoal) * 100, 100);
+  const handleViewFullPlan = () => {
+    console.log('[Home] User tapped View Full Plan');
+    router.push('/(tabs)/plan');
+  };
 
-  const nextMoveMeals = getNextMoveMeals();
+  const getDayWorkout = (dayIndex: number): WorkoutDay | null => {
+    return weeklyWorkouts.find(day => day.dayIndex === dayIndex) || null;
+  };
+
+  const getNextThreeDays = () => {
+    const todayIndex = new Date().getDay();
+    const nextThreeDays = [];
+    
+    for (let i = 0; i < 3; i++) {
+      const dayIndex = (todayIndex + i) % 7;
+      nextThreeDays.push({
+        dayIndex,
+        dayName: DAYS_SHORT[dayIndex],
+        isToday: i === 0,
+      });
+    }
+    
+    console.log('[Home] Next 3 days:', nextThreeDays);
+    return nextThreeDays;
+  };
+
+  const getDynamicContextLine = () => {
+    const todayIndex = new Date().getDay();
+    const todayWorkout = getDayWorkout(todayIndex);
+    const completedTasksCount = todayTasks.filter(t => t.completed).length;
+    const totalTasksCount = todayTasks.length;
+    const mealsLogged = stats?.mealsLogged || 0;
+
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+    const workoutsRemaining = Math.max(0, totalWeeklyWorkouts - workoutsThisWeek);
+
+    if (workoutsRemaining === 1) {
+      return "You're 1 workout away from completing this week 💪";
+    }
+
+    if (todayWorkout) {
+      const workoutName = todayWorkout.name;
+      return `Today is your scheduled ${workoutName} 🔥`;
+    }
+
+    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
+      const pendingTasks = totalTasksCount - completedTasksCount;
+      const taskText = pendingTasks === 1 ? 'task' : 'tasks';
+      return `You have ${pendingTasks} pending ${taskText} today`;
+    }
+
+    if (mealsLogged === 0) {
+      return "You have 1 pending meal log today 🍽️";
+    }
+
+    if (workoutsThisWeek >= 5) {
+      return `You're on a ${workoutsThisWeek}-day consistency streak 🔥`;
+    }
+
+    if (workoutsRemaining > 0) {
+      return `${workoutsRemaining} workouts left this week`;
+    }
+
+    return "You're crushing it this week! 🎯";
+  };
+
+  const getMotivationCardContent = () => {
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+
+    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    switch (motivationCardType) {
+      case 'user':
+        if (userMotivation) {
+          return {
+            icon: 'favorite',
+            text: `Your why: "${userMotivation}"`,
+            color: colors.primary,
+          };
+        }
+        return {
+          icon: 'lightbulb',
+          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
+          color: '#FFA500',
+        };
+      
+      case 'coach':
+        return {
+          icon: 'lightbulb',
+          text: COACH_INSIGHTS[Math.floor(Math.random() * COACH_INSIGHTS.length)],
+          color: '#FFA500',
+        };
+      
+      case 'target':
+        const remaining = totalWeeklyWorkouts - workoutsThisWeek;
+        if (remaining > 0) {
+          return {
+            icon: 'flag',
+            text: `Weekly target: ${remaining} workout${remaining === 1 ? '' : 's'} remaining to hit your goal`,
+            color: '#4CAF50',
+          };
+        }
+        return {
+          icon: 'check-circle',
+          text: `Weekly target complete! You've hit all ${totalWeeklyWorkouts} workouts this week 🎯`,
+          color: '#4CAF50',
+        };
+      
+      case 'streak':
+        if (workoutsThisWeek >= 3) {
+          return {
+            icon: 'local-fire-department',
+            text: `${workoutsThisWeek}-day streak! Keep the momentum going 🔥`,
+            color: '#FF5722',
+          };
+        } else if (daysSinceLastWorkout > 3) {
+          return {
+            icon: 'warning',
+            text: `It's been ${daysSinceLastWorkout} days since your last workout. Time to get back on track!`,
+            color: '#FF9800',
+          };
+        }
+        return {
+          icon: 'trending-up',
+          text: `You're building momentum. ${workoutsThisWeek} workout${workoutsThisWeek === 1 ? '' : 's'} this week!`,
+          color: colors.primary,
+        };
+      
+      case 'recovery':
+        const todayIndex = new Date().getDay();
+        const todayWorkout = getDayWorkout(todayIndex);
+        if (!todayWorkout) {
+          return {
+            icon: 'self-improvement',
+            text: 'Rest day: Focus on mobility, hydration, and quality sleep for optimal recovery',
+            color: '#9C27B0',
+          };
+        } else if (workoutsThisWeek >= 3) {
+          return {
+            icon: 'spa',
+            text: 'You're training hard. Don't forget to prioritize sleep and nutrition for recovery',
+            color: '#9C27B0',
+          };
+        }
+        return {
+          icon: 'self-improvement',
+          text: 'Listen to your body. Recovery is when you get stronger',
+          color: '#9C27B0',
+        };
+      
+      default:
+        return {
+          icon: 'favorite',
+          text: userMotivation || COACH_INSIGHTS[0],
+          color: colors.primary,
+        };
+    }
+  };
+
+  const getPrimaryAction = () => {
+    const todayIndex = new Date().getDay();
+    const todayWorkout = getDayWorkout(todayIndex);
+    const completedTasksCount = todayTasks.filter(t => t.completed).length;
+    const totalTasksCount = todayTasks.length;
+    const mealsLogged = stats?.mealsLogged || 0;
+
+    const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    const lastMeasurement = measurements.length > 0 ? measurements[measurements.length - 1] : null;
+    const daysSinceWeighIn = lastMeasurement ? Math.floor((Date.now() - new Date(lastMeasurement.date).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+
+    if (daysSinceLastWorkout > 7) {
+      return {
+        title: 'Resume After Break',
+        subtitle: `It's been ${daysSinceLastWorkout} days. Let's get back on track`,
+        icon: 'refresh',
+        route: '/(tabs)/training',
+      };
+    }
+
+    if (daysSinceWeighIn > 7) {
+      return {
+        title: 'Complete Your Weigh-In',
+        subtitle: 'Track your progress this week',
+        icon: 'monitor-weight',
+        route: '/(tabs)/progress',
+      };
+    }
+
+    if (todayWorkout && workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const today = new Date();
+      return workoutDate.toDateString() === today.toDateString();
+    }).length === 0) {
+      return {
+        title: `Do Today's ${todayWorkout.name}`,
+        subtitle: `${todayWorkout.exercises.length} exercises ready`,
+        icon: 'fitness-center',
+        route: '/(tabs)/training',
+      };
+    }
+
+    if (mealsLogged === 0) {
+      const hour = new Date().getHours();
+      const mealTime = hour < 10 ? 'Breakfast' : hour < 14 ? 'Lunch' : hour < 18 ? 'Snack' : 'Dinner';
+      return {
+        title: `Log ${mealTime}`,
+        subtitle: 'Track your nutrition for today',
+        icon: 'restaurant',
+        route: '/(tabs)/nutrition',
+      };
+    }
+
+    if (totalTasksCount > 0 && completedTasksCount < totalTasksCount) {
+      return {
+        title: 'Complete Your Tasks',
+        subtitle: `${totalTasksCount - completedTasksCount} tasks remaining`,
+        icon: 'check-circle',
+        route: '/(tabs)/focus',
+      };
+    }
+
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+
+    if (workoutsThisWeek >= 4) {
+      return {
+        title: 'Review Recovery',
+        subtitle: 'You're training hard. Check your rest needs',
+        icon: 'spa',
+        route: '/(tabs)/plan',
+      };
+    }
+
+    return {
+      title: 'Start Today\'s Workout',
+      subtitle: 'Your workout is ready',
+      icon: 'fitness-center',
+      route: '/(tabs)/training',
+    };
+  };
+
+  const getProgressMetric = () => {
+    const thisWeekWorkouts = workoutHistory.filter(w => {
+      const workoutDate = new Date(w.completedAt);
+      const now = new Date();
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      return workoutDate >= weekStart;
+    });
+    const workoutsThisWeek = thisWeekWorkouts.length;
+    const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
+
+    if (measurements.length >= 2) {
+      const latest = measurements[measurements.length - 1];
+      const previous = measurements[measurements.length - 2];
+      const weightChange = latest.weight - previous.weight;
+      const changeText = weightChange > 0 ? `+${weightChange.toFixed(1)}` : weightChange.toFixed(1);
+      return `Weight: ${changeText} kg this month`;
+    }
+
+    if (workoutsThisWeek > 0) {
+      return `Workouts: ${workoutsThisWeek}/${totalWeeklyWorkouts} this week`;
+    }
+
+    const mealsLogged = stats?.mealsLogged || 0;
+    if (mealsLogged > 0) {
+      return `Nutrition: ${mealsLogged} meals logged today`;
+    }
+
+    return 'Track your progress';
+  };
+
+  const getWorkoutDuration = (workout: WorkoutDay): string => {
+    const exerciseCount = workout.exercises.length;
+    if (exerciseCount <= 4) return '30-40 min';
+    if (exerciseCount <= 6) return '45-55 min';
+    return '60-75 min';
+  };
+
+  const getWorkoutEmphasis = (workout: WorkoutDay): string => {
+    const exerciseCount = workout.exercises.length;
+    if (exerciseCount <= 4) return 'Light';
+    if (exerciseCount <= 6) return 'Moderate';
+    return 'Intense';
+  };
+
+  const getRestDayActivity = (dayIndex: number): { activity: string; icon: string } => {
+    const activities = [
+      { activity: 'Active recovery: 20-min walk', icon: 'directions-walk' },
+      { activity: 'Mobility: 15-min stretching', icon: 'self-improvement' },
+      { activity: 'Light cardio: 30-min bike', icon: 'directions-bike' },
+      { activity: 'Recovery: Foam rolling', icon: 'spa' },
+    ];
+    return activities[dayIndex % activities.length];
+  };
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Nutrition</Text>
-        </View>
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
+  const completedTasksCount = todayTasks.filter(t => t.completed).length;
+  const totalTasksCount = todayTasks.length;
+  const allTasksComplete = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
+
+  const greetingTime = new Date().getHours();
+  const greetingText = greetingTime < 12 ? 'Good morning' : 
+                      greetingTime < 18 ? 'Good afternoon' : 
+                      'Good evening';
+
+  const dynamicContextLine = getDynamicContextLine();
+  const nextThreeDays = getNextThreeDays();
+  const motivationContent = getMotivationCardContent();
+  const primaryAction = getPrimaryAction();
+  const progressMetric = getProgressMetric();
+
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>{greetingText},</Text>
+          <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.contextLine}>{dynamicContextLine}</Text>
+        </View>
+        <TouchableOpacity style={styles.profileButton} onPress={handleNavigateToProfile}>
+          <IconSymbol
+            ios_icon_name="person.circle.fill"
+            android_material_icon_name="account-circle"
+            size={40}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Nutrition</Text>
-            <Text style={styles.subtitle}>Smart macro tracking</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.settingsButton}
+        <TouchableOpacity 
+          style={styles.motivationCard}
+          onPress={determineMotivationCardType}
+          activeOpacity={0.8}
+        >
+          <IconSymbol
+            ios_icon_name="heart.fill"
+            android_material_icon_name={motivationContent.icon}
+            size={20}
+            color={motivationContent.color}
+          />
+          <Text style={styles.motivationText}>{motivationContent.text}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.nextActionSection}>
+          <Text style={styles.nextActionLabel}>Your next move</Text>
+          
+          <TouchableOpacity 
+            style={styles.primaryAction}
             onPress={() => {
-              console.log('[Nutrition] User tapped Edit Targets');
-              setShowTargetsModal(true);
+              console.log('[Home] User tapped primary action:', primaryAction.route);
+              router.push(primaryAction.route as any);
+            }}
+          >
+            <View style={styles.primaryActionContent}>
+              <View style={styles.primaryActionIcon}>
+                <IconSymbol
+                  ios_icon_name="bolt.fill"
+                  android_material_icon_name={primaryAction.icon}
+                  size={32}
+                  color="#fff"
+                />
+              </View>
+              <View style={styles.primaryActionText}>
+                <Text style={styles.primaryActionTitle}>{primaryAction.title}</Text>
+                <Text style={styles.primaryActionSubtitle}>{primaryAction.subtitle}</Text>
+              </View>
+            </View>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.secondaryAction}
+            onPress={() => {
+              console.log('[Home] User tapped View Progress');
+              router.push('/(tabs)/progress');
             }}
           >
             <IconSymbol
-              ios_icon_name="gear"
-              android_material_icon_name="settings"
-              size={24}
-              color={colors.text}
+              ios_icon_name="chart.line.uptrend.xyaxis"
+              android_material_icon_name="show-chart"
+              size={20}
+              color={colors.primary}
+            />
+            <View style={styles.secondaryActionTextContainer}>
+              <Text style={styles.secondaryActionText}>Check Weekly Progress</Text>
+              <Text style={styles.secondaryActionMetric}>{progressMetric}</Text>
+            </View>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={16}
+              color={colors.primary}
             />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.caloriesCard}
-          onPress={() => {
-            console.log('[Nutrition] User tapped Daily Calories card');
-            setShowTimelineModal(true);
-          }}
-        >
-          <Text style={styles.caloriesTitle}>Daily Calories</Text>
-          <View style={styles.caloriesRow}>
-            <View style={styles.caloriesStat}>
-              <Text style={styles.caloriesValue}>{consumedKcal}</Text>
-              <Text style={styles.caloriesLabel}>consumed</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.caloriesStat}>
-              <Text style={styles.caloriesValue}>{remainingKcal}</Text>
-              <Text style={styles.caloriesLabel}>remaining</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.caloriesStat}>
-              <Text style={styles.caloriesValue}>{goalKcal}</Text>
-              <Text style={styles.caloriesLabel}>goal</Text>
-            </View>
-          </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${caloriesPercent}%` }]} />
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.macrosCard}>
-          <View style={styles.macroRow}>
-            <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>Protein</Text>
-              <Text style={styles.macroValue}>{consumedP}g / {proteinGoal}g</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${proteinPercent}%`, backgroundColor: '#ef4444' }]} />
-            </View>
-            <Text style={styles.macroRemaining}>Remaining: {remainingP}g</Text>
-          </View>
-
-          <View style={styles.macroRow}>
-            <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>Carbs</Text>
-              <Text style={styles.macroValue}>{consumedC}g / {carbsGoal}g</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${carbsPercent}%`, backgroundColor: '#f59e0b' }]} />
-            </View>
-            <Text style={styles.macroRemaining}>Remaining: {remainingC}g</Text>
-          </View>
-
-          <View style={styles.macroRow}>
-            <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>Fat</Text>
-              <Text style={styles.macroValue}>{consumedF}g / {fatGoal}g</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${fatPercent}%`, backgroundColor: '#8b5cf6' }]} />
-            </View>
-            <Text style={styles.macroRemaining}>Remaining: {remainingF}g</Text>
-          </View>
-        </View>
-
-        {todaysPlan && (
-          <View style={styles.section}>
-            <View style={styles.planHeader}>
-              <Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
-              {!isPremium && (
-                <View style={styles.freeBadge}>
-                  <Text style={styles.freeBadgeText}>Free: 1-day</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.planGrid}>
-              {(['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as const).map((slot) => {
-                const meal = todaysPlan[slot];
-                const mealKcal = Math.round(meal.kcal);
-                const mealP = Math.round(meal.P);
-                const mealC = Math.round(meal.C);
-                const mealF = Math.round(meal.F);
-                
-                return (
-                  <View key={slot} style={styles.planTile}>
-                    <TouchableOpacity
-                      style={styles.planTileContent}
-                      onPress={() => handleMealTapForDetails(meal)}
-                      onLongPress={() => handlePlanMealTap(slot)}
-                    >
-                      <Text style={styles.planSlot}>{slot}</Text>
-                      <Text style={styles.planMeal}>{meal.label}</Text>
-                      <Text style={styles.planMacros}>
-                        {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
-                      </Text>
-                      <Text style={styles.tapHint}>Tap for recipe</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.swapButton}
-                      onPress={() => handleSwapMeal(slot)}
-                    >
-                      <IconSymbol
-                        ios_icon_name="arrow.2.squarepath"
-                        android_material_icon_name="swap-horiz"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.swapText}>Swap</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+        {allTasksComplete && (
+          <View style={styles.celebrationCard}>
+            <IconSymbol
+              ios_icon_name="party.popper.fill"
+              android_material_icon_name="celebration"
+              size={32}
+              color={colors.primary}
+            />
+            <View style={styles.celebrationText}>
+              <Text style={styles.celebrationTitle}>All tasks complete!</Text>
+              <Text style={styles.celebrationSubtitle}>You&apos;re crushing it today 🔥</Text>
             </View>
           </View>
         )}
 
-        <View style={styles.nextMoveCard}>
-          <Text style={styles.nextMoveTitle}>Next Move (recommended)</Text>
-          <Text style={styles.nextMoveSubtitle}>
-            You have {remainingKcal} kcal and {remainingP}g protein left today
-          </Text>
-          <View style={styles.nextMoveList}>
-            {nextMoveMeals.map((meal) => {
-              const mealKcal = Math.round(meal.kcal);
-              const mealP = Math.round(meal.P);
-              const mealC = Math.round(meal.C);
-              const mealF = Math.round(meal.F);
-              
-              return (
-                <TouchableOpacity
-                  key={meal.id}
-                  style={styles.nextMoveItem}
-                  onPress={() => handleMealTapForDetails(meal)}
-                  onLongPress={() => {
-                    console.log('[Nutrition] User long-pressed Next Move meal:', meal.label);
-                    addEntry({
-                      label: meal.label,
-                      type: 'macro_meal',
-                      kcal: meal.kcal,
-                      P: meal.P,
-                      C: meal.C,
-                      F: meal.F,
-                    });
-                  }}
-                >
-                  <View style={styles.nextMoveInfo}>
-                    <Text style={styles.nextMoveMeal}>{meal.label}</Text>
-                    <Text style={styles.nextMoveReason}>{meal.reason}</Text>
-                    <Text style={styles.nextMoveMacros}>
-                      {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
-                    </Text>
-                  </View>
-                  <IconSymbol
-                    ios_icon_name="info.circle"
-                    android_material_icon_name="info"
-                    size={24}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {(['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as const).map((slot) => {
-          const entries = getMealEntries(slot);
-          const hasEntries = entries.length > 0;
-          
-          return (
-            <View key={slot} style={styles.mealSection}>
-              <View style={styles.mealHeader}>
-                <Text style={styles.mealTitle}>{slot}</Text>
-                <TouchableOpacity onPress={() => openMealSlot(slot)}>
-                  <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
-                    size={28}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              </View>
-              
-              {!hasEntries && (
-                <View style={styles.emptyMeal}>
-                  <Text style={styles.emptyMealText}>Tap + to log</Text>
-                </View>
-              )}
-              
-              {entries.map((entry) => {
-                const entryKcal = Math.round(entry.kcal);
-                const entryP = Math.round(entry.P);
-                const entryC = Math.round(entry.C);
-                const entryF = Math.round(entry.F);
-                
-                return (
-                  <View key={entry.id} style={styles.mealEntry}>
-                    <View style={styles.mealEntryInfo}>
-                      <Text style={styles.mealEntryLabel}>{entry.label}</Text>
-                      <Text style={styles.mealEntryMacros}>
-                        {entryKcal} kcal • P{entryP} C{entryC} F{entryF}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => {
-                        console.log('[Nutrition] User deleted entry:', entry.label);
-                        deleteEntry(entry.id);
-                      }}
-                    >
-                      <IconSymbol
-                        ios_icon_name="trash.fill"
-                        android_material_icon_name="delete"
-                        size={20}
-                        color={colors.error}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      <Modal
-        visible={showMealDetailsModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowMealDetailsModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{selectedMealForDetails?.label}</Text>
-            <TouchableOpacity onPress={() => setShowMealDetailsModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {selectedMealForDetails && (
-              <>
-                <View style={styles.detailsCard}>
-                  <Text style={styles.detailsTitle}>Total Macros</Text>
-                  <View style={styles.detailsMacrosRow}>
-                    <View style={styles.detailsMacroItem}>
-                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.kcal)}</Text>
-                      <Text style={styles.detailsMacroLabel}>kcal</Text>
-                    </View>
-                    <View style={styles.detailsMacroItem}>
-                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.P)}g</Text>
-                      <Text style={styles.detailsMacroLabel}>Protein</Text>
-                    </View>
-                    <View style={styles.detailsMacroItem}>
-                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.C)}g</Text>
-                      <Text style={styles.detailsMacroLabel}>Carbs</Text>
-                    </View>
-                    <View style={styles.detailsMacroItem}>
-                      <Text style={styles.detailsMacroValue}>{Math.round(selectedMealForDetails.F)}g</Text>
-                      <Text style={styles.detailsMacroLabel}>Fat</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {selectedMealForDetails.ingredients && selectedMealForDetails.ingredients.length > 0 && (
-                  <View style={styles.detailsSection}>
-                    <Text style={styles.detailsSectionTitle}>Ingredients</Text>
-                    {selectedMealForDetails.ingredients.map((ingredient, index) => {
-                      const ingKcal = Math.round(ingredient.kcal);
-                      const ingP = Math.round(ingredient.P);
-                      const ingC = Math.round(ingredient.C);
-                      const ingF = Math.round(ingredient.F);
-                      
-                      return (
-                        <View key={index} style={styles.ingredientItem}>
-                          <View style={styles.ingredientHeader}>
-                            <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                            <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
-                          </View>
-                          <Text style={styles.ingredientMacros}>
-                            {ingKcal} kcal • P{ingP}g C{ingC}g F{ingF}g
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {selectedMealForDetails.instructions && selectedMealForDetails.instructions.length > 0 && (
-                  <View style={styles.detailsSection}>
-                    <Text style={styles.detailsSectionTitle}>Instructions</Text>
-                    {selectedMealForDetails.instructions.map((instruction, index) => {
-                      const stepNumber = index + 1;
-                      
-                      return (
-                        <View key={index} style={styles.instructionItem}>
-                          <Text style={styles.instructionNumber}>{stepNumber}</Text>
-                          <Text style={styles.instructionText}>{instruction}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => {
-                    if (selectedMealForDetails) {
-                      console.log('[Nutrition] User added meal from details:', selectedMealForDetails.label);
-                      addEntry({
-                        label: selectedMealForDetails.label,
-                        type: 'macro_meal',
-                        kcal: selectedMealForDetails.kcal,
-                        P: selectedMealForDetails.P,
-                        C: selectedMealForDetails.C,
-                        F: selectedMealForDetails.F,
-                      });
-                      setShowMealDetailsModal(false);
-                    }
-                  }}
-                >
-                  <Text style={styles.addButtonText}>Add to Today</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showMealModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowMealModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add to {selectedMealSlot}</Text>
-            <TouchableOpacity onPress={() => setShowMealModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Suggested (fastest)</Text>
-              {getSuggestedMeals().map((meal) => {
-                const mealKcal = Math.round(meal.kcal);
-                const mealP = Math.round(meal.P);
-                const mealC = Math.round(meal.C);
-                const mealF = Math.round(meal.F);
-                
-                return (
-                  <TouchableOpacity
-                    key={meal.id}
-                    style={styles.suggestedButton}
-                    onPress={() => handleMacroMealSelect(meal)}
-                    onLongPress={() => handleMealTapForDetails(meal)}
-                  >
-                    <View style={styles.suggestedInfo}>
-                      <Text style={styles.suggestedLabel}>{meal.label}</Text>
-                      <Text style={styles.suggestedMacros}>
-                        {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
-                      </Text>
-                    </View>
-                    <IconSymbol
-                      ios_icon_name="plus.circle.fill"
-                      android_material_icon_name="add-circle"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Templates</Text>
-              {TEMPLATES.map((template) => {
-                const templateKcal = Math.round(template.kcal);
-                const templateP = Math.round(template.P);
-                const templateC = Math.round(template.C);
-                const templateF = Math.round(template.F);
-                
-                return (
-                  <TouchableOpacity
-                    key={template.id}
-                    style={styles.templateButton}
-                    onPress={() => handleTemplate(template)}
-                  >
-                    <View style={styles.templateInfo}>
-                      <Text style={styles.templateLabel}>{template.label}</Text>
-                      <Text style={styles.templateMacros}>
-                        {templateKcal} kcal • P{templateP} C{templateC} F{templateF}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Manual</Text>
-              <TouchableOpacity
-                style={styles.manualButton}
-                onPress={() => {
-                  console.log('[Nutrition] User tapped Manual entry');
-                  setShowManualModal(true);
-                }}
-              >
-                <Text style={styles.manualButtonText}>Enter custom values</Text>
-                <IconSymbol
-                  ios_icon_name="pencil.circle.fill"
-                  android_material_icon_name="edit"
-                  size={24}
-                  color={colors.primary}
-                />
+        {weeklyWorkouts.length > 0 && (
+          <View style={styles.weeklyPlanSection}>
+            <View style={styles.weeklyPlanHeader}>
+              <Text style={styles.sectionTitle}>Next 3 Days</Text>
+              <TouchableOpacity onPress={handleViewFullPlan}>
+                <Text style={styles.viewAllLink}>View Full Plan</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </View>
-      </Modal>
 
-      <Modal
-        visible={showManualModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowManualModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Manual Entry</Text>
-            <TouchableOpacity onPress={() => setShowManualModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <TextInput
-              style={styles.input}
-              placeholder="Label (optional)"
-              placeholderTextColor={colors.textSecondary}
-              value={manualLabel}
-              onChangeText={setManualLabel}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Calories (kcal)"
-              placeholderTextColor={colors.textSecondary}
-              value={manualKcal}
-              onChangeText={setManualKcal}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Protein (g)"
-              placeholderTextColor={colors.textSecondary}
-              value={manualP}
-              onChangeText={setManualP}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Carbs (g)"
-              placeholderTextColor={colors.textSecondary}
-              value={manualC}
-              onChangeText={setManualC}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Fat (g)"
-              placeholderTextColor={colors.textSecondary}
-              value={manualF}
-              onChangeText={setManualF}
-              keyboardType="numeric"
-            />
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleManualAdd}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.weeklyPlanScrollContent}
             >
-              <Text style={styles.addButtonText}>Add Entry</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
+              {nextThreeDays.map((dayInfo, index) => {
+                const workout = getDayWorkout(dayInfo.dayIndex);
+                const duration = workout ? getWorkoutDuration(workout) : '';
+                const emphasis = workout ? getWorkoutEmphasis(workout) : '';
+                const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
-      <Modal
-        visible={showSwapModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowSwapModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Swap {swapMealSlot}</Text>
-            <TouchableOpacity onPress={() => setShowSwapModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {MACRO_MEALS_LIBRARY.map((meal) => {
-              const mealKcal = Math.round(meal.kcal);
-              const mealP = Math.round(meal.P);
-              const mealC = Math.round(meal.C);
-              const mealF = Math.round(meal.F);
-              
-              return (
-                <TouchableOpacity
-                  key={meal.id}
-                  style={styles.swapOption}
-                  onPress={() => confirmSwap(meal)}
-                  onLongPress={() => handleMealTapForDetails(meal)}
-                >
-                  <View style={styles.swapInfo}>
-                    <Text style={styles.swapLabel}>{meal.label}</Text>
-                    <Text style={styles.swapMacros}>
-                      {mealKcal} kcal • P{mealP} C{mealC} F{mealF}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showTimelineModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowTimelineModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Today Timeline</Text>
-            <TouchableOpacity onPress={() => setShowTimelineModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {dailyData.entries.length === 0 && (
-              <View style={styles.emptyTimeline}>
-                <Text style={styles.emptyTimelineText}>No entries yet today</Text>
-              </View>
-            )}
-            
-            {dailyData.entries
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-              .map((entry) => {
-                const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                });
-                const entryKcal = Math.round(entry.kcal);
-                const entryP = Math.round(entry.P);
-                const entryC = Math.round(entry.C);
-                const entryF = Math.round(entry.F);
-                
                 return (
-                  <View key={entry.id} style={styles.timelineEntry}>
-                    <View style={styles.timelineInfo}>
-                      <Text style={styles.timelineLabel}>{entry.label}</Text>
-                      <Text style={styles.timelineTime}>{time}</Text>
-                      <Text style={styles.timelineMacros}>
-                        {entryKcal} kcal • P{entryP} C{entryC} F{entryF}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => {
-                        console.log('[Nutrition] User deleted entry from timeline:', entry.label);
-                        deleteEntry(entry.id);
-                      }}
-                    >
-                      <IconSymbol
-                        ios_icon_name="trash.fill"
-                        android_material_icon_name="delete"
-                        size={20}
-                        color={colors.error}
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.weekDayCard,
+                      dayInfo.isToday && styles.weekDayCardToday,
+                      !workout && styles.weekDayCardRest,
+                    ]}
+                    onPress={() => {
+                      console.log('[Home] User tapped day card:', dayInfo.dayName);
+                      if (workout) {
+                        router.push('/(tabs)/training');
+                      } else {
+                        router.push('/(tabs)/plan');
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.weekDayLabel,
+                      dayInfo.isToday && styles.weekDayLabelToday,
+                    ]}>
+                      {dayInfo.dayName}
+                    </Text>
+                    {workout ? (
+                      <React.Fragment key={`workout-${index}`}>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="figure.strengthtraining.traditional"
+                            android_material_icon_name="fitness-center"
+                            size={40}
+                            color={dayInfo.isToday ? colors.primary : colors.textSecondary}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.weekDayWorkout,
+                            dayInfo.isToday && styles.weekDayWorkoutToday,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {workout.name}
+                        </Text>
+                        <Text style={styles.weekDayDuration}>{duration}</Text>
+                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment key={`rest-${index}`}>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="bed.double.fill"
+                            android_material_icon_name={restActivity?.icon || 'hotel'}
+                            size={40}
+                            color={colors.grey}
+                          />
+                        </View>
+                        <Text style={styles.weekDayRest}>Rest</Text>
+                        {restActivity && (
+                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
+                        )}
+                      </React.Fragment>
+                    )}
+                  </TouchableOpacity>
                 );
               })}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showTargetsModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowTargetsModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit Targets</Text>
-            <TouchableOpacity onPress={() => setShowTargetsModal(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            </ScrollView>
           </View>
+        )}
 
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.inputLabel}>Calorie Goal (kcal)</Text>
-            <TextInput
-              style={styles.input}
-              value={targets.calorieGoal.toString()}
-              onChangeText={(text) => setTargets({ ...targets, calorieGoal: parseInt(text) || 0 })}
-              keyboardType="numeric"
-            />
-            
-            <Text style={styles.inputLabel}>Protein Goal (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={targets.proteinGoal.toString()}
-              onChangeText={(text) => setTargets({ ...targets, proteinGoal: parseInt(text) || 0 })}
-              keyboardType="numeric"
-            />
-            
-            <Text style={styles.inputLabel}>Carbs Goal (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={targets.carbsGoal.toString()}
-              onChangeText={(text) => setTargets({ ...targets, carbsGoal: parseInt(text) || 0 })}
-              keyboardType="numeric"
-            />
-            
-            <Text style={styles.inputLabel}>Fat Goal (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={targets.fatGoal.toString()}
-              onChangeText={(text) => setTargets({ ...targets, fatGoal: parseInt(text) || 0 })}
-              keyboardType="numeric"
-            />
-            
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={saveTargets}
-            >
-              <Text style={styles.addButtonText}>Save Targets</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
+        <View style={styles.todayOverview}>
+          <Text style={styles.sectionTitle}>Today at a glance</Text>
+          
+          <View style={styles.overviewGrid}>
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
+                <IconSymbol
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.overviewLabel}>Tasks</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {completedTasksCount}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                of {totalTasksCount}
+              </Text>
+            </View>
 
-      <Modal
-        visible={showPaywallModal}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setShowPaywallModal(false)}
-      >
-        <View style={styles.paywallOverlay}>
-          <View style={styles.paywallCard}>
-            <IconSymbol
-              ios_icon_name="star.fill"
-              android_material_icon_name="star"
-              size={48}
-              color={colors.warning}
-            />
-            <Text style={styles.paywallTitle}>Premium Feature</Text>
-            <Text style={styles.paywallText}>
-              Unlock unlimited meal swaps, weekly meal plans, grocery lists, and more with Premium.
-            </Text>
-            <TouchableOpacity
-              style={styles.paywallButton}
-              onPress={() => {
-                console.log('[Nutrition] User tapped Upgrade to Premium');
-                setShowPaywallModal(false);
-                router.push('/shop');
-              }}
-            >
-              <Text style={styles.paywallButtonText}>Upgrade to Premium</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.paywallClose}
-              onPress={() => setShowPaywallModal(false)}
-            >
-              <Text style={styles.paywallCloseText}>Maybe Later</Text>
-            </TouchableOpacity>
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
+                <IconSymbol
+                  ios_icon_name="fork.knife"
+                  android_material_icon_name="restaurant"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.overviewLabel}>Meals</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {stats?.mealsLogged || 0}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                logged
+              </Text>
+            </View>
+
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewHeader}>
+                <IconSymbol
+                  ios_icon_name="flame.fill"
+                  android_material_icon_name="local-fire-department"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.overviewLabel}>Calories</Text>
+              </View>
+              <Text style={styles.overviewValue}>
+                {stats?.caloriesConsumed || 0}
+              </Text>
+              <Text style={styles.overviewSubtext}>
+                of {stats?.dailyCalorieGoal || 2500}
+              </Text>
+            </View>
           </View>
         </View>
-      </Modal>
+
+        {todayTasks.length > 0 && (
+          <View style={styles.quickTasksSection}>
+            <View style={styles.quickTasksHeader}>
+              <Text style={styles.sectionTitle}>Quick tasks</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/focus')}>
+                <Text style={styles.viewAllLink}>View all</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.quickTasksList}>
+              {todayTasks.slice(0, 3).map((task) => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.quickTaskItem}
+                  onPress={() => toggleTask(task.id)}
+                >
+                  <View style={[
+                    styles.taskCheckbox,
+                    task.completed && styles.taskCheckboxCompleted,
+                  ]}>
+                    {task.completed && (
+                      <IconSymbol
+                        ios_icon_name="checkmark"
+                        android_material_icon_name="check"
+                        size={12}
+                        color="#fff"
+                      />
+                    )}
+                  </View>
+                  <Text style={[
+                    styles.quickTaskText,
+                    task.completed && styles.quickTaskTextCompleted,
+                  ]}>
+                    {task.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -1679,625 +1587,342 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
+  headerLeft: {
+    flex: 1,
   },
-  subtitle: {
+  greeting: {
     fontSize: 16,
     color: colors.textSecondary,
+    marginBottom: 4,
   },
-  settingsButton: {
+  userName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  contextLine: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  profileButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  caloriesCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
-  },
-  caloriesTitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  caloriesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  caloriesStat: {
+  scrollView: {
     flex: 1,
-    alignItems: 'center',
   },
-  caloriesValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
-  caloriesLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  divider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.cardBorder,
-    marginHorizontal: 8,
-  },
-  progressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-  },
-  macrosCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
-    gap: 20,
-  },
-  macroRow: {
-    gap: 8,
-  },
-  macroHeader: {
+  motivationCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  macroLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  macroValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  macroRemaining: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  freeBadge: {
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  freeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.warning,
-  },
-  planGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 12,
-  },
-  planTile: {
-    flex: 1,
-    minWidth: '47%',
     backgroundColor: 'rgba(69, 155, 155, 0.1)',
-    borderColor: colors.primary,
-    borderWidth: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  planTileContent: {
-    padding: 12,
-  },
-  planSlot: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  planMeal: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  planMacros: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  tapHint: {
-    fontSize: 9,
-    color: colors.primary,
-    fontStyle: 'italic',
-  },
-  swapButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    borderTopWidth: 1,
-    borderTopColor: colors.primary,
-  },
-  swapText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  nextMoveCard: {
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    borderColor: colors.primary,
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
-  },
-  nextMoveTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  nextMoveSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  nextMoveList: {
-    gap: 12,
-  },
-  nextMoveItem: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nextMoveInfo: {
-    flex: 1,
-  },
-  nextMoveMeal: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  nextMoveReason: {
-    fontSize: 11,
-    color: colors.primary,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  nextMoveMacros: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  mealSection: {
-    marginBottom: 20,
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  mealTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  emptyMeal: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderStyle: 'dashed',
-  },
-  emptyMealText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  mealEntry: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  mealEntryInfo: {
-    flex: 1,
-  },
-  mealEntryLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  mealEntryMacros: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  modalContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  modalSection: {
-    marginBottom: 32,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  detailsCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-  },
-  detailsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  detailsMacrosRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  detailsMacroItem: {
-    alignItems: 'center',
-  },
-  detailsMacroValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  detailsMacroLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  detailsSection: {
-    marginBottom: 24,
-  },
-  detailsSectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  ingredientItem: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    padding: 16,
+    marginBottom: 24,
   },
-  ingredientHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  ingredientName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  ingredientAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  ingredientMacros: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  instructionItem: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    gap: 12,
-  },
-  instructionNumber: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.primary,
-    width: 24,
-  },
-  instructionText: {
+  motivationText: {
     flex: 1,
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+    fontWeight: '500',
   },
-  suggestedButton: {
-    backgroundColor: 'rgba(69, 155, 155, 0.15)',
-    borderColor: colors.primary,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  nextActionSection: {
+    marginBottom: 32,
   },
-  suggestedInfo: {
-    flex: 1,
-  },
-  suggestedLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  suggestedMacros: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  templateButton: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-  },
-  templateInfo: {
-    flex: 1,
-  },
-  templateLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  templateMacros: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  manualButton: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  manualButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  swapOption: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-  },
-  swapInfo: {
-    flex: 1,
-  },
-  swapLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  swapMacros: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 16,
-  },
-  inputLabel: {
+  nextActionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  emptyTimeline: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyTimelineText: {
-    fontSize: 16,
     color: colors.textSecondary,
-    fontStyle: 'italic',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
   },
-  timelineEntry: {
+  primaryAction: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  primaryActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  primaryActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionText: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  primaryActionSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  secondaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  timelineInfo: {
+  secondaryActionTextContainer: {
     flex: 1,
   },
-  timelineLabel: {
+  secondaryActionText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
   },
-  timelineTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  timelineMacros: {
+  secondaryActionMetric: {
     fontSize: 13,
     color: colors.textSecondary,
   },
-  paywallOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  celebrationCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 16,
+    backgroundColor: 'rgba(69, 155, 155, 0.15)',
+    borderRadius: 16,
     padding: 20,
+    marginBottom: 24,
   },
-  paywallCard: {
+  celebrationText: {
+    flex: 1,
+  },
+  celebrationTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  celebrationSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  weeklyPlanSection: {
+    marginBottom: 32,
+    marginHorizontal: -20,
+  },
+  weeklyPlanHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  weeklyPlanScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  weekDayCard: {
+    width: 140,
+    height: 180,
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1,
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    maxWidth: 400,
-    width: '100%',
+    justifyContent: 'space-between',
   },
-  paywallTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+  weekDayCardToday: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: 'rgba(69, 155, 155, 0.1)',
+  },
+  weekDayCardRest: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  weekDayLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  weekDayLabelToday: {
+    color: colors.primary,
+  },
+  weekDayIconContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weekDayWorkout: {
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.text,
-    marginTop: 16,
-    marginBottom: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
-  paywallText: {
-    fontSize: 15,
+  weekDayWorkoutToday: {
+    color: colors.primary,
+  },
+  weekDayDuration: {
+    fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginTop: 4,
   },
-  paywallButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    width: '100%',
+  weekDayEmphasis: {
+    fontSize: 11,
+    color: colors.grey,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  weekDayRest: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.grey,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  weekDayRestActivity: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 14,
+  },
+  todayOverview: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  overviewGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  overviewCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 12,
   },
-  paywallButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  paywallClose: {
-    paddingVertical: 12,
-  },
-  paywallCloseText: {
-    fontSize: 14,
+  overviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textSecondary,
+  },
+  overviewValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  overviewSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  quickTasksSection: {
+    marginBottom: 24,
+  },
+  quickTasksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  quickTasksList: {
+    gap: 10,
+  },
+  quickTaskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    padding: 14,
+    borderRadius: 12,
+  },
+  taskCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.grey,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskCheckboxCompleted: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  quickTaskText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  quickTaskTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: colors.grey,
   },
 });
