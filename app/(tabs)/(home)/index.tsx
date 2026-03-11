@@ -361,7 +361,7 @@ export default function HomeScreen() {
         title: 'Resume After Break',
         subtitle: `It's been ${daysSinceLastWorkout} days. Let's get back on track`,
         icon: 'refresh',
-        route: '/(tabs)/training',
+        route: '/(tabs)/plan',
       };
     }
 
@@ -383,7 +383,7 @@ export default function HomeScreen() {
         title: `Do Today's ${todayWorkout.name}`,
         subtitle: `${todayWorkout.exercises.length} exercises ready`,
         icon: 'fitness-center',
-        route: '/(tabs)/training',
+        route: '/(tabs)/plan',
       };
     }
 
@@ -403,7 +403,7 @@ export default function HomeScreen() {
         title: 'Complete Your Tasks',
         subtitle: `${totalTasksCount - completedTasksCount} tasks remaining`,
         icon: 'check-circle',
-        route: '/(tabs)/focus',
+        route: '/(tabs)/plan',
       };
     }
 
@@ -430,7 +430,7 @@ export default function HomeScreen() {
       title: 'Start Today\'s Workout',
       subtitle: 'Your workout is ready',
       icon: 'fitness-center',
-      route: '/(tabs)/training',
+      route: '/(tabs)/plan',
     };
   };
 
@@ -653,11 +653,7 @@ export default function HomeScreen() {
                     ]}
                     onPress={() => {
                       console.log('[Home] User tapped day card:', dayInfo.dayName);
-                      if (workout) {
-                        router.push('/(tabs)/training');
-                      } else {
-                        router.push('/(tabs)/plan');
-                      }
+                      router.push('/(tabs)/plan');
                     }}
                     activeOpacity={0.7}
                   >
@@ -668,7 +664,7 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workout ? (
-                      <View key={`workout-${index}`} >
+                      <View key={`workout-${index}`}>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="figure.strengthtraining.traditional"
@@ -690,7 +686,7 @@ export default function HomeScreen() {
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
                       </View>
                     ) : (
-                      <View key={`rest-${index}`} >
+                      <View key={`rest-${index}`}>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="bed.double.fill"
@@ -776,7 +772,7 @@ export default function HomeScreen() {
           <View style={styles.quickTasksSection}>
             <View style={styles.quickTasksHeader}>
               <Text style={styles.sectionTitle}>Quick tasks</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/focus')}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/plan')}>
                 <Text style={styles.viewAllLink}>View all</Text>
               </TouchableOpacity>
             </View>
