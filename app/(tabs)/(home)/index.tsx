@@ -668,7 +668,7 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workout ? (
-                      <React.Fragment key={`workout-${index}`}>
+                      <View key={`workout-${index}`} >
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="figure.strengthtraining.traditional"
@@ -688,9 +688,9 @@ export default function HomeScreen() {
                         </Text>
                         <Text style={styles.weekDayDuration}>{duration}</Text>
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                      </React.Fragment>
+                      </View>
                     ) : (
-                      <React.Fragment key={`rest-${index}`}>
+                      <View key={`rest-${index}`} >
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="bed.double.fill"
@@ -703,7 +703,7 @@ export default function HomeScreen() {
                         {restActivity && (
                           <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
                         )}
-                      </React.Fragment>
+                      </View>
                     )}
                   </TouchableOpacity>
                 );
