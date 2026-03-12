@@ -27,6 +27,24 @@ interface DashboardStats {
   lastUpdated: string;
 }
 
+interface WorkoutHistoryItem {
+  completedAt: string;
+}
+
+interface MeasurementItem {
+  date: string;
+  weight: number;
+}
+
+type PrimaryActionRoute = '/(tabs)/plan' | '/(tabs)/progress' | '/(tabs)/nutrition';
+
+interface PrimaryAction {
+  title: string;
+  subtitle: string;
+  icon: string;
+  route: PrimaryActionRoute;
+}
+
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const COACH_INSIGHTS = [
@@ -48,8 +66,8 @@ export default function HomeScreen() {
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
   const [userMotivation, setUserMotivation] = useState('');
   const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
-  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
-  const [measurements, setMeasurements] = useState<any[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>([]);
+  const [measurements, setMeasurements] = useState<MeasurementItem[]>([]);
   const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
 
   useEffect(() => {
@@ -109,7 +127,7 @@ export default function HomeScreen() {
         setStats(dashboardStats);
         console.log('[Home] Dashboard stats loaded from backend');
       } catch (error) {
-        console.log('[Home] Could not load stats from backend, using local data');
+        console.log('[Home] Could not load stats from backend, using local data. Error:', error);
         
         const caloricGoal = profile?.caloricGoal || 2500;
         console.log('[Home] Using caloric goal from profile:', caloricGoal);
@@ -343,7 +361,7 @@ export default function HomeScreen() {
     }
   };
 
-  const getPrimaryAction = () => {
+  const getPrimaryAction = (): PrimaryAction => {
     const todayIndex = new Date().getDay();
     const todayWorkout = getDayWorkout(todayIndex);
     const completedTasksCount = todayTasks.filter(t => t.completed).length;
@@ -557,7 +575,7 @@ export default function HomeScreen() {
             style={styles.primaryAction}
             onPress={() => {
               console.log('[Home] User tapped primary action:', primaryAction.route);
-              router.push(primaryAction.route as any);
+              router.push(primaryAction.route);
             }}
           >
             <View style={styles.primaryActionContent}>
@@ -637,7 +655,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.weeklyPlanScrollContent}
             >
-              {nextThreeDays.map((dayInfo, index) => {
+              {nextThreeDays.map((dayInfo) => {
                 const workout = getDayWorkout(dayInfo.dayIndex);
                 const duration = workout ? getWorkoutDuration(workout) : '';
                 const emphasis = workout ? getWorkoutEmphasis(workout) : '';
@@ -645,7 +663,7 @@ export default function HomeScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={index}
+                    key={dayInfo.dayIndex}
                     style={[
                       styles.weekDayCard,
                       dayInfo.isToday && styles.weekDayCardToday,
@@ -691,7 +709,7 @@ export default function HomeScreen() {
                           ]}
                           numberOfLines={1}
                         >
-                          {workout?.name}
+                          {workout.name}
                         </Text>
                         <Text style={styles.weekDayDuration}>{duration}</Text>
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
