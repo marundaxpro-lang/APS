@@ -644,42 +644,23 @@ export default function HomeScreen() {
                 const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
                 const workoutContent = workout ? (
-                  <React.Fragment key={`workout-${index}`}>
-                    <View style={styles.weekDayIconContainer}>
-                      <IconSymbol
-                        ios_icon_name="figure.strengthtraining.traditional"
-                        android_material_icon_name="fitness-center"
-                        size={40}
-                        color={dayInfo.isToday ? colors.primary : colors.textSecondary}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.weekDayWorkout,
-                        dayInfo.isToday && styles.weekDayWorkoutToday,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {workout.name}
-                    </Text>
-                    <Text style={styles.weekDayDuration}>{duration}</Text>
-                    <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                  </React.Fragment>
+                  <View style={styles.weekDayIconContainer}>
+                    <IconSymbol
+                      ios_icon_name="figure.strengthtraining.traditional"
+                      android_material_icon_name="fitness-center"
+                      size={40}
+                      color={dayInfo.isToday ? colors.primary : colors.textSecondary}
+                    />
+                  </View>
                 ) : (
-                  <React.Fragment key={`rest-${index}`}>
-                    <View style={styles.weekDayIconContainer}>
-                      <IconSymbol
-                        ios_icon_name="bed.double.fill"
-                        android_material_icon_name={restActivity?.icon || 'hotel'}
-                        size={40}
-                        color={colors.grey}
-                      />
-                    </View>
-                    <Text style={styles.weekDayRest}>Rest</Text>
-                    {restActivity && (
-                      <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
-                    )}
-                  </React.Fragment>
+                  <View style={styles.weekDayIconContainer}>
+                    <IconSymbol
+                      ios_icon_name="bed.double.fill"
+                      android_material_icon_name={restActivity?.icon || 'hotel'}
+                      size={40}
+                      color={colors.grey}
+                    />
+                  </View>
                 );
 
                 return (
@@ -703,6 +684,28 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workoutContent}
+                    {workout ? (
+                      <>
+                        <Text
+                          style={[
+                            styles.weekDayWorkout,
+                            dayInfo.isToday && styles.weekDayWorkoutToday,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {workout.name}
+                        </Text>
+                        <Text style={styles.weekDayDuration}>{duration}</Text>
+                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.weekDayRest}>Rest</Text>
+                        {restActivity && (
+                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
+                        )}
+                      </>
+                    )}
                   </TouchableOpacity>
                 );
               })}
