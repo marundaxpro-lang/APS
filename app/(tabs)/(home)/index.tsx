@@ -324,7 +324,7 @@ export default function HomeScreen() {
         } else if (workoutsThisWeek >= 3) {
           return {
             icon: 'spa',
-            text: 'You're training hard. Don't forget to prioritize sleep and nutrition for recovery',
+            text: "You're training hard. Don't forget to prioritize recovery.",
             color: '#9C27B0',
           };
         }
@@ -668,7 +668,7 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workout ? (
-                      <React.Fragment>
+                      <>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="figure.strengthtraining.traditional"
@@ -685,9 +685,9 @@ export default function HomeScreen() {
                         </Text>
                         <Text style={styles.weekDayDuration}>{duration}</Text>
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                      </React.Fragment>
+                      </>
                     ) : (
-                      <React.Fragment>
+                      <>
                         <View style={styles.weekDayIconContainer}>
                           <IconSymbol
                             ios_icon_name="bed.double.fill"
@@ -700,7 +700,7 @@ export default function HomeScreen() {
                         {restActivity && (
                           <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
                         )}
-                      </React.Fragment>
+                      </>
                     )}
                   </TouchableOpacity>
                 );
