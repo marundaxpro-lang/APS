@@ -643,26 +643,6 @@ export default function HomeScreen() {
                 const emphasis = workout ? getWorkoutEmphasis(workout) : '';
                 const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
-                const workoutIconElement = workout ? (
-                  <View style={styles.weekDayIconContainer}>
-                    <IconSymbol
-                      ios_icon_name="figure.strengthtraining.traditional"
-                      android_material_icon_name="fitness-center"
-                      size={40}
-                      color={dayInfo.isToday ? colors.primary : colors.textSecondary}
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.weekDayIconContainer}>
-                    <IconSymbol
-                      ios_icon_name="bed.double.fill"
-                      android_material_icon_name={restActivity?.icon || 'hotel'}
-                      size={40}
-                      color={colors.grey}
-                    />
-                  </View>
-                );
-
                 return (
                   <TouchableOpacity
                     key={index}
@@ -683,7 +663,25 @@ export default function HomeScreen() {
                     ]}>
                       {dayInfo.dayName}
                     </Text>
-                    {workoutIconElement}
+                    {workout ? (
+                      <View style={styles.weekDayIconContainer}>
+                        <IconSymbol
+                          ios_icon_name="figure.strengthtraining.traditional"
+                          android_material_icon_name="fitness-center"
+                          size={40}
+                          color={dayInfo.isToday ? colors.primary : colors.textSecondary}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.weekDayIconContainer}>
+                        <IconSymbol
+                          ios_icon_name="bed.double.fill"
+                          android_material_icon_name={restActivity?.icon || 'hotel'}
+                          size={40}
+                          color={colors.grey}
+                        />
+                      </View>
+                    )}
                     {workout ? (
                       <>
                         <Text
