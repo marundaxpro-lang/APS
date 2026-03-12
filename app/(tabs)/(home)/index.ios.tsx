@@ -642,53 +642,6 @@ export default function HomeScreen() {
                 const emphasis = workout ? getWorkoutEmphasis(workout) : '';
                 const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
-                const workoutIconContent = (
-                  <View style={styles.weekDayIconContainer}>
-                    <IconSymbol
-                      ios_icon_name="figure.strengthtraining.traditional"
-                      android_material_icon_name="fitness-center"
-                      size={40}
-                      color={dayInfo.isToday ? colors.primary : colors.textSecondary}
-                    />
-                  </View>
-                );
-
-                const restIconContent = (
-                  <View style={styles.weekDayIconContainer}>
-                    <IconSymbol
-                      ios_icon_name="bed.double.fill"
-                      android_material_icon_name={restActivity?.icon || 'hotel'}
-                      size={40}
-                      color={colors.grey}
-                    />
-                  </View>
-                );
-
-                const workoutDetailsContent = (
-                  <>
-                    <Text
-                      style={[
-                        styles.weekDayWorkout,
-                        dayInfo.isToday && styles.weekDayWorkoutToday,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {workout?.name}
-                    </Text>
-                    <Text style={styles.weekDayDuration}>{duration}</Text>
-                    <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                  </>
-                );
-
-                const restDetailsContent = (
-                  <>
-                    <Text style={styles.weekDayRest}>Rest</Text>
-                    {restActivity && (
-                      <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
-                    )}
-                  </>
-                );
-
                 return (
                   <TouchableOpacity
                     key={index}
@@ -709,8 +662,45 @@ export default function HomeScreen() {
                     ]}>
                       {dayInfo.dayName}
                     </Text>
-                    {workout ? workoutIconContent : restIconContent}
-                    {workout ? workoutDetailsContent : restDetailsContent}
+                    <View style={styles.weekDayIconContainer}>
+                      {workout ? (
+                        <IconSymbol
+                          ios_icon_name="figure.strengthtraining.traditional"
+                          android_material_icon_name="fitness-center"
+                          size={40}
+                          color={dayInfo.isToday ? colors.primary : colors.textSecondary}
+                        />
+                      ) : (
+                        <IconSymbol
+                          ios_icon_name="bed.double.fill"
+                          android_material_icon_name={restActivity?.icon || 'hotel'}
+                          size={40}
+                          color={colors.grey}
+                        />
+                      )}
+                    </View>
+                    {workout ? (
+                      <>
+                        <Text
+                          style={[
+                            styles.weekDayWorkout,
+                            dayInfo.isToday && styles.weekDayWorkoutToday,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {workout?.name}
+                        </Text>
+                        <Text style={styles.weekDayDuration}>{duration}</Text>
+                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.weekDayRest}>Rest</Text>
+                        {restActivity && (
+                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
+                        )}
+                      </>
+                    )}
                   </TouchableOpacity>
                 );
               })}
