@@ -27,24 +27,6 @@ interface DashboardStats {
   lastUpdated: string;
 }
 
-interface WorkoutHistoryItem {
-  completedAt: string;
-}
-
-interface MeasurementItem {
-  date: string;
-  weight: number;
-}
-
-type PrimaryActionRoute = '/(tabs)/plan' | '/(tabs)/progress' | '/(tabs)/nutrition';
-
-interface PrimaryAction {
-  title: string;
-  subtitle: string;
-  icon: string;
-  route: PrimaryActionRoute;
-}
-
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const COACH_INSIGHTS = [
@@ -66,8 +48,8 @@ export default function HomeScreen() {
   const [todayTasks, setTodayTasks] = useState<WeeklyTask[]>([]);
   const [userMotivation, setUserMotivation] = useState('');
   const [weeklyWorkouts, setWeeklyWorkouts] = useState<WorkoutDay[]>([]);
-  const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>([]);
-  const [measurements, setMeasurements] = useState<MeasurementItem[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [measurements, setMeasurements] = useState<any[]>([]);
   const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
 
   useEffect(() => {
@@ -127,7 +109,7 @@ export default function HomeScreen() {
         setStats(dashboardStats);
         console.log('[Home] Dashboard stats loaded from backend');
       } catch (error) {
-        console.log('[Home] Could not load stats from backend, using local data. Error:', error);
+        console.log('[Home] Could not load stats from backend, using local data');
         
         const caloricGoal = profile?.caloricGoal || 2500;
         console.log('[Home] Using caloric goal from profile:', caloricGoal);
@@ -152,7 +134,7 @@ export default function HomeScreen() {
   };
 
   const determineMotivationCardType = () => {
-    const types: ('user' | 'coach' | 'target' | 'streak' | 'recovery')[] = ['user', 'coach', 'target', 'streak', 'recovery'];
+    const types: Array<'user' | 'coach' | 'target' | 'streak' | 'recovery'> = ['user', 'coach', 'target', 'streak', 'recovery'];
     const randomType = types[Math.floor(Math.random() * types.length)];
     setMotivationCardType(randomType);
   };
@@ -361,7 +343,7 @@ export default function HomeScreen() {
     }
   };
 
-  const getPrimaryAction = (): PrimaryAction => {
+  const getPrimaryAction = () => {
     const todayIndex = new Date().getDay();
     const todayWorkout = getDayWorkout(todayIndex);
     const completedTasksCount = todayTasks.filter(t => t.completed).length;
@@ -379,7 +361,7 @@ export default function HomeScreen() {
         title: 'Resume After Break',
         subtitle: `It's been ${daysSinceLastWorkout} days. Let's get back on track`,
         icon: 'refresh',
-        route: '/(tabs)/plan',
+        route: '/(tabs)/training',
       };
     }
 
@@ -401,7 +383,7 @@ export default function HomeScreen() {
         title: `Do Today's ${todayWorkout.name}`,
         subtitle: `${todayWorkout.exercises.length} exercises ready`,
         icon: 'fitness-center',
-        route: '/(tabs)/plan',
+        route: '/(tabs)/training',
       };
     }
 
@@ -421,7 +403,7 @@ export default function HomeScreen() {
         title: 'Complete Your Tasks',
         subtitle: `${totalTasksCount - completedTasksCount} tasks remaining`,
         icon: 'check-circle',
-        route: '/(tabs)/plan',
+        route: '/(tabs)/focus',
       };
     }
 
@@ -448,7 +430,7 @@ export default function HomeScreen() {
       title: 'Start Today\'s Workout',
       subtitle: 'Your workout is ready',
       icon: 'fitness-center',
-      route: '/(tabs)/plan',
+      route: '/(tabs)/training',
     };
   };
 
@@ -575,7 +557,7 @@ export default function HomeScreen() {
             style={styles.primaryAction}
             onPress={() => {
               console.log('[Home] User tapped primary action:', primaryAction.route);
-              router.push(primaryAction.route);
+              router.push(primaryAction.route as any);
             }}
           >
             <View style={styles.primaryActionContent}>
@@ -655,7 +637,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.weeklyPlanScrollContent}
             >
-              {nextThreeDays.map((dayInfo) => {
+              {nextThreeDays.map((dayInfo, index) => {
                 const workout = getDayWorkout(dayInfo.dayIndex);
                 const duration = workout ? getWorkoutDuration(workout) : '';
                 const emphasis = workout ? getWorkoutEmphasis(workout) : '';
@@ -663,7 +645,7 @@ export default function HomeScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={dayInfo.dayIndex}
+                    key={index}
                     style={[
                       styles.weekDayCard,
                       dayInfo.isToday && styles.weekDayCardToday,
@@ -671,7 +653,11 @@ export default function HomeScreen() {
                     ]}
                     onPress={() => {
                       console.log('[Home] User tapped day card:', dayInfo.dayName);
-                      router.push('/(tabs)/plan');
+                      if (workout) {
+                        router.push('/(tabs)/training');
+                      } else {
+                        router.push('/(tabs)/plan');
+                      }
                     }}
                     activeOpacity={0.7}
                   >
@@ -682,45 +668,39 @@ export default function HomeScreen() {
                       {dayInfo.dayName}
                     </Text>
                     {workout ? (
-                      <View style={styles.weekDayIconContainer}>
-                        <IconSymbol
-                          ios_icon_name="figure.strengthtraining.traditional"
-                          android_material_icon_name="fitness-center"
-                          size={40}
-                          color={dayInfo.isToday ? colors.primary : colors.textSecondary}
-                        />
-                      </View>
-                    ) : (
-                      <View style={styles.weekDayIconContainer}>
-                        <IconSymbol
-                          ios_icon_name="bed.double.fill"
-                          android_material_icon_name={restActivity?.icon || 'hotel'}
-                          size={40}
-                          color={colors.grey}
-                        />
-                      </View>
-                    )}
-                    {workout ? (
-                      <>
-                        <Text
-                          style={[
-                            styles.weekDayWorkout,
-                            dayInfo.isToday && styles.weekDayWorkoutToday,
-                          ]}
-                          numberOfLines={1}
-                        >
+                      <React.Fragment>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="figure.strengthtraining.traditional"
+                            android_material_icon_name="fitness-center"
+                            size={40}
+                            color={dayInfo.isToday ? colors.primary : colors.textSecondary}
+                          />
+                        </View>
+                        <Text style={[
+                          styles.weekDayWorkout,
+                          dayInfo.isToday && styles.weekDayWorkoutToday,
+                        ]} numberOfLines={1}>
                           {workout.name}
                         </Text>
                         <Text style={styles.weekDayDuration}>{duration}</Text>
                         <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                      </>
+                      </React.Fragment>
                     ) : (
-                      <>
+                      <React.Fragment>
+                        <View style={styles.weekDayIconContainer}>
+                          <IconSymbol
+                            ios_icon_name="bed.double.fill"
+                            android_material_icon_name={restActivity?.icon || 'hotel'}
+                            size={40}
+                            color={colors.grey}
+                          />
+                        </View>
                         <Text style={styles.weekDayRest}>Rest</Text>
                         {restActivity && (
                           <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
                         )}
-                      </>
+                      </React.Fragment>
                     )}
                   </TouchableOpacity>
                 );
@@ -793,7 +773,7 @@ export default function HomeScreen() {
           <View style={styles.quickTasksSection}>
             <View style={styles.quickTasksHeader}>
               <Text style={styles.sectionTitle}>Quick tasks</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/plan')}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/focus')}>
                 <Text style={styles.viewAllLink}>View all</Text>
               </TouchableOpacity>
             </View>

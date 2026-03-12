@@ -1,8 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 import { authClient, storeWebBearerToken } from "@/lib/auth";
 
 interface User {
@@ -118,8 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Fetch premium status
         try {
-          const apiModule = await import('@/utils/api');
-          const subscriptionStatus = await apiModule.authenticatedGet<{ isPremium: boolean }>('/api/payments/subscription-status');
+          const { authenticatedGet } = await import('@/utils/api');
+          const subscriptionStatus = await authenticatedGet<{ isPremium: boolean }>('/api/payments/subscription-status');
           setIsPremium(subscriptionStatus.isPremium || false);
           console.log('[AuthContext] Premium status:', subscriptionStatus.isPremium);
         } catch (error) {
@@ -166,8 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPremium(false);
       
       // Use the custom signup endpoint that sends welcome emails
-      const apiModule = await import('@/utils/api');
-      const result = await apiModule.apiPost('/api/auth/signup/email-with-welcome', {
+      const { apiPost } = await import('@/utils/api');
+      const result = await apiPost('/api/auth/signup/email-with-welcome', {
         email,
         password,
         name,
@@ -179,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (Platform.OS === "web") {
           localStorage.setItem("apex-fitness_bearer_token", result.token);
         } else {
-          await SecureStore.setItemAsync("apex-fitness_bearer_token", result.token);
+          await require("expo-secure-store").setItemAsync("apex-fitness_bearer_token", result.token);
         }
       }
       
@@ -298,7 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("[AuthContext] Cleared web bearer token");
       } else {
         try {
-          await SecureStore.deleteItemAsync("apex-fitness_bearer_token");
+          await require("expo-secure-store").deleteItemAsync("apex-fitness_bearer_token");
           console.log("[AuthContext] Cleared native bearer token");
         } catch (e) {
           console.error("[AuthContext] Failed to clear secure store:", e);
@@ -307,9 +305,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Clear all AsyncStorage data to prevent data leakage between accounts
       try {
-        const keys = await AsyncStorage.getAllKeys();
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        const keys = await AsyncStorage.default.getAllKeys();
         console.log("[AuthContext] Clearing AsyncStorage keys:", keys);
-        await AsyncStorage.multiRemove(keys);
+        await AsyncStorage.default.multiRemove(keys);
         console.log("[AuthContext] AsyncStorage cleared successfully");
       } catch (e) {
         console.error("[AuthContext] Failed to clear AsyncStorage:", e);
