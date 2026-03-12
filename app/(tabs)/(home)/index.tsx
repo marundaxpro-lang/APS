@@ -420,7 +420,7 @@ export default function HomeScreen() {
     if (workoutsThisWeek >= 4) {
       return {
         title: 'Review Recovery',
-        subtitle: 'You're training hard. Check your rest needs',
+        subtitle: 'You are training hard, please check your rest needs',
         icon: 'spa',
         route: '/(tabs)/plan',
       };
