@@ -643,7 +643,7 @@ export default function HomeScreen() {
                 const emphasis = workout ? getWorkoutEmphasis(workout) : '';
                 const restActivity = !workout ? getRestDayActivity(dayInfo.dayIndex) : null;
 
-                const workoutContent = workout ? (
+                const workoutIconContent = (
                   <View style={styles.weekDayIconContainer}>
                     <IconSymbol
                       ios_icon_name="figure.strengthtraining.traditional"
@@ -652,7 +652,9 @@ export default function HomeScreen() {
                       color={dayInfo.isToday ? colors.primary : colors.textSecondary}
                     />
                   </View>
-                ) : (
+                );
+
+                const restIconContent = (
                   <View style={styles.weekDayIconContainer}>
                     <IconSymbol
                       ios_icon_name="bed.double.fill"
@@ -661,6 +663,31 @@ export default function HomeScreen() {
                       color={colors.grey}
                     />
                   </View>
+                );
+
+                const workoutDetailsContent = (
+                  <>
+                    <Text
+                      style={[
+                        styles.weekDayWorkout,
+                        dayInfo.isToday && styles.weekDayWorkoutToday,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {workout?.name}
+                    </Text>
+                    <Text style={styles.weekDayDuration}>{duration}</Text>
+                    <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
+                  </>
+                );
+
+                const restDetailsContent = (
+                  <>
+                    <Text style={styles.weekDayRest}>Rest</Text>
+                    {restActivity && (
+                      <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
+                    )}
+                  </>
                 );
 
                 return (
@@ -683,29 +710,8 @@ export default function HomeScreen() {
                     ]}>
                       {dayInfo.dayName}
                     </Text>
-                    {workoutContent}
-                    {workout ? (
-                      <>
-                        <Text
-                          style={[
-                            styles.weekDayWorkout,
-                            dayInfo.isToday && styles.weekDayWorkoutToday,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {workout.name}
-                        </Text>
-                        <Text style={styles.weekDayDuration}>{duration}</Text>
-                        <Text style={styles.weekDayEmphasis}>{emphasis}</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.weekDayRest}>Rest</Text>
-                        {restActivity && (
-                          <Text style={styles.weekDayRestActivity}>{restActivity.activity}</Text>
-                        )}
-                      </>
-                    )}
+                    {workout ? workoutIconContent : restIconContent}
+                    {workout ? workoutDetailsContent : restDetailsContent}
                   </TouchableOpacity>
                 );
               })}
