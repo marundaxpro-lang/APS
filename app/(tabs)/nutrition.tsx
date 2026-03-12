@@ -764,7 +764,7 @@ export default function NutritionScreen() {
     return shuffled.slice(0, 3);
   };
 
-  const getNextMoveMeals = (): Array<MacroMeal & { reason: string }> => {
+  const getNextMoveMeals = (): (MacroMeal & { reason: string })[] => {
     const remaining = {
       kcal: targets.calorieGoal - consumed.kcal,
       P: targets.proteinGoal - consumed.P,
@@ -772,7 +772,7 @@ export default function NutritionScreen() {
       F: targets.fatGoal - consumed.F,
     };
     
-    const suggestions: Array<MacroMeal & { reason: string }> = [];
+    const suggestions: (MacroMeal & { reason: string })[] = [];
     
     if (remaining.P > 40) {
       const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein' && m.P >= 30);

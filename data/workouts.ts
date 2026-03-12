@@ -234,7 +234,7 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Define workout templates based on number of days
-  let workoutTemplates: Array<{ name: string; muscleGroups: string[] }> = [];
+  let workoutTemplates: { name: string; muscleGroups: string[] }[] = [];
   
   if (numDays === 2) {
     workoutTemplates = [
