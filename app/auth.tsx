@@ -20,6 +20,8 @@ import ParticleBackground from "@/components/ParticleBackground";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiPost } from "@/utils/api";
 
+const TEAL = "#00D4AA";
+
 type Mode = "signin" | "signup" | "forgot-password" | "reset-password";
 
 export default function AuthScreen() {
@@ -35,17 +37,14 @@ export default function AuthScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Email validation state
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  // Forgot password state
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
 
-  // Reset password state (for deep link token)
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -69,7 +68,6 @@ export default function AuthScreen() {
     checkAuthAndOnboarding();
   }, [user, router]);
 
-  // Check for password reset token in URL (web deep link)
   useEffect(() => {
     if (Platform.OS === "web") {
       try {
@@ -124,20 +122,15 @@ export default function AuthScreen() {
   };
 
   const handleEmailAuth = async () => {
-    console.log('[AuthScreen] User tapped email auth button');
-    
-    // Validate email
-    if (!validateEmail(email)) {
-      return;
-    }
+    console.log('[AuthScreen] User tapped email auth button, mode:', mode);
 
-    // Validate password
+    if (!validateEmail(email)) return;
+
     if (!password) {
       setPasswordError("Password is required");
       return;
     }
 
-    // Validate password strength for signup
     if (mode === "signup") {
       const validation = validatePassword(password);
       if (!validation.valid) {
@@ -198,7 +191,7 @@ export default function AuthScreen() {
   };
 
   const handleContinueAsGuest = async () => {
-    console.log('[AuthScreen] User tapped Continue as Guest');
+    console.log('[AuthScreen] User tapped Continue as guest');
     try {
       await AsyncStorage.setItem('isGuestUser', 'true');
       const hasProfile = await AsyncStorage.getItem('fitnessProfile');
@@ -212,6 +205,13 @@ export default function AuthScreen() {
     } catch (error) {
       console.error('[AuthScreen] Error setting guest mode:', error);
     }
+  };
+
+  const handleCreateAccount = () => {
+    console.log('[AuthScreen] User tapped Create account link');
+    setMode("signup");
+    setEmailError("");
+    setPasswordError("");
   };
 
   const handleForgotPassword = async () => {
@@ -229,7 +229,6 @@ export default function AuthScreen() {
       setForgotSuccess(true);
     } catch (error: any) {
       console.error('[AuthScreen] Forgot password error:', error);
-      // Still show success for security (don't reveal if email exists)
       setForgotSuccess(true);
     } finally {
       setForgotLoading(false);
@@ -282,7 +281,34 @@ export default function AuthScreen() {
     }
   };
 
-  // Reset password success screen
+  const ErrorModal = () => (
+    <Modal
+      visible={showErrorModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowErrorModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="error"
+            size={48}
+            color={colors.error}
+          />
+          <Text style={styles.modalTitle}>Error</Text>
+          <Text style={styles.modalMessage}>{errorMessage}</Text>
+          <TouchableOpacity
+            style={styles.modalButton}
+            onPress={() => setShowErrorModal(false)}
+          >
+            <Text style={styles.modalButtonText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (mode === "reset-password" && resetSuccess) {
     return (
       <View style={styles.container}>
@@ -292,7 +318,7 @@ export default function AuthScreen() {
             ios_icon_name="checkmark.circle.fill"
             android_material_icon_name="check-circle"
             size={80}
-            color={colors.success}
+            color={TEAL}
           />
           <Text style={styles.title}>Password Reset!</Text>
           <Text style={styles.subtitle}>
@@ -310,36 +336,11 @@ export default function AuthScreen() {
             <Text style={styles.primaryButtonText}>Sign In</Text>
           </TouchableOpacity>
         </View>
-        <Modal
-          visible={showErrorModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowErrorModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <IconSymbol
-                ios_icon_name="exclamationmark.triangle.fill"
-                android_material_icon_name="error"
-                size={48}
-                color={colors.error}
-              />
-              <Text style={styles.modalTitle}>Error</Text>
-              <Text style={styles.modalMessage}>{errorMessage}</Text>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowErrorModal(false)}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <ErrorModal />
       </View>
     );
   }
 
-  // Reset password form (when token is present from email link)
   if (mode === "reset-password") {
     return (
       <View style={styles.container}>
@@ -359,7 +360,7 @@ export default function AuthScreen() {
                   ios_icon_name="lock.rotation"
                   android_material_icon_name="lock-reset"
                   size={64}
-                  color={colors.primary}
+                  color={TEAL}
                 />
                 <Text style={styles.title}>New Password</Text>
                 <Text style={styles.subtitle}>
@@ -429,108 +430,60 @@ export default function AuthScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-        <Modal
-          visible={showErrorModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowErrorModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <IconSymbol
-                ios_icon_name="exclamationmark.triangle.fill"
-                android_material_icon_name="error"
-                size={48}
-                color={colors.error}
-              />
-              <Text style={styles.modalTitle}>Error</Text>
-              <Text style={styles.modalMessage}>{errorMessage}</Text>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowErrorModal(false)}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <ErrorModal />
       </View>
     );
   }
 
-  const modeTitle = mode === "signin" ? "Welcome Back" : "Start Your Journey";
-  const modeSubtitle = mode === "signin" 
-    ? "Adaptive training and nutrition, built around your schedule" 
+  const isSignIn = mode === "signin";
+  const modeTitle = isSignIn ? "Train Smarter.\nPerform Better." : "Start Your Journey";
+  const modeSubtitle = isSignIn
+    ? "Your progress, goals & plans — all saved."
     : "Personalized fitness that adapts to you";
 
   return (
     <View style={styles.container}>
       <ParticleBackground />
-      
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
+            {/* Hero */}
             <View style={styles.header}>
               <IconSymbol
                 ios_icon_name="figure.strengthtraining.traditional"
                 android_material_icon_name="fitness-center"
-                size={64}
-                color={colors.primary}
+                size={56}
+                color={TEAL}
               />
               <Text style={styles.title}>{modeTitle}</Text>
-              <Text style={styles.valueProposition}>{modeSubtitle}</Text>
-              
-              {/* Trust indicators / Value bullets */}
-              <View style={styles.trustBullets}>
-                <View style={styles.bulletRow}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.bulletText}>Personalized in under 2 minutes</Text>
+              <Text style={styles.heroSubtitle}>{modeSubtitle}</Text>
+
+              {/* Trust bullets — compact row */}
+              <View style={styles.trustRow}>
+                <View style={styles.trustItem}>
+                  <Text style={styles.trustCheck}>✓</Text>
+                  <Text style={styles.trustText}>AI-personalized plans</Text>
                 </View>
-                <View style={styles.bulletRow}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.bulletText}>Built for gym, home, or bodyweight</Text>
+                <View style={styles.trustItem}>
+                  <Text style={styles.trustCheck}>✓</Text>
+                  <Text style={styles.trustText}>Gym, home, or bodyweight</Text>
                 </View>
-                <View style={styles.bulletRow}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.bulletText}>Tracks progress automatically</Text>
+                <View style={styles.trustItem}>
+                  <Text style={styles.trustCheck}>✓</Text>
+                  <Text style={styles.trustText}>Auto progress tracking</Text>
                 </View>
               </View>
-
-              {/* Why create an account */}
-              {mode === "signin" && (
-                <View style={styles.whySignInBox}>
-                  <Text style={styles.whySignInTitle}>Why sign in?</Text>
-                  <Text style={styles.whySignInText}>
-                    • Save your plan across devices{'\n'}
-                    • Sync progress automatically{'\n'}
-                    • Unlock adaptive updates
-                  </Text>
-                </View>
-              )}
             </View>
 
+            {/* Form */}
             <View style={styles.form}>
               {mode === "signup" && (
                 <View style={styles.inputContainer}>
@@ -570,7 +523,7 @@ export default function AuthScreen() {
               <View style={styles.inputContainer}>
                 <View style={styles.passwordLabelRow}>
                   <Text style={styles.inputLabel}>Password</Text>
-                  {mode === "signin" && (
+                  {isSignIn && (
                     <TouchableOpacity
                       onPress={() => {
                         console.log('[AuthScreen] User tapped Forgot Password link');
@@ -580,7 +533,7 @@ export default function AuthScreen() {
                       }}
                       style={styles.forgotPasswordButton}
                     >
-                      <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
+                      <Text style={styles.forgotPasswordLink}>Forgot?</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -596,8 +549,8 @@ export default function AuthScreen() {
                     }}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
-                    textContentType={mode === "signin" ? "password" : "newPassword"}
-                    autoComplete={mode === "signin" ? "password" : "password-new"}
+                    textContentType={isSignIn ? "password" : "newPassword"}
+                    autoComplete={isSignIn ? "password" : "password-new"}
                   />
                   <TouchableOpacity
                     style={styles.eyeIcon}
@@ -614,7 +567,7 @@ export default function AuthScreen() {
                 {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
                 {mode === "signup" && !passwordError && (
                   <Text style={styles.passwordHint}>
-                    Must be 8+ characters with uppercase, lowercase, and number
+                    8+ characters with uppercase, lowercase, and number
                   </Text>
                 )}
               </View>
@@ -628,49 +581,19 @@ export default function AuthScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.primaryButtonText}>
-                    {mode === "signin" ? "Sign In" : "Create Account"}
+                    {isSignIn ? "Sign In" : "Create Account"}
                   </Text>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.switchModeButton}
-                onPress={() => {
-                  console.log('[AuthScreen] User switched mode');
-                  setMode(mode === "signin" ? "signup" : "signin");
-                  setEmailError("");
-                  setPasswordError("");
-                }}
-              >
-                <Text style={styles.switchModeText}>
-                  {mode === "signin"
-                    ? "Don't have an account? Sign Up"
-                    : "Already have an account? Sign In"}
-                </Text>
-              </TouchableOpacity>
-
+              {/* Divider */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or continue with</Text>
+                <Text style={styles.dividerText}>or</Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialAuth("google")}
-                disabled={loading}
-              >
-                <View style={styles.socialButtonContent}>
-                  <IconSymbol
-                    ios_icon_name="g.circle.fill"
-                    android_material_icon_name="g-translate"
-                    size={24}
-                    color={colors.text}
-                  />
-                  <Text style={styles.socialButtonText}>Continue with Google</Text>
-                </View>
-              </TouchableOpacity>
-
+              {/* Social buttons — Apple first on iOS (App Store requirement) */}
               {Platform.OS === "ios" && (
                 <TouchableOpacity
                   style={[styles.socialButton, styles.appleButton]}
@@ -681,7 +604,7 @@ export default function AuthScreen() {
                     <IconSymbol
                       ios_icon_name="apple.logo"
                       android_material_icon_name="apple"
-                      size={24}
+                      size={22}
                       color="#fff"
                     />
                     <Text style={[styles.socialButtonText, styles.appleButtonText]}>
@@ -691,47 +614,56 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               )}
 
-              <View style={styles.guestSection}>
-                <TouchableOpacity
-                  style={styles.guestButton}
-                  onPress={handleContinueAsGuest}
-                >
-                  <Text style={styles.guestButtonText}>Continue as Guest</Text>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleSocialAuth("google")}
+                disabled={loading}
+              >
+                <View style={styles.socialButtonContent}>
+                  <IconSymbol
+                    ios_icon_name="g.circle.fill"
+                    android_material_icon_name="g-translate"
+                    size={22}
+                    color={colors.text}
+                  />
+                  <Text style={styles.socialButtonText}>Continue with Google</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Guest + Create account */}
+              <View style={styles.bottomLinks}>
+                <TouchableOpacity onPress={handleContinueAsGuest}>
+                  <Text style={styles.guestLink}>Continue as guest →</Text>
                 </TouchableOpacity>
-                <Text style={styles.guestNote}>
-                  Limited features • Create an account to save progress
-                </Text>
+
+                {isSignIn && (
+                  <View style={styles.createAccountRow}>
+                    <Text style={styles.createAccountLabel}>New to Apex? </Text>
+                    <TouchableOpacity onPress={handleCreateAccount}>
+                      <Text style={styles.createAccountLink}>Create account</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {!isSignIn && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log('[AuthScreen] User switched to sign in mode');
+                      setMode("signin");
+                      setEmailError("");
+                      setPasswordError("");
+                    }}
+                  >
+                    <Text style={styles.switchModeText}>Already have an account? Sign In</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={showErrorModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowErrorModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="error"
-              size={48}
-              color={colors.error}
-            />
-            <Text style={styles.modalTitle}>Error</Text>
-            <Text style={styles.modalMessage}>{errorMessage}</Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowErrorModal(false)}
-            >
-              <Text style={styles.modalButtonText}>OK</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <ErrorModal />
 
       {/* Forgot Password Modal */}
       <Modal
@@ -772,11 +704,11 @@ export default function AuthScreen() {
                     ios_icon_name="lock.rotation"
                     android_material_icon_name="lock-reset"
                     size={56}
-                    color={colors.primary}
+                    color={TEAL}
                   />
                   <Text style={styles.modalTitle}>Reset Password</Text>
                   <Text style={styles.modalMessage}>
-                    Enter your email address and we'll send you a link to reset your password.
+                    Enter your email and we'll send you a reset link.
                   </Text>
                   <View style={styles.forgotInputContainer}>
                     <TextInput
@@ -832,83 +764,75 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 28,
+    paddingTop: 60,
+    paddingBottom: 40,
     justifyContent: "center",
     minHeight: 600,
   },
   header: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 36,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 34,
+    fontWeight: "800",
     marginTop: 20,
-    marginBottom: 8,
+    marginBottom: 10,
     textAlign: "center",
     color: colors.text,
+    letterSpacing: -0.5,
+    lineHeight: 42,
   },
-  valueProposition: {
-    fontSize: 17,
-    color: colors.text,
+  heroSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
     textAlign: "center",
-    fontWeight: "600",
-    marginBottom: 20,
-    lineHeight: 24,
+    marginBottom: 24,
+    lineHeight: 22,
   },
-  trustBullets: {
+  trustRow: {
+    gap: 8,
     alignItems: "flex-start",
-    gap: 10,
-    marginBottom: 16,
+    width: "100%",
+    paddingHorizontal: 8,
   },
-  bulletRow: {
+  trustItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
-  bulletText: {
-    fontSize: 14,
+  trustCheck: {
+    fontSize: 13,
+    color: "#00D4AA",
+    fontWeight: "700",
+  },
+  trustText: {
+    fontSize: 13,
     color: colors.textSecondary,
     fontWeight: "500",
   },
-  whySignInBox: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  whySignInTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 8,
-  },
-  whySignInText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
   form: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
     alignSelf: "center",
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
-    color: colors.text,
+    color: colors.textSecondary,
     marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   input: {
-    height: 50,
-    borderWidth: 2,
+    height: 52,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 16,
     backgroundColor: colors.card,
@@ -926,12 +850,12 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   passwordInput: {
-    height: 50,
-    borderWidth: 2,
+    height: 52,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
-    paddingRight: 50,
+    paddingRight: 52,
     fontSize: 16,
     backgroundColor: colors.card,
     color: colors.text,
@@ -939,7 +863,7 @@ const styles = StyleSheet.create({
   eyeIcon: {
     position: "absolute",
     right: 16,
-    top: 15,
+    top: 16,
     padding: 4,
   },
   passwordHint: {
@@ -947,37 +871,34 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     lineHeight: 16,
+    opacity: 0.7,
   },
   primaryButton: {
-    height: 50,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
+    height: 54,
+    backgroundColor: "#00D4AA",
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 4,
+    shadowColor: "#00D4AA",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: "#000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  switchModeButton: {
-    marginTop: 16,
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  switchModeText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "500",
-  },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 24,
+    marginVertical: 22,
   },
   dividerLine: {
     flex: 1,
@@ -985,15 +906,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   dividerText: {
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
+    opacity: 0.6,
   },
   socialButton: {
-    height: 50,
-    borderWidth: 2,
+    height: 54,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -1007,7 +929,7 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 16,
     color: colors.text,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   appleButton: {
     backgroundColor: "#000",
@@ -1016,25 +938,38 @@ const styles = StyleSheet.create({
   appleButtonText: {
     color: "#fff",
   },
-  guestSection: {
-    marginTop: 32,
+  bottomLinks: {
+    marginTop: 24,
     alignItems: "center",
+    gap: 14,
   },
-  guestButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  guestButtonText: {
-    fontSize: 15,
+  guestLink: {
+    fontSize: 14,
     color: colors.textSecondary,
     fontWeight: "500",
   },
-  guestNote: {
-    fontSize: 12,
-    color: colors.grey,
-    textAlign: "center",
-    marginTop: 8,
-    paddingHorizontal: 40,
+  createAccountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  createAccountLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  createAccountLink: {
+    fontSize: 14,
+    color: "#00D4AA",
+    fontWeight: "600",
+  },
+  switchModeButton: {
+    marginTop: 16,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  switchModeText: {
+    color: "#00D4AA",
+    fontSize: 14,
+    fontWeight: "500",
   },
   modalOverlay: {
     flex: 1,
@@ -1066,7 +1001,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   modalButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: "#00D4AA",
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -1075,9 +1010,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonText: {
-    color: "#fff",
+    color: "#000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     textAlign: "center",
   },
   centeredContent: {
@@ -1116,8 +1051,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   forgotPasswordLink: {
-    color: colors.primary,
-    fontSize: 14,
+    color: "#00D4AA",
+    fontSize: 13,
     fontWeight: "600",
   },
   forgotInputContainer: {
@@ -1126,7 +1061,7 @@ const styles = StyleSheet.create({
   },
   forgotInput: {
     height: 50,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 16,

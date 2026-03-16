@@ -342,65 +342,35 @@ export default function OnboardingScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What do you want this app to help you do first?</Text>
-      <Text style={styles.stepSubtitle}>Let&apos;s make this immediately useful for you</Text>
-      
+      <Text style={styles.stepTitle}>What&apos;s your name?</Text>
+      <Text style={styles.stepSubtitle}>We&apos;ll use this to personalize your experience.</Text>
+
       <View style={styles.nameInputContainer}>
         <TextInput
           style={styles.nameInput}
-          placeholder="e.g., Build muscle, lose weight, get stronger..."
+          placeholder="Enter your name"
           placeholderTextColor={colors.grey}
           value={profile.name || ''}
           onChangeText={(text) => {
-            console.log('[Onboarding] Primary goal entered:', text);
+            console.log('[Onboarding] Name entered:', text);
             setProfile({ ...profile, name: text });
           }}
-          autoCapitalize="sentences"
+          autoCapitalize="words"
           autoCorrect={false}
+          autoFocus
         />
-      </View>
-
-      <View style={styles.valuePropsContainer}>
-        <View style={styles.valuePropRow}>
-          <IconSymbol
-            ios_icon_name="checkmark.circle.fill"
-            android_material_icon_name="check-circle"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.valuePropText}>Personalized in under 2 minutes</Text>
-        </View>
-        <View style={styles.valuePropRow}>
-          <IconSymbol
-            ios_icon_name="checkmark.circle.fill"
-            android_material_icon_name="check-circle"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.valuePropText}>Built for gym, home, or bodyweight</Text>
-        </View>
-        <View style={styles.valuePropRow}>
-          <IconSymbol
-            ios_icon_name="checkmark.circle.fill"
-            android_material_icon_name="check-circle"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.valuePropText}>Tracks progress automatically</Text>
-        </View>
       </View>
     </View>
   );
 
   const renderStep2 = () => {
     const motivationChips = [
-      'Build confidence',
-      'Get disciplined',
-      'Feel healthier',
-      'Stop starting over',
-      'Look better',
-      'Gain strength',
-      'Improve energy',
+      'Big life change',
+      'Tired of starting over',
+      'Event coming up',
+      'Finally ready',
+      "Doctor's advice",
+      'Proving something to myself',
     ];
 
     const selectedChips = profile.selectedMotivationChips || [];
@@ -426,7 +396,7 @@ export default function OnboardingScreen() {
           <Text style={styles.emotionalTitle}>Why now?</Text>
         </View>
         <Text style={styles.emotionalSubtitle}>
-          What made you decide to start today? Pick what resonates, or write your own.
+          What&apos;s driving you right now?
         </Text>
         
         <View style={styles.motivationChipsContainer}>
@@ -468,7 +438,7 @@ export default function OnboardingScreen() {
         
         <View style={styles.inspirationBox}>
           <Text style={styles.inspirationText}>
-            💭 We&apos;ll remind you of this when you need it most—on tough days, missed workouts, and comeback moments.
+            We&apos;ll remind you of this on tough days.
           </Text>
         </View>
       </View>
@@ -478,32 +448,18 @@ export default function OnboardingScreen() {
   const renderStep3 = () => {
     const goals = [
       { 
-        id: 'build-muscle', 
-        label: 'Build Muscle', 
-        description: 'Hypertrophy-focused training',
-        iosIcon: 'figure.strengthtraining.traditional', 
-        androidIcon: 'fitness-center' 
-      },
-      { 
-        id: 'get-stronger', 
-        label: 'Get Stronger', 
-        description: 'Strength and power gains',
-        iosIcon: 'bolt.fill', 
-        androidIcon: 'flash-on' 
-      },
-      { 
         id: 'lose-fat', 
-        label: 'Lose Fat', 
-        description: 'Fat loss and definition',
+        label: 'Lose Weight', 
+        description: 'Fat loss and body composition',
         iosIcon: 'flame.fill', 
         androidIcon: 'local-fire-department' 
       },
       { 
-        id: 'improve-fitness', 
-        label: 'Improve Fitness', 
-        description: 'Overall health and wellness',
-        iosIcon: 'heart.fill', 
-        androidIcon: 'favorite' 
+        id: 'build-muscle', 
+        label: 'Build Muscle', 
+        description: 'Hypertrophy and size',
+        iosIcon: 'figure.strengthtraining.traditional', 
+        androidIcon: 'fitness-center' 
       },
       { 
         id: 'improve-endurance', 
@@ -513,120 +469,76 @@ export default function OnboardingScreen() {
         androidIcon: 'directions-run' 
       },
       { 
-        id: 'feel-better', 
-        label: 'Feel Better / General Health', 
-        description: 'Energy and well-being',
-        iosIcon: 'sparkles', 
-        androidIcon: 'auto-awesome' 
+        id: 'increase-flexibility', 
+        label: 'Increase Flexibility', 
+        description: 'Mobility and range of motion',
+        iosIcon: 'figure.flexibility', 
+        androidIcon: 'self-improvement' 
+      },
+      { 
+        id: 'get-stronger', 
+        label: 'Get Stronger', 
+        description: 'Strength and power',
+        iosIcon: 'bolt.fill', 
+        androidIcon: 'flash-on' 
+      },
+      { 
+        id: 'general-fitness', 
+        label: 'General Fitness', 
+        description: 'Overall health and energy',
+        iosIcon: 'heart.fill', 
+        androidIcon: 'favorite' 
       },
     ];
 
     const primaryGoal = profile.primaryGoal;
-    const secondaryGoal = profile.secondaryGoal;
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>What matters most to you?</Text>
-        <Text style={styles.stepSubtitle}>Choose your primary goal, then optionally add a secondary goal</Text>
-        
-        <View style={styles.goalSectionHeader}>
-          <Text style={styles.goalSectionTitle}>Primary Goal</Text>
-          <Text style={styles.goalSectionSubtitle}>Your main focus</Text>
-        </View>
-        
+        <Text style={styles.stepTitle}>What&apos;s your primary goal?</Text>
+
         <View style={styles.goalsContainer}>
-          {goals.map((goal) => (
-            <TouchableOpacity
-              key={goal.id}
-              style={[
-                styles.goalCardEnhanced,
-                primaryGoal === goal.id && styles.selectedCard,
-                secondaryGoal === goal.id && styles.disabledCard,
-              ]}
-              onPress={() => {
-                if (secondaryGoal !== goal.id) {
+          {goals.map((goal) => {
+            const isSelected = primaryGoal === goal.id;
+            return (
+              <TouchableOpacity
+                key={goal.id}
+                style={[
+                  styles.goalCardEnhanced,
+                  isSelected && styles.goalCardSelected,
+                ]}
+                onPress={() => {
                   console.log('[Onboarding] Primary goal selected:', goal.id);
                   setProfile({ ...profile, primaryGoal: goal.id });
-                }
-              }}
-              disabled={secondaryGoal === goal.id}
-            >
-              <IconSymbol
-                ios_icon_name={goal.iosIcon}
-                android_material_icon_name={goal.androidIcon}
-                size={32}
-                color={primaryGoal === goal.id ? colors.primary : colors.grey}
-              />
-              <View style={styles.goalTextContainer}>
-                <Text style={[
-                  styles.goalLabel,
-                  primaryGoal === goal.id && styles.selectedText
-                ]}>
-                  {goal.label}
-                </Text>
-                <Text style={styles.goalDescription}>
-                  {goal.description}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {primaryGoal && (
-          <React.Fragment>
-            <View style={styles.goalSectionHeader}>
-              <Text style={styles.goalSectionTitle}>Secondary Goal (Optional)</Text>
-              <Text style={styles.goalSectionSubtitle}>Complement your primary focus</Text>
-            </View>
-            
-            <View style={styles.goalsContainer}>
-              {goals.filter(g => g.id !== primaryGoal).map((goal) => (
-                <TouchableOpacity
-                  key={goal.id}
-                  style={[
-                    styles.goalCardEnhanced,
-                    styles.secondaryGoalCard,
-                    secondaryGoal === goal.id && styles.selectedSecondaryCard,
-                  ]}
-                  onPress={() => {
-                    console.log('[Onboarding] Secondary goal selected:', goal.id);
-                    const newSecondary = secondaryGoal === goal.id ? undefined : goal.id;
-                    setProfile({ ...profile, secondaryGoal: newSecondary });
-                  }}
-                >
-                  <IconSymbol
-                    ios_icon_name={goal.iosIcon}
-                    android_material_icon_name={goal.androidIcon}
-                    size={28}
-                    color={secondaryGoal === goal.id ? colors.primary : colors.grey}
-                  />
-                  <View style={styles.goalTextContainer}>
-                    <Text style={[
-                      styles.goalLabelSecondary,
-                      secondaryGoal === goal.id && styles.selectedText
-                    ]}>
-                      {goal.label}
-                    </Text>
+                }}
+                activeOpacity={0.8}
+              >
+                <IconSymbol
+                  ios_icon_name={goal.iosIcon}
+                  android_material_icon_name={goal.androidIcon}
+                  size={32}
+                  color={isSelected ? '#00D4AA' : colors.grey}
+                />
+                <View style={styles.goalTextContainer}>
+                  <Text style={[
+                    styles.goalLabel,
+                    isSelected && styles.goalLabelSelected,
+                  ]}>
+                    {goal.label}
+                  </Text>
+                  <Text style={styles.goalDescription}>
+                    {goal.description}
+                  </Text>
+                </View>
+                {isSelected && (
+                  <View style={styles.goalCheckmark}>
+                    <Text style={styles.goalCheckmarkText}>✓</Text>
                   </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </React.Fragment>
-        )}
-
-        {primaryGoal && secondaryGoal && (
-          <View style={styles.goalCombinationBox}>
-            <IconSymbol
-              ios_icon_name="checkmark.seal.fill"
-              android_material_icon_name="verified"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={styles.goalCombinationText}>
-              Your plan will prioritize {goals.find(g => g.id === primaryGoal)?.label.toLowerCase()} while supporting {goals.find(g => g.id === secondaryGoal)?.label.toLowerCase()}
-            </Text>
-          </View>
-        )}
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -1503,12 +1415,12 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   nameInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: '#00D4AA',
     padding: 20,
-    fontSize: 18,
+    fontSize: 20,
     color: colors.text,
     textAlign: 'center',
   },
@@ -1590,12 +1502,20 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   inspirationBox: {
+    marginTop: 8,
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
     borderRadius: 12,
     padding: 16,
     maxWidth: 400,
   },
   inspirationText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    opacity: 0.5,
+    fontWeight: '400',
+  },
+  _inspirationTextOLD: {
     fontSize: 14,
     color: colors.primary,
     textAlign: 'center',
@@ -1625,6 +1545,44 @@ const styles = StyleSheet.create({
   goalCardEnhanced: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    position: 'relative',
+  },
+  goalCardSelected: {
+    backgroundColor: 'rgba(0,212,170,0.12)',
+    borderColor: '#00D4AA',
+    borderWidth: 2.5,
+    transform: [{ scale: 1.02 }],
+  },
+  goalLabelSelected: {
+    color: '#00D4AA',
+    fontWeight: '700',
+  },
+  goalCheckmark: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#00D4AA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalCheckmarkText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  _goalCardEnhancedOLD: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 16,
     padding: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -1636,6 +1594,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   selectedCard: {
+    backgroundColor: 'rgba(0,212,170,0.10)',
+    borderColor: '#00D4AA',
+    borderWidth: 2,
+  },
+  _selectedCardOLD: {
     backgroundColor: 'rgba(69, 155, 155, 0.2)',
     borderColor: colors.primary,
   },
@@ -1650,6 +1613,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   goalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  _goalLabelOLD: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.grey,
@@ -1661,6 +1630,11 @@ const styles = StyleSheet.create({
     color: colors.grey,
   },
   goalDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '400',
+  },
+  _goalDescriptionOLD: {
     fontSize: 14,
     color: colors.textSecondary,
   },
