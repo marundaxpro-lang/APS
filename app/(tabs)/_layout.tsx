@@ -29,8 +29,8 @@ export default function TabLayout() {
             label: 'Nutrition',
           },
           {
-            name: 'focus',
-            route: '/(tabs)/focus',
+            name: 'momentum',
+            route: '/(tabs)/momentum',
             icon: 'bolt',
             label: 'Momentum',
           },

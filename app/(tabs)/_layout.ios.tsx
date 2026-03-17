@@ -17,7 +17,7 @@ export default function TabLayout() {
         <Icon sf="fork.knife" drawable="restaurant" />
         <Label>Nutrition</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="focus" name="focus">
+      <NativeTabs.Trigger key="momentum" name="momentum">
         <Icon sf="bolt.fill" drawable="bolt" />
         <Label>Momentum</Label>
       </NativeTabs.Trigger>
