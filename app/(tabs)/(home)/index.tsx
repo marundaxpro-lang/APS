@@ -82,7 +82,7 @@ const homeData = {
   coachInsight: {
     id: '1',
     title: 'Intensity reduced for today',
-    shortReason: 'Your sleep average dropped to 5.4h this week — recovery takes priority.',
+    shortReason: 'Recovery takes priority — keep up the consistency.',
     impact: 'caution' as const,
   },
   travelModeActive: false,
@@ -139,6 +139,36 @@ function Chip({ label }: { label: string }) {
   );
 }
 
+// ─── Quick Action Card ────────────────────────────────────────────────────────
+interface QuickActionConfig {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  gradientStart: string;
+  gradientEnd: string;
+  iconBg: string;
+  route: string;
+}
+
+function QuickActionCard({ config, onPress }: { config: QuickActionConfig; onPress: () => void }) {
+  return (
+    <AnimatedPressable
+      scaleValue={0.95}
+      onPress={onPress}
+      style={[styles.quickCard, { backgroundColor: config.gradientEnd }]}
+    >
+      {/* Shine on top edge */}
+      <View style={styles.quickCardShine} />
+      {/* Icon circle */}
+      <View style={[styles.quickCardIconCircle, { backgroundColor: config.iconBg }]}>
+        {config.icon}
+      </View>
+      <Text style={styles.quickCardLabel}>{config.label}</Text>
+      <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
+    </AnimatedPressable>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
@@ -180,6 +210,46 @@ export default function HomeScreen() {
   const habitsText = `${homeData.habitsToday.completed}/${homeData.habitsToday.total}`;
   const streakText = `${homeData.streakDays} days`;
 
+  // Quick action configs
+  const quickActions: QuickActionConfig[] = [
+    {
+      icon: <Layers size={28} color="#2DD4BF" strokeWidth={2} />,
+      label: 'Programs',
+      description: 'Browse packs',
+      gradientStart: '#0D2B28',
+      gradientEnd: '#0F2420',
+      iconBg: 'rgba(13,148,136,0.25)',
+      route: '/program-packs',
+    },
+    {
+      icon: <Apple size={28} color="#F97316" strokeWidth={2} />,
+      label: 'Nutrition',
+      description: 'Log meals',
+      gradientStart: '#2B1A0A',
+      gradientEnd: '#221508',
+      iconBg: 'rgba(249,115,22,0.2)',
+      route: '/nutrition',
+    },
+    {
+      icon: <Zap size={28} color="#A78BFA" strokeWidth={2} />,
+      label: 'AI Coach',
+      description: 'Ask anything',
+      gradientStart: '#1A1030',
+      gradientEnd: '#150D28',
+      iconBg: 'rgba(139,92,246,0.2)',
+      route: '/ai-coach',
+    },
+    {
+      icon: <CheckSquare size={28} color="#34D399" strokeWidth={2} />,
+      label: 'Habits',
+      description: 'Track daily',
+      gradientStart: '#0A2018',
+      gradientEnd: '#081A12',
+      iconBg: 'rgba(52,211,153,0.2)',
+      route: '/habits',
+    },
+  ];
+
   return (
     <View style={[styles.container, { backgroundColor: C.bg }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -210,7 +280,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
       >
-        {/* ── 2. Hero Action Card ── */}
+        {/* ── 1. Hero Action Card ── */}
         <FadeSection index={1}>
           {heroType === 'workout' && (
             <AnimatedPressable
@@ -287,8 +357,25 @@ export default function HomeScreen() {
           )}
         </FadeSection>
 
-        {/* ── 3. Still to do ── */}
+        {/* ── 2. Quick Actions Grid ── */}
         <FadeSection index={2}>
+          <Text style={styles.sectionHeader}>Quick Actions</Text>
+          <View style={styles.quickGrid}>
+            {quickActions.map((qa) => (
+              <QuickActionCard
+                key={qa.label}
+                config={qa}
+                onPress={() => {
+                  console.log(`[Home] User tapped quick action "${qa.label}" → navigating to ${qa.route}`);
+                  router.push(qa.route as any);
+                }}
+              />
+            ))}
+          </View>
+        </FadeSection>
+
+        {/* ── 3. Still to do ── */}
+        <FadeSection index={3}>
           {allDone ? (
             <View style={styles.allDoneRow}>
               <Check size={16} color={C.green} strokeWidth={2.5} />
@@ -319,41 +406,38 @@ export default function HomeScreen() {
           )}
         </FadeSection>
 
-        {/* ── 4. Week at a glance ── */}
-        <FadeSection index={3}>
+        {/* ── 4. Progress snapshot ── */}
+        <FadeSection index={4}>
+          <Text style={styles.sectionHeader}>Progress</Text>
           <AnimatedPressable
             onPress={() => {
-              console.log('[Home] User tapped week glance → navigating to /weekly-adherence-detail');
-              router.push('/weekly-adherence-detail');
+              console.log('[Home] User tapped momentum strip → navigating to /streak-detail');
+              router.push('/streak-detail');
             }}
-            style={styles.weekGlanceCard}
+            style={styles.momentumCard}
           >
-            <View style={styles.weekGlanceLeft}>
-              <Text style={styles.weekGlanceLabel}>Week</Text>
-              <View style={styles.weekDots}>
-                {homeData.weekDays.map((d, i) => {
-                  const isToday = i === homeData.todayDayIndex;
-                  const dotColor = d.score >= 70 ? C.teal : d.score > 0 ? C.amber : C.cardDeep;
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.weekDot,
-                        { backgroundColor: dotColor },
-                        isToday && styles.weekDotToday,
-                      ]}
-                    />
-                  );
-                })}
-              </View>
+            <View style={styles.momentumStat}>
+              <Flame size={18} color={C.tealLight} strokeWidth={2} />
+              <Text style={styles.momentumValue}>{streakText}</Text>
+              <Text style={styles.momentumLabel}>STREAK</Text>
             </View>
-            <Text style={styles.weekScore}>{weekScoreText}</Text>
-            <ChevronRight size={16} color={C.textTertiary} strokeWidth={2} />
+            <View style={styles.momentumDivider} />
+            <View style={styles.momentumStat}>
+              <BarChart2 size={18} color={C.tealLight} strokeWidth={2} />
+              <Text style={styles.momentumValue}>{weekScoreText}</Text>
+              <Text style={styles.momentumLabel}>THIS WEEK</Text>
+            </View>
+            <View style={styles.momentumDivider} />
+            <View style={styles.momentumStat}>
+              <Check size={18} color={C.tealLight} strokeWidth={2} />
+              <Text style={styles.momentumValue}>{habitsText}</Text>
+              <Text style={styles.momentumLabel}>HABITS</Text>
+            </View>
           </AnimatedPressable>
         </FadeSection>
 
         {/* ── 5. Coming up ── */}
-        <FadeSection index={4}>
+        <FadeSection index={5}>
           <Text style={styles.sectionHeader}>Coming up</Text>
           <View style={styles.upcomingRow}>
             {homeData.upcomingDays.map((day, i) => (
@@ -382,36 +466,7 @@ export default function HomeScreen() {
           </View>
         </FadeSection>
 
-        {/* ── 6. Momentum strip ── */}
-        <FadeSection index={5}>
-          <AnimatedPressable
-            onPress={() => {
-              console.log('[Home] User tapped momentum strip → navigating to /streak-detail');
-              router.push('/streak-detail');
-            }}
-            style={styles.momentumCard}
-          >
-            <View style={styles.momentumStat}>
-              <Flame size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{streakText}</Text>
-              <Text style={styles.momentumLabel}>CURRENT STREAK</Text>
-            </View>
-            <View style={styles.momentumDivider} />
-            <View style={styles.momentumStat}>
-              <BarChart2 size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{weekScoreText}</Text>
-              <Text style={styles.momentumLabel}>THIS WEEK</Text>
-            </View>
-            <View style={styles.momentumDivider} />
-            <View style={styles.momentumStat}>
-              <Check size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{habitsText}</Text>
-              <Text style={styles.momentumLabel}>TODAY'S HABITS</Text>
-            </View>
-          </AnimatedPressable>
-        </FadeSection>
-
-        {/* ── 7. Coach insight ── */}
+        {/* ── 6. Coach insight ── */}
         {!insightDismissed && (
           <FadeSection index={6}>
             <View style={[styles.insightCard, { borderLeftColor: insightAccent }]}>
@@ -442,7 +497,7 @@ export default function HomeScreen() {
           </FadeSection>
         )}
 
-        {/* ── 8. Active mode banners ── */}
+        {/* ── 7. Active mode banners ── */}
         {(homeData.travelModeActive || homeData.studentModeActive) && (
           <FadeSection index={7}>
             <View style={styles.modeBannersContainer}>
@@ -477,59 +532,6 @@ export default function HomeScreen() {
             </View>
           </FadeSection>
         )}
-
-        {/* ── 9. Quick links ── */}
-        <FadeSection index={8}>
-          <View style={styles.quickLinksRow}>
-            <AnimatedPressable
-              scaleValue={0.94}
-              onPress={() => {
-                console.log('[Home] User tapped Programs quick link → navigating to /program-packs');
-                router.push('/program-packs');
-              }}
-              style={styles.quickLinkButton}
-            >
-              <Layers size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Programs</Text>
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              scaleValue={0.94}
-              onPress={() => {
-                console.log('[Home] User tapped Nutrition quick link → navigating to /nutrition');
-                router.push('/nutrition');
-              }}
-              style={styles.quickLinkButton}
-            >
-              <Apple size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Nutrition</Text>
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              scaleValue={0.94}
-              onPress={() => {
-                console.log('[Home] User tapped AI Coach quick link → navigating to /ai-coach');
-                router.push('/ai-coach');
-              }}
-              style={styles.quickLinkButton}
-            >
-              <Zap size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>AI Coach</Text>
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              scaleValue={0.94}
-              onPress={() => {
-                console.log('[Home] User tapped Habits quick link → navigating to /habits');
-                router.push('/habits');
-              }}
-              style={styles.quickLinkButton}
-            >
-              <CheckSquare size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Habits</Text>
-            </AnimatedPressable>
-          </View>
-        </FadeSection>
       </ScrollView>
     </View>
   );
@@ -662,13 +664,61 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  // Tasks
+  // Section header
   sectionHeader: {
     fontSize: 17,
     fontWeight: '600',
     color: C.text,
     marginBottom: 12,
   },
+  // Quick Actions Grid
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickCard: {
+    width: '47.5%',
+    height: 110,
+    borderRadius: 16,
+    padding: 14,
+    justifyContent: 'flex-end',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+    borderCurve: 'continuous',
+    position: 'relative',
+  },
+  quickCardShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  quickCardIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderCurve: 'continuous',
+  },
+  quickCardLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.text,
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  quickCardDesc: {
+    fontSize: 11,
+    color: C.textSecondary,
+    fontWeight: '500',
+  },
+  // Tasks
   taskList: {
     backgroundColor: C.card,
     borderRadius: 16,
@@ -717,46 +767,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: C.green,
-  },
-  // Week glance
-  weekGlanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-    borderCurve: 'continuous',
-  },
-  weekGlanceLeft: {
-    flex: 1,
-    gap: 6,
-  },
-  weekGlanceLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  weekDots: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  weekDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  weekDotToday: {
-    borderWidth: 2,
-    borderColor: C.tealLight,
-  },
-  weekScore: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: C.text,
   },
   // Upcoming
   upcomingRow: {
@@ -907,26 +917,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: C.textSecondary,
-  },
-  // Quick links
-  quickLinksRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  quickLinkButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: C.card,
-    borderRadius: 12,
-    paddingVertical: 12,
-    borderCurve: 'continuous',
-  },
-  quickLinkLabel: {
-    fontSize: 11,
-    color: C.textSecondary,
-    fontWeight: '500',
   },
 });

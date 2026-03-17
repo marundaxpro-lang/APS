@@ -196,13 +196,16 @@ export default function ProgramPacksScreen() {
     : PROGRAM_PACKS.filter(p => p.category === activeFilter);
 
   const featuredPack = PROGRAM_PACKS.find(p => p.isPremium) ?? PROGRAM_PACKS[0];
-  const gridPacks = filteredPacks.filter(p => p.id !== featuredPack.id || activeFilter !== 'all');
   const displayGrid = activeFilter === 'all' ? filteredPacks.filter(p => p.id !== featuredPack.id) : filteredPacks;
 
   const handleFilterPress = (key: FilterCategory) => {
     console.log('[ProgramPacks] User tapped filter tab:', key);
     setActiveFilter(key);
   };
+
+  const gridSectionLabel = activeFilter === 'all'
+    ? 'ALL PACKS'
+    : (FILTER_TABS.find(t => t.key === activeFilter)?.label.toUpperCase() ?? '');
 
   return (
     <View style={styles.container}>
@@ -212,6 +215,7 @@ export default function ProgramPacksScreen() {
           headerStyle: { backgroundColor: BG },
           headerTintColor: TEXT,
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
 
@@ -260,9 +264,7 @@ export default function ProgramPacksScreen() {
 
         {/* ── Pack Grid ── */}
         <View style={styles.gridSection}>
-          <Text style={styles.sectionLabel}>
-            {activeFilter === 'all' ? 'ALL PACKS' : FILTER_TABS.find(t => t.key === activeFilter)?.label.toUpperCase()}
-          </Text>
+          <Text style={styles.sectionLabel}>{gridSectionLabel}</Text>
           <View style={styles.grid}>
             {displayGrid.map((pack, index) => (
               <AnimatedGridItem key={pack.id} index={index}>

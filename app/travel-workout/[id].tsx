@@ -206,6 +206,7 @@ export default function TravelWorkoutDetailScreen() {
           headerTransparent: true,
           headerTintColor: C.text,
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
 

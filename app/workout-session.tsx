@@ -10,8 +10,15 @@ import {
   Alert,
   Animated,
   Modal,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { Shuffle } from 'lucide-react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -88,6 +95,15 @@ function ConfettiExplosion() {
       ))}
     </View>
   );
+}
+
+function fisherYatesShuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export default function WorkoutSessionScreen() {
@@ -221,6 +237,16 @@ export default function WorkoutSessionScreen() {
     setRestTimer(60);
   };
 
+  const shuffleExercises = () => {
+    console.log('[WorkoutSession] User tapped Shuffle exercises');
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExercises(prev => fisherYatesShuffle(prev));
+    setCurrentExerciseIndex(0);
+    setCurrentSet(1);
+    setIsResting(false);
+    setRestTimer(60);
+  };
+
   const openVideoModal = () => {
     setShowVideoModal(true);
     player.play();
@@ -283,6 +309,15 @@ export default function WorkoutSessionScreen() {
           },
           headerTintColor: colors.text,
           headerShadowVisible: false,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={shuffleExercises}
+              style={{ marginRight: 8, padding: 8 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Shuffle size={20} color={colors.primary} strokeWidth={2} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <ParticleBackground />

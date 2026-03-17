@@ -340,7 +340,7 @@ export default function AICoachScreen() {
     caloriesLogged: 0,
     caloriesTarget: 2200,
     mealsLogged: 0,
-    lastSleepHours: 7,
+    lastSleepHours: 0,
     comebackActive: false,
     daysMissed: 0,
     hour: new Date().getHours(),

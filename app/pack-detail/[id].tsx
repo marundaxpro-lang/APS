@@ -107,6 +107,7 @@ export default function PackDetailScreen() {
           headerBackButtonDisplayMode: 'minimal',
           headerTintColor: '#fff',
           title: '',
+          headerShown: true,
         }}
       />
 

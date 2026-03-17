@@ -162,6 +162,7 @@ export default function WorkoutDetailScreen() {
           headerStyle: { backgroundColor: BG },
           headerTintColor: '#fff',
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
 

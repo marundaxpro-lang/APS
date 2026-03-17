@@ -189,6 +189,7 @@ export default function StudentWorkoutDetailScreen() {
           headerTransparent: true,
           headerTintColor: C.text,
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       />
 
