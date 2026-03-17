@@ -253,7 +253,7 @@ export default function HomeScreen() {
     const totalWeeklyWorkouts = weeklyWorkouts.filter(w => w.exercises.length > 0).length;
 
     const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
-    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
     switch (motivationCardType) {
       case 'user':
@@ -351,10 +351,10 @@ export default function HomeScreen() {
     const mealsLogged = stats?.mealsLogged || 0;
 
     const lastWorkout = workoutHistory.length > 0 ? workoutHistory[workoutHistory.length - 1] : null;
-    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+    const daysSinceLastWorkout = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
     const lastMeasurement = measurements.length > 0 ? measurements[measurements.length - 1] : null;
-    const daysSinceWeighIn = lastMeasurement ? Math.floor((Date.now() - new Date(lastMeasurement.date).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+    const daysSinceWeighIn = lastMeasurement ? Math.floor((Date.now() - new Date(lastMeasurement.date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
     if (daysSinceLastWorkout > 7) {
       return {

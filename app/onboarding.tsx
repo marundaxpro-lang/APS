@@ -687,12 +687,6 @@ export default function OnboardingScreen() {
 
         {profile.sessionLength && (
           <View style={styles.sessionInfoBox}>
-            <IconSymbol
-              ios_icon_name="info.circle.fill"
-              android_material_icon_name="info"
-              size={20}
-              color={colors.primary}
-            />
             <Text style={styles.sessionInfoText}>
               A {daysCount}-day plan with {profile.sessionLength === '20-30' ? '20-30 minute' : profile.sessionLength === '30-45' ? '30-45 minute' : profile.sessionLength === '45-60' ? '45-60 minute' : '60+ minute'} sessions requires different exercise selection and volume than longer workouts.
             </Text>
@@ -835,8 +829,9 @@ export default function OnboardingScreen() {
       { id: 'barbell-rack', label: 'Barbell/Rack', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
     ];
 
+    const isGymUser = profile.equipmentType === 'gym';
     const confidenceLevels = [
-      { id: 'expert', label: 'I know my way around the gym', iosIcon: 'star.fill', androidIcon: 'star' },
+      ...(isGymUser ? [{ id: 'expert', label: 'I know my way around the gym', iosIcon: 'star.fill', androidIcon: 'star' }] : []),
       { id: 'intermediate', label: 'I know the basics', iosIcon: 'star.leadinghalf.filled', androidIcon: 'star-half' },
       { id: 'beginner', label: 'I need simple guidance', iosIcon: 'star', androidIcon: 'star-border' },
     ];

@@ -546,6 +546,18 @@ const TEMPLATES = [
   { id: 'light', label: 'Light Meal', kcal: 350, P: 30, C: 30, F: 8 },
 ];
 
+const DIET_PREFERENCES = [
+  { id: 'none', label: 'None' },
+  { id: 'vegetarian', label: 'Vegetarian' },
+  { id: 'vegan', label: 'Vegan' },
+  { id: 'pescatarian', label: 'Pescatarian' },
+  { id: 'keto', label: 'Keto' },
+  { id: 'paleo', label: 'Paleo' },
+  { id: 'gluten-free', label: 'Gluten-Free' },
+];
+
+const DIET_STORAGE_KEY = 'nutritionDietPreference';
+
 export default function NutritionScreen() {
   const router = useRouter();
   const { isPremium } = useAuth();
@@ -576,12 +588,20 @@ export default function NutritionScreen() {
   const [manualF, setManualF] = useState('');
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
+  const [dietPreference, setDietPreference] = useState('none');
+  const [showDietModal, setShowDietModal] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
       
+      const storedDiet = await AsyncStorage.getItem(DIET_STORAGE_KEY);
+      if (storedDiet) {
+        setDietPreference(storedDiet);
+        console.log('[Nutrition] Loaded diet preference:', storedDiet);
+      }
+
       const storedTargets = await AsyncStorage.getItem('nutritionTargets');
       if (storedTargets) {
         setTargets(JSON.parse(storedTargets));
@@ -922,6 +942,15 @@ export default function NutritionScreen() {
 
   const nextMoveMeals = getNextMoveMeals();
 
+  const saveDietPreference = async (pref: string) => {
+    setDietPreference(pref);
+    await AsyncStorage.setItem(DIET_STORAGE_KEY, pref);
+    console.log('[Nutrition] User changed diet preference to:', pref);
+    setShowDietModal(false);
+  };
+
+  const dietLabel = DIET_PREFERENCES.find(d => d.id === dietPreference)?.label || 'None';
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -958,6 +987,33 @@ export default function NutritionScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.dietPrefRow}
+          onPress={() => {
+            console.log('[Nutrition] User tapped Diet Preference selector');
+            setShowDietModal(true);
+          }}
+        >
+          <View style={styles.dietPrefLeft}>
+            <IconSymbol
+              ios_icon_name="leaf.fill"
+              android_material_icon_name="eco"
+              size={18}
+              color={colors.primary}
+            />
+            <Text style={styles.dietPrefLabel}>Diet Preference</Text>
+          </View>
+          <View style={styles.dietPrefRight}>
+            <Text style={styles.dietPrefValue}>{dietLabel}</Text>
+            <IconSymbol
+              ios_icon_name="chevron.right"
+              android_material_icon_name="chevron-right"
+              size={16}
+              color={colors.textSecondary}
+            />
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.caloriesCard}
@@ -1634,6 +1690,51 @@ export default function NutritionScreen() {
       </Modal>
 
       <Modal
+        visible={showDietModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDietModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Diet Preference</Text>
+            <TouchableOpacity onPress={() => setShowDietModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={28}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            {DIET_PREFERENCES.map((pref) => {
+              const isSelected = dietPreference === pref.id;
+              return (
+                <TouchableOpacity
+                  key={pref.id}
+                  style={[styles.dietOption, isSelected && styles.dietOptionSelected]}
+                  onPress={() => saveDietPreference(pref.id)}
+                >
+                  <Text style={[styles.dietOptionText, isSelected && styles.dietOptionTextSelected]}>
+                    {pref.label}
+                  </Text>
+                  {isSelected && (
+                    <IconSymbol
+                      ios_icon_name="checkmark.circle.fill"
+                      android_material_icon_name="check-circle"
+                      size={22}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
         visible={showPaywallModal}
         animationType="fade"
         transparent
@@ -2287,6 +2388,58 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  dietPrefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  dietPrefLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dietPrefLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dietPrefRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dietPrefValue: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  dietOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  dietOptionSelected: {
+    borderBottomColor: colors.primary + '40',
+  },
+  dietOptionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  dietOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   paywallButtonText: {
     fontSize: 16,

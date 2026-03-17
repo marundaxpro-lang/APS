@@ -160,6 +160,18 @@ const TEMPLATES = [
   { id: 'light', label: 'Light Meal', kcal: 350, P: 30, C: 30, F: 8 },
 ];
 
+const DIET_PREFERENCES = [
+  { id: 'none', label: 'None' },
+  { id: 'vegetarian', label: 'Vegetarian' },
+  { id: 'vegan', label: 'Vegan' },
+  { id: 'pescatarian', label: 'Pescatarian' },
+  { id: 'keto', label: 'Keto' },
+  { id: 'paleo', label: 'Paleo' },
+  { id: 'gluten-free', label: 'Gluten-Free' },
+];
+
+const DIET_STORAGE_KEY = 'nutritionDietPreference';
+
 export default function NutritionScreen() {
   const router = useRouter();
   const { isPremium } = useAuth();
@@ -189,12 +201,20 @@ export default function NutritionScreen() {
   const [manualF, setManualF] = useState('');
   const [manualLabel, setManualLabel] = useState('');
   const [loading, setLoading] = useState(true);
+  const [dietPreference, setDietPreference] = useState('none');
+  const [showDietModal, setShowDietModal] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
       
+      const storedDiet = await AsyncStorage.getItem(DIET_STORAGE_KEY);
+      if (storedDiet) {
+        setDietPreference(storedDiet);
+        console.log('[Nutrition] Loaded diet preference:', storedDiet);
+      }
+
       const storedTargets = await AsyncStorage.getItem('nutritionTargets');
       if (storedTargets) {
         setTargets(JSON.parse(storedTargets));
@@ -412,6 +432,15 @@ export default function NutritionScreen() {
     setManualLabel('');
   };
 
+  const saveDietPreference = async (pref: string) => {
+    setDietPreference(pref);
+    await AsyncStorage.setItem(DIET_STORAGE_KEY, pref);
+    console.log('[Nutrition] User changed diet preference to:', pref);
+    setShowDietModal(false);
+  };
+
+  const dietLabel = DIET_PREFERENCES.find(d => d.id === dietPreference)?.label || 'None';
+
   const saveTargets = async () => {
     try {
       await AsyncStorage.setItem('nutritionTargets', JSON.stringify(targets));
@@ -529,6 +558,24 @@ export default function NutritionScreen() {
             <Text style={styles.macroText}>{consumedF}g / {fatGoal}g</Text>
           </View>
         </View>
+
+        {/* Diet Preference */}
+        <TouchableOpacity
+          style={styles.dietPrefRow}
+          onPress={() => {
+            console.log('[Nutrition] User tapped Diet Preference selector');
+            setShowDietModal(true);
+          }}
+        >
+          <View style={styles.dietPrefLeft}>
+            <IconSymbol ios_icon_name="leaf.fill" android_material_icon_name="eco" size={18} color={colors.primary} />
+            <Text style={styles.dietPrefLabel}>Diet Preference</Text>
+          </View>
+          <View style={styles.dietPrefRight}>
+            <Text style={styles.dietPrefValue}>{dietLabel}</Text>
+            <IconSymbol ios_icon_name="chevron.right" android_material_icon_name="chevron-right" size={16} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
 
         {/* Today's Plan */}
         {todaysPlan && (
@@ -806,6 +853,39 @@ export default function NutritionScreen() {
                   <Text style={styles.modalMealMacros}>{meal.kcal} kcal • P: {meal.P}g • C: {meal.C}g • F: {meal.F}g</Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Diet Preference Modal */}
+      <Modal visible={showDietModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Diet Preference</Text>
+              <TouchableOpacity onPress={() => setShowDietModal(false)}>
+                <IconSymbol ios_icon_name="xmark.circle.fill" android_material_icon_name="close" size={28} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {DIET_PREFERENCES.map((pref) => {
+                const isSelected = dietPreference === pref.id;
+                return (
+                  <TouchableOpacity
+                    key={pref.id}
+                    style={[styles.dietOption, isSelected && styles.dietOptionSelected]}
+                    onPress={() => saveDietPreference(pref.id)}
+                  >
+                    <Text style={[styles.modalMealName, isSelected && styles.dietOptionTextSelected]}>
+                      {pref.label}
+                    </Text>
+                    {isSelected && (
+                      <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check-circle" size={22} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
@@ -1113,6 +1193,52 @@ const styles = StyleSheet.create({
   modalMealMacros: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  dietPrefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  dietPrefLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dietPrefLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dietPrefRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dietPrefValue: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  dietOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.card,
+  },
+  dietOptionSelected: {
+    borderBottomColor: colors.primary + '40',
+  },
+  dietOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   manualButton: {
     flexDirection: 'row',

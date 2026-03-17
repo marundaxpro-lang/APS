@@ -17,6 +17,7 @@ import { colors } from '@/styles/commonStyles';
 import ParticleBackground from '@/components/ParticleBackground';
 import { authenticatedGet, authenticatedPost } from '@/utils/api';
 import { MealPlan, CaloricGoal } from '@/types/fitness';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function resolveImageSource(source: string | number | undefined) {
   if (!source) return { uri: '' };
@@ -24,18 +25,36 @@ function resolveImageSource(source: string | number | undefined) {
   return source;
 }
 
+const DIET_STORAGE_KEY = 'nutritionDietPreference';
+
+const DIET_TAGS: Record<string, string[]> = {
+  vegetarian: ['vegetarian', 'vegan'],
+  vegan: ['vegan'],
+  pescatarian: ['pescatarian', 'vegetarian', 'vegan'],
+  keto: ['keto'],
+  paleo: ['paleo'],
+  'gluten-free': ['gluten-free'],
+  none: [],
+};
+
 export default function MealPlansScreen() {
   const router = useRouter();
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [caloricGoal, setCaloricGoal] = useState<CaloricGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [dietPreference, setDietPreference] = useState('none');
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    const storedDiet = await AsyncStorage.getItem(DIET_STORAGE_KEY).catch(() => null);
+    if (storedDiet) {
+      setDietPreference(storedDiet);
+      console.log('[MealPlans] Loaded diet preference:', storedDiet);
+    }
     try {
       setLoading(true);
       
@@ -225,21 +244,42 @@ export default function MealPlansScreen() {
         </TouchableOpacity>
 
         <View style={styles.plansSection}>
-          <Text style={styles.sectionTitle}>Your Meal Plans</Text>
+          <View style={styles.plansSectionHeader}>
+            <Text style={styles.sectionTitle}>Your Meal Plans</Text>
+            {dietPreference !== 'none' && (
+              <View style={styles.dietBadge}>
+                <Text style={styles.dietBadgeText}>{dietPreference}</Text>
+              </View>
+            )}
+          </View>
           
-          {mealPlans.length === 0 ? (
-            <View style={styles.emptyState}>
-              <IconSymbol
-                ios_icon_name="fork.knife"
-                android_material_icon_name="restaurant"
-                size={60}
-                color={colors.grey}
-              />
-              <Text style={styles.emptyText}>No meal plans yet</Text>
-              <Text style={styles.emptySubtext}>Generate your first meal plan above!</Text>
-            </View>
-          ) : (
-            mealPlans.map((plan) => (
+          {(() => {
+            const requiredTags = DIET_TAGS[dietPreference] || [];
+            const filteredPlans = dietPreference === 'none'
+              ? mealPlans
+              : mealPlans.filter((plan) => {
+                  const planTags: string[] = (plan as any).dietTags || [];
+                  return requiredTags.some((tag) => planTags.includes(tag));
+                });
+            if (filteredPlans.length === 0) {
+              return (
+                <View style={styles.emptyState}>
+                  <IconSymbol
+                    ios_icon_name="fork.knife"
+                    android_material_icon_name="restaurant"
+                    size={60}
+                    color={colors.grey}
+                  />
+                  <Text style={styles.emptyText}>
+                    {mealPlans.length === 0 ? 'No meal plans yet' : `No ${dietPreference} meal plans`}
+                  </Text>
+                  <Text style={styles.emptySubtext}>
+                    {mealPlans.length === 0 ? 'Generate your first meal plan above!' : 'Generate a new plan or change your diet preference'}
+                  </Text>
+                </View>
+              );
+            }
+            return filteredPlans.map((plan) => (
               <View key={plan.id} style={styles.planCard}>
                 <View style={styles.planHeader}>
                   <View style={styles.planHeaderLeft}>
@@ -290,8 +330,8 @@ export default function MealPlansScreen() {
                   ))}
                 </View>
               </View>
-            ))
-          )}
+            ));
+          })()}
         </View>
       </ScrollView>
     </View>
@@ -482,5 +522,25 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  plansSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  dietBadge: {
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  dietBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'capitalize',
   },
 });
