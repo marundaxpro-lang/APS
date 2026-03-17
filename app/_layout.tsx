@@ -100,6 +100,10 @@ export default function RootLayout() {
                 <Stack.Screen name="workout-detail/[id]" options={{ headerShown: true }} />
                 <Stack.Screen name="nutrition" options={{ headerShown: false }} />
                 <Stack.Screen name="ai-coach" options={{ headerShown: false }} />
+                <Stack.Screen name="coach-insights" options={{ headerShown: false }} />
+                <Stack.Screen name="streak-detail" options={{ title: 'Your Streak', headerBackTitle: 'Back' }} />
+                <Stack.Screen name="weekly-adherence-detail" options={{ headerShown: false }} />
+                <Stack.Screen name="habits" options={{ title: 'My Habits', headerBackTitle: 'Back' }} />
 
                 {/* Modal Demo Screens */}
                 <Stack.Screen

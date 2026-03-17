@@ -17,6 +17,15 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { authenticatedGet } from '@/utils/api';
 import { WeeklyTask, FitnessProfile, WorkoutDay } from '@/types/fitness';
 import { generateWorkoutSplit } from '@/data/workouts';
+import { CoachExplainabilityFeed } from '@/components/CoachExplainabilityFeed';
+import { getChanges, seedDemoChanges } from '@/utils/coachExplainerStore';
+import { StreakCard } from '@/components/StreakCard';
+import { StreakState } from '@/utils/streakEngine';
+import { getStreakState, seedDemoStreak } from '@/utils/streakStore';
+import { WeeklyAdherenceCard } from '@/components/WeeklyAdherenceCard';
+import { WeekAdherence } from '@/utils/adherenceEngine';
+import { getCurrentWeek, seedDemoWeek } from '@/utils/adherenceStore';
+import { HabitSurfaceSection } from '@/components/HabitSurfaceSection';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -112,10 +121,47 @@ export default function HomeScreen() {
   const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [motivationCardType, setMotivationCardType] = useState<'user' | 'coach' | 'target' | 'streak' | 'recovery'>('user');
+  const [streakState, setStreakState] = useState<StreakState | null>(null);
+  const [coachFeedKey, setCoachFeedKey] = useState(0);
+  const [weekAdherence, setWeekAdherence] = useState<WeekAdherence | null>(null);
 
   useEffect(() => {
     loadData();
+    loadStreak();
+    initCoachChanges();
+    loadAdherence();
   }, []);
+
+  const loadAdherence = async () => {
+    try {
+      await seedDemoWeek();
+      const week = await getCurrentWeek();
+      console.log('[Home] Loaded week adherence, overall score:', week.scores.overall);
+      setWeekAdherence(week);
+    } catch (e) {
+      console.error('[Home] Error loading adherence:', e);
+    }
+  };
+
+  const initCoachChanges = async () => {
+    const existing = await getChanges();
+    if (existing.length === 0) {
+      console.log('[Home] No coach changes found — seeding demo changes');
+      await seedDemoChanges();
+      setCoachFeedKey(k => k + 1);
+    }
+  };
+
+  const loadStreak = async () => {
+    try {
+      await seedDemoStreak();
+      const state = await getStreakState();
+      console.log('[Home] Loaded streak state, currentStreak:', state.currentStreak);
+      setStreakState(state);
+    } catch (e) {
+      console.error('[Home] Error loading streak:', e);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -491,8 +537,22 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Streak Card ── */}
+        {streakState && (
+          <AnimatedItem index={0}>
+            <StreakCard state={streakState} />
+          </AnimatedItem>
+        )}
+
+        {/* ── Weekly Adherence Card ── */}
+        {weekAdherence && (
+          <AnimatedItem index={1}>
+            <WeeklyAdherenceCard week={weekAdherence} />
+          </AnimatedItem>
+        )}
+
         {/* ── Motivation banner ── */}
-        <AnimatedItem index={0}>
+        <AnimatedItem index={1}>
           <AnimatedPressable
             style={styles.motivationCard}
             onPress={() => {
@@ -795,6 +855,22 @@ export default function HomeScreen() {
             </View>
           </AnimatedItem>
         )}
+
+        {/* ── Habit Engine ── */}
+        <AnimatedItem index={5}>
+          <HabitSurfaceSection
+            workoutToday={getDayWorkout(new Date().getDay()) !== null}
+            workoutCompleted={workoutHistory.some(w => new Date(w.completedAt).toDateString() === new Date().toDateString())}
+            sleepHoursLast={7}
+            proteinGapToday={0}
+            streakSlipping={streakState ? streakState.currentStreak === 0 : false}
+          />
+        </AnimatedItem>
+
+        {/* ── Coach Explainability Feed ── */}
+        <AnimatedItem index={6}>
+          <CoachExplainabilityFeed refreshKey={coachFeedKey} />
+        </AnimatedItem>
       </ScrollView>
     </View>
   );
