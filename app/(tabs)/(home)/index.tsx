@@ -157,14 +157,14 @@ function QuickActionCard({ config, onPress }: { config: QuickActionConfig; onPre
       onPress={onPress}
       style={[styles.quickCard, { backgroundColor: config.gradientEnd }]}
     >
-      {/* Shine on top edge */}
       <View style={styles.quickCardShine} />
-      {/* Icon circle */}
       <View style={[styles.quickCardIconCircle, { backgroundColor: config.iconBg }]}>
         {config.icon}
       </View>
-      <Text style={styles.quickCardLabel}>{config.label}</Text>
-      <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
+      <View style={styles.quickCardTextGroup}>
+        <Text style={styles.quickCardLabel}>{config.label}</Text>
+        <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
+      </View>
     </AnimatedPressable>
   );
 }
@@ -679,10 +679,13 @@ const styles = StyleSheet.create({
   },
   quickCard: {
     width: '47.5%',
-    height: 110,
+    height: 88,
     borderRadius: 16,
-    padding: 14,
-    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
@@ -698,13 +701,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
   quickCardIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    flexShrink: 0,
     borderCurve: 'continuous',
+  },
+  quickCardTextGroup: {
+    flex: 1,
   },
   quickCardLabel: {
     fontSize: 14,

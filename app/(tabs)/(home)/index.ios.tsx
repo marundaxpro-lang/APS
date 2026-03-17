@@ -146,8 +146,10 @@ function QuickActionCard({ config, onPress }: { config: QuickActionConfig; onPre
       <View style={[styles.quickCardIconCircle, { backgroundColor: config.iconBg }]}>
         {config.icon}
       </View>
-      <Text style={styles.quickCardLabel}>{config.label}</Text>
-      <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
+      <View style={styles.quickCardTextGroup}>
+        <Text style={styles.quickCardLabel}>{config.label}</Text>
+        <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
+      </View>
     </AnimatedPressable>
   );
 }
@@ -531,9 +533,10 @@ const styles = StyleSheet.create({
   heroButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   sectionHeader: { fontSize: 17, fontWeight: '600', color: C.text, marginBottom: 12 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickCard: { width: '47.5%', height: 110, borderRadius: 16, padding: 14, justifyContent: 'flex-end', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', position: 'relative' },
+  quickCard: { width: '47.5%', height: 88, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 0, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', position: 'relative' },
   quickCardShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
-  quickCardIconCircle: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  quickCardIconCircle: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  quickCardTextGroup: { flex: 1 },
   quickCardLabel: { fontSize: 14, fontWeight: '700', color: C.text, letterSpacing: -0.2, marginBottom: 2 },
   quickCardDesc: { fontSize: 11, color: C.textSecondary, fontWeight: '500' },
   taskList: { backgroundColor: C.card, borderRadius: 16, overflow: 'hidden' },
