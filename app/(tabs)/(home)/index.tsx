@@ -10,161 +10,145 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { useAuth } from '@/contexts/AuthContext';
 import {
+  Bell,
   Flame,
-  ChevronRight,
-  Check,
-  X,
-  Layers,
-  Apple,
+  Clock,
+  Dumbbell,
   Zap,
-  CheckSquare,
-  Moon,
-  Plane,
-  BookOpen,
+  ChevronRight,
   BarChart2,
+  CheckCircle,
+  Moon,
+  Heart,
+  Sparkles,
+  Droplets,
+  Footprints,
 } from 'lucide-react-native';
 
-// ─── Color tokens ─────────────────────────────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  bg: '#0A0D1A',
-  surface: '#12162A',
-  card: '#1A1E2E',
-  cardDeep: '#252A3D',
-  teal: '#0D9488',
-  tealLight: '#2DD4BF',
-  tealMuted: 'rgba(13,148,136,0.12)',
+  bg: '#0A0A0F',
+  surface: '#13131A',
+  surface2: '#1C1C26',
+  surface3: '#16161F',
+  teal: '#00D4AA',
+  tealMuted: 'rgba(0,212,170,0.09)',
+  tealBorder: 'rgba(0,212,170,0.12)',
   amber: '#F59E0B',
   amberMuted: 'rgba(245,158,11,0.12)',
-  blue: '#3B82F6',
-  violet: '#8B5CF6',
-  red: '#EF4444',
-  green: '#22C55E',
-  text: '#E8EAF6',
-  textSecondary: '#8B9CC8',
-  textTertiary: '#4A5580',
+  blue: '#4A9EFF',
+  blueMuted: 'rgba(74,158,255,0.12)',
+  text: '#F0F0F5',
+  textSecondary: '#8A8A9A',
+  textTertiary: '#4A4A5A',
   border: 'rgba(255,255,255,0.06)',
-  divider: 'rgba(255,255,255,0.04)',
+  divider: 'rgba(255,255,255,0.05)',
+  green: '#22C55E',
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const homeData = {
-  userName: 'Alex',
-  streakDays: 9,
-  workoutDoneToday: false,
+  streakDays: 7,
+  weeklyWorkouts: { done: 4, total: 5 },
+  habitsToday: { completed: 3, total: 4 },
   todayWorkout: {
-    title: 'Lower Body Power',
-    duration: 45,
-    exerciseCount: 6,
-    intensity: 'High' as const,
-    dayNumber: 4,
-    totalDays: 28,
+    title: 'Upper Body Power',
+    duration: 52,
+    exerciseCount: 8,
+    intensity: 'Intense',
+    calories: 420,
   },
-  nutritionToday: { proteinTarget: 180, proteinLogged: 112, calorieTarget: 2400, caloriesLogged: 1680 },
-  waterToday: { targetLitres: 2.5, loggedLitres: 1.4 },
-  weekScore: 74,
-  weekDays: [
-    { day: 'M', score: 90 },
-    { day: 'T', score: 75 },
-    { day: 'W', score: 60 },
-    { day: 'T', score: 85 },
-    { day: 'F', score: 0 },
-    { day: 'S', score: 0 },
-    { day: 'S', score: 0 },
-  ],
-  todayDayIndex: 4,
-  habitsToday: { completed: 4, total: 5 },
-  upcomingDays: [
-    { label: 'Tomorrow', workout: 'Upper Body', duration: 50, isRest: false },
-    { label: 'Sat', workout: 'Rest Day', duration: 0, isRest: true },
-    { label: 'Sun', workout: 'Cardio', duration: 30, isRest: false },
-  ],
+  nutritionToday: { proteinTarget: 180, proteinLogged: 138 },
+  waterToday: { targetLitres: 2.5, loggedLitres: 1.7 },
   coachInsight: {
-    id: '1',
-    title: 'Intensity reduced for today',
-    shortReason: 'Recovery takes priority — keep up the consistency.',
-    impact: 'caution' as const,
+    title: 'Increase rest between sets',
+    reason: 'Your heart rate data shows incomplete recovery. Adding 15–20s rest will improve output on your next session.',
   },
-  travelModeActive: false,
-  travelDestination: '',
-  studentModeActive: false,
-  studentExamName: '',
+  upcomingDays: [
+    { label: 'Tomorrow', name: 'Push Day', duration: 45, isRest: false, type: 'strength' },
+    { label: 'Wed', name: 'Cardio', duration: 30, isRest: false, type: 'cardio' },
+    { label: 'Thu', name: 'Recovery', duration: 0, isRest: true, type: 'rest' },
+    { label: 'Fri', name: 'Leg Day', duration: 55, isRest: false, type: 'strength' },
+  ],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function getGreeting(hour: number, name: string): string {
-  if (hour >= 5 && hour < 12) return `Good morning, ${name}`;
-  if (hour >= 12 && hour < 17) return `Good afternoon, ${name}`;
-  if (hour >= 17 && hour < 21) return `Good evening, ${name}`;
-  return `Late session, ${name}`;
+function getGreeting(hour: number): string {
+  if (hour >= 5 && hour < 12) return 'Good morning,';
+  if (hour >= 12 && hour < 17) return 'Good afternoon,';
+  if (hour >= 17 && hour < 21) return 'Good evening,';
+  return 'Late session,';
 }
 
-function getContextLine(hour: number, workoutDone: boolean): string {
-  const proteinGap = homeData.nutritionToday.proteinTarget - homeData.nutritionToday.proteinLogged;
-  const nutritionBehind = proteinGap > 20;
-  if (hour >= 5 && hour < 12 && !workoutDone) {
-    return `Leg day is waiting. You've trained 3 days straight.`;
-  }
-  if (hour >= 12 && hour < 17 && workoutDone) {
-    return `Workout done ✓ — focus on your protein target now.`;
-  }
-  if (hour >= 17 && workoutDone && !nutritionBehind) {
-    return `Everything's done today. Rest well.`;
-  }
-  if (hour >= 17 && !workoutDone) {
-    return `Still time for a short session tonight.`;
-  }
-  return `Let's make today count.`;
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 // ─── Staggered section wrapper ────────────────────────────────────────────────
 function FadeSection({ index, children }: { index: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(8)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 350, delay: index * 60, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 350, delay: index * 60, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 350, delay: index * 80, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 350, delay: index * 80, useNativeDriver: true }),
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
 
-// ─── Chip ─────────────────────────────────────────────────────────────────────
-function Chip({ label }: { label: string }) {
+// ─── Stat chip (hero card) ────────────────────────────────────────────────────
+function StatChip({ icon, value }: { icon: React.ReactNode; value: string }) {
   return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{label}</Text>
+    <View style={styles.statChip}>
+      {icon}
+      <Text style={styles.statChipText}>{value}</Text>
     </View>
   );
 }
 
-// ─── Quick Action Card ────────────────────────────────────────────────────────
-interface QuickActionConfig {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  gradientStart: string;
-  gradientEnd: string;
-  iconBg: string;
-  route: string;
+// ─── Section header ───────────────────────────────────────────────────────────
+function SectionHeader({ title, badge }: { title: string; badge?: string }) {
+  return (
+    <View style={styles.sectionHeaderRow}>
+      <Text style={styles.sectionHeaderText}>{title}</Text>
+      {badge !== undefined && (
+        <View style={styles.sectionBadge}>
+          <Text style={styles.sectionBadgeText}>{badge}</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
-function QuickActionCard({ config, onPress }: { config: QuickActionConfig; onPress: () => void }) {
+// ─── Upcoming session card ────────────────────────────────────────────────────
+function UpcomingCard({
+  day,
+  onPress,
+}: {
+  day: (typeof homeData.upcomingDays)[0];
+  onPress: () => void;
+}) {
+  const isRest = day.isRest;
+  const iconColor = isRest ? C.textTertiary : day.type === 'cardio' ? C.blue : C.teal;
+  const SessionIcon = isRest ? Moon : day.type === 'cardio' ? Heart : Dumbbell;
+  const durationText = isRest ? 'Recovery' : `${day.duration} min`;
+
   return (
-    <AnimatedPressable
-      scaleValue={0.95}
-      onPress={onPress}
-      style={[styles.quickCard, { backgroundColor: config.gradientEnd }]}
-    >
-      <View style={styles.quickCardShine} />
-      <View style={[styles.quickCardIconCircle, { backgroundColor: config.iconBg }]}>
-        {config.icon}
-      </View>
-      <View style={styles.quickCardTextGroup}>
-        <Text style={styles.quickCardLabel}>{config.label}</Text>
-        <Text style={styles.quickCardDesc} numberOfLines={1}>{config.description}</Text>
-      </View>
+    <AnimatedPressable scaleValue={0.97} onPress={onPress} style={styles.upcomingCard}>
+      <Text style={styles.upcomingDayLabel}>{day.label}</Text>
+      <SessionIcon size={22} color={iconColor} strokeWidth={2} />
+      <Text style={[styles.upcomingSessionName, isRest && { color: C.textSecondary }]} numberOfLines={1}>
+        {day.name}
+      </Text>
+      <Text style={styles.upcomingDuration}>{durationText}</Text>
     </AnimatedPressable>
   );
 }
@@ -173,365 +157,281 @@ function QuickActionCard({ config, onPress }: { config: QuickActionConfig; onPre
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [insightDismissed, setInsightDismissed] = useState(false);
+  const { user } = useAuth();
 
   const now = new Date();
   const hour = now.getHours();
-  const { workoutDoneToday, todayWorkout, nutritionToday, coachInsight } = homeData;
 
-  const greeting = getGreeting(hour, homeData.userName);
-  const contextLine = getContextLine(hour, workoutDoneToday);
+  const displayName = user?.name ? user.name.split(' ')[0] : 'Athlete';
+  const initials = user?.name ? getInitials(user.name) : 'A';
+  const greetingPrefix = getGreeting(hour);
 
-  // Hero card type
-  const proteinGap = nutritionToday.proteinTarget - nutritionToday.proteinLogged;
-  const nutritionBehind = proteinGap > 20;
-  const heroType = !workoutDoneToday ? 'workout' : nutritionBehind ? 'nutrition' : 'tomorrow';
+  const { todayWorkout, nutritionToday, waterToday, coachInsight } = homeData;
 
-  // Remaining tasks (max 3)
-  const allTasks = [
-    !workoutDoneToday && { id: 'workout', label: 'Lower Body Power', detail: '45 min', color: C.teal, route: '/workout-detail/1' },
-    nutritionBehind && { id: 'protein', label: 'Hit protein target', detail: `${proteinGap}g left`, color: C.amber, route: '/nutrition' },
-    homeData.waterToday.loggedLitres < homeData.waterToday.targetLitres && {
-      id: 'water', label: 'Hit water target',
-      detail: `${(homeData.waterToday.targetLitres - homeData.waterToday.loggedLitres).toFixed(1)}L left`,
-      color: C.blue, route: '/nutrition',
-    },
-    hour >= 17 && { id: 'stretch', label: 'Evening stretch', detail: '10 min', color: C.violet, route: '/habits' },
-    hour >= 19 && { id: 'log-meals', label: "Log tomorrow's meals", detail: 'Plan ahead', color: C.textSecondary, route: '/nutrition' },
-  ].filter(Boolean) as Array<{ id: string; label: string; detail: string; color: string; route: string }>;
+  const proteinLeft = nutritionToday.proteinTarget - nutritionToday.proteinLogged;
+  const waterLeft = waterToday.targetLitres - waterToday.loggedLitres;
+  const waterLeftText = waterLeft.toFixed(1) + 'L left';
+  const proteinLeftText = proteinLeft + 'g left';
 
-  const remainingTasks = allTasks.slice(0, 3);
-  const allDone = remainingTasks.length === 0;
-
-  // Insight accent color
-  const insightAccent = coachInsight.impact === 'caution' ? C.amber : coachInsight.impact === 'positive' ? C.teal : C.red;
-
-  const weekScoreText = `${homeData.weekScore}%`;
+  const streakNum = String(homeData.streakDays);
+  const weeklyText = `${homeData.weeklyWorkouts.done}/${homeData.weeklyWorkouts.total}`;
   const habitsText = `${homeData.habitsToday.completed}/${homeData.habitsToday.total}`;
-  const streakText = `${homeData.streakDays} days`;
 
-  // Quick action configs
-  const quickActions: QuickActionConfig[] = [
-    {
-      icon: <Layers size={24} color="#2DD4BF" strokeWidth={2} />,
-      label: 'Programs',
-      description: 'Browse packs',
-      gradientStart: '#0D2B28',
-      gradientEnd: '#0F2420',
-      iconBg: 'rgba(13,148,136,0.25)',
-      route: '/program-packs',
-    },
-    {
-      icon: <Apple size={24} color="#F97316" strokeWidth={2} />,
-      label: 'Nutrition',
-      description: 'Log meals',
-      gradientStart: '#2B1A0A',
-      gradientEnd: '#221508',
-      iconBg: 'rgba(249,115,22,0.2)',
-      route: '/nutrition',
-    },
-    {
-      icon: <Zap size={24} color="#A78BFA" strokeWidth={2} />,
-      label: 'AI Coach',
-      description: 'Ask anything',
-      gradientStart: '#1A1030',
-      gradientEnd: '#150D28',
-      iconBg: 'rgba(139,92,246,0.2)',
-      route: '/ai-coach',
-    },
-    {
-      icon: <CheckSquare size={24} color="#34D399" strokeWidth={2} />,
-      label: 'Habits',
-      description: 'Track daily',
-      gradientStart: '#0A2018',
-      gradientEnd: '#081A12',
-      iconBg: 'rgba(52,211,153,0.2)',
-      route: '/habits',
-    },
-  ];
+  const durationText = `${todayWorkout.duration} min`;
+  const exercisesText = `${todayWorkout.exerciseCount} exercises`;
+  const caloriesText = `${todayWorkout.calories} kcal`;
+
+  const stillToDoCount = 3;
+  const stillToDoCountStr = String(stillToDoCount);
 
   return (
     <View style={[styles.container, { backgroundColor: C.bg }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ── Header ── */}
-      <FadeSection index={0}>
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.contextLine}>{contextLine}</Text>
-          </View>
-          <AnimatedPressable
-            scaleValue={0.94}
-            onPress={() => {
-              console.log('[Home] User tapped streak widget → navigating to /streak-detail');
-              router.push('/streak-detail');
-            }}
-            style={styles.streakWidget}
-          >
-            <Flame size={16} color={C.tealLight} strokeWidth={2} />
-            <Text style={styles.streakWidgetText}>{homeData.streakDays}</Text>
-          </AnimatedPressable>
-        </View>
-      </FadeSection>
-
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: 120 }]}
       >
-        {/* ── 1. Hero Action Card ── */}
-        <FadeSection index={1}>
-          {heroType === 'workout' && (
-            <AnimatedPressable
-              scaleValue={0.98}
-              onPress={() => {
-                console.log('[Home] User tapped hero workout card → navigating to workout-detail');
-                router.push('/workout-detail/1');
-              }}
-              style={[styles.heroCard, { backgroundImage: 'linear-gradient(135deg, #0D9488 0%, #134E4A 50%, #0A0D1A 100%)' } as any]}
-            >
-              <View style={styles.heroTopRow}>
-                <Text style={styles.heroLabel}>TODAY'S WORKOUT</Text>
-                <View style={styles.heroDayBadge}>
-                  <Text style={styles.heroDayBadgeText}>Day {todayWorkout.dayNumber} of {todayWorkout.totalDays}</Text>
-                </View>
-              </View>
-              <Text style={styles.heroTitle}>{todayWorkout.title}</Text>
-              <View style={styles.heroChipsRow}>
-                <Chip label={`${todayWorkout.duration} min`} />
-                <Chip label={`${todayWorkout.exerciseCount} exercises`} />
-                <Chip label={todayWorkout.intensity} />
-              </View>
+        {/* ── 1. Header ── */}
+        <FadeSection index={0}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.headerGreeting}>{greetingPrefix}</Text>
+              <Text style={styles.headerName}>{displayName}</Text>
+              <Text style={styles.headerSubtitle}>Ready to train?</Text>
+            </View>
+            <View style={styles.headerRight}>
               <AnimatedPressable
-                scaleValue={0.97}
+                scaleValue={0.9}
                 onPress={() => {
-                  console.log('[Home] User tapped Start workout button → navigating to workout-detail');
-                  router.push('/workout-detail/1');
+                  console.log('[Home] User tapped notification bell → navigating to /notifications');
+                  router.push('/notifications');
                 }}
-                style={styles.heroButton}
+                style={styles.headerIconBtn}
+                accessibilityLabel="Notifications"
               >
-                <Text style={styles.heroButtonText}>Start workout →</Text>
+                <Bell size={22} color={C.teal} strokeWidth={2} />
               </AnimatedPressable>
-            </AnimatedPressable>
-          )}
-
-          {heroType === 'nutrition' && (
-            <AnimatedPressable
-              scaleValue={0.98}
-              onPress={() => {
-                console.log('[Home] User tapped hero nutrition card → navigating to /nutrition');
-                router.push('/nutrition');
-              }}
-              style={[styles.heroCard, { backgroundImage: 'linear-gradient(135deg, #92400E 0%, #1C1917 100%)' } as any]}
-            >
-              <Text style={[styles.heroLabel, { color: C.amber }]}>NUTRITION FOCUS</Text>
-              <Text style={styles.heroTitle}>{proteinGap}g protein remaining</Text>
-              <Text style={styles.heroSubtitle}>You're on track for calories — just close the protein gap.</Text>
               <AnimatedPressable
-                scaleValue={0.97}
+                scaleValue={0.94}
                 onPress={() => {
-                  console.log('[Home] User tapped Log a meal button → navigating to /nutrition');
-                  router.push('/nutrition');
+                  console.log('[Home] User tapped avatar → navigating to profile tab');
+                  router.push('/(tabs)/profile');
                 }}
-                style={[styles.heroButton, { backgroundColor: C.amber }]}
+                style={styles.avatarCircle}
+                accessibilityLabel="Profile"
               >
-                <Text style={styles.heroButtonText}>Log a meal →</Text>
+                <Text style={styles.avatarInitials}>{initials}</Text>
               </AnimatedPressable>
-            </AnimatedPressable>
-          )}
-
-          {heroType === 'tomorrow' && (
-            <AnimatedPressable
-              scaleValue={0.98}
-              onPress={() => {
-                console.log('[Home] User tapped hero tomorrow card → navigating to /training-plan');
-                router.push('/training-plan');
-              }}
-              style={[styles.heroCard, { backgroundImage: 'linear-gradient(135deg, #1E3A5F 0%, #0A0D1A 100%)' } as any]}
-            >
-              <Text style={[styles.heroLabel, { color: C.blue }]}>TOMORROW</Text>
-              <Text style={styles.heroTitle}>Upper Body Strength</Text>
-              <Text style={styles.heroSubtitle}>Rest well tonight — tomorrow is a heavy session.</Text>
-            </AnimatedPressable>
-          )}
+            </View>
+          </View>
         </FadeSection>
 
-        {/* ── 2. Quick Actions Grid ── */}
-        <FadeSection index={2}>
-          <Text style={styles.sectionHeader}>Quick Actions</Text>
-          <View style={styles.quickGrid}>
-            {quickActions.map((qa) => (
-              <QuickActionCard
-                key={qa.label}
-                config={qa}
-                onPress={() => {
-                  console.log(`[Home] User tapped quick action "${qa.label}" → navigating to ${qa.route}`);
-                  router.push(qa.route as any);
-                }}
+        {/* ── 2. Hero Workout Card ── */}
+        <FadeSection index={1}>
+          <View style={styles.heroCard}>
+            {/* Teal glow in top-right corner */}
+            <View style={styles.heroGlow} pointerEvents="none" />
+
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroLabel}>TODAY'S WORKOUT</Text>
+              <View style={styles.intensityChip}>
+                <Flame size={11} color={C.amber} strokeWidth={2} />
+                <Text style={styles.intensityChipText}>{todayWorkout.intensity}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.heroTitle}>{todayWorkout.title}</Text>
+
+            <View style={styles.heroStatsRow}>
+              <StatChip
+                icon={<Clock size={13} color={C.textSecondary} strokeWidth={2} />}
+                value={durationText}
               />
-            ))}
+              <StatChip
+                icon={<Dumbbell size={13} color={C.textSecondary} strokeWidth={2} />}
+                value={exercisesText}
+              />
+              <StatChip
+                icon={<Zap size={13} color={C.textSecondary} strokeWidth={2} />}
+                value={caloriesText}
+              />
+            </View>
+
+            <AnimatedPressable
+              scaleValue={0.97}
+              onPress={() => {
+                console.log('[Home] User tapped Start Workout button → navigating to /workout-detail/1');
+                router.push('/workout-detail/1');
+              }}
+              style={styles.heroButton}
+            >
+              <Text style={styles.heroButtonText}>Start Workout →</Text>
+            </AnimatedPressable>
           </View>
         </FadeSection>
 
         {/* ── 3. Still to do ── */}
-        <FadeSection index={3}>
-          {allDone ? (
-            <View style={styles.allDoneRow}>
-              <Check size={16} color={C.green} strokeWidth={2.5} />
-              <Text style={styles.allDoneText}>All done today 🎉</Text>
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.sectionHeader}>Still to do</Text>
-              <View style={styles.taskList}>
-                {remainingTasks.map((task, i) => (
-                  <AnimatedPressable
-                    key={task.id}
-                    onPress={() => {
-                      console.log(`[Home] User tapped task "${task.label}" → navigating to ${task.route}`);
-                      router.push(task.route as any);
-                    }}
-                  >
-                    <View style={[styles.taskRow, i < remainingTasks.length - 1 && styles.taskRowDivider]}>
-                      <View style={[styles.taskDot, { backgroundColor: task.color }]} />
-                      <Text style={styles.taskLabel}>{task.label}</Text>
-                      <Text style={styles.taskDetail}>{task.detail}</Text>
-                      <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
-                    </View>
-                  </AnimatedPressable>
-                ))}
+        <FadeSection index={2}>
+          <SectionHeader title="Still to do" badge={stillToDoCountStr} />
+          <View style={styles.taskCard}>
+            {/* Row 1: Nutrition */}
+            <AnimatedPressable
+              scaleValue={0.98}
+              onPress={() => {
+                console.log('[Home] User tapped "Hit protein goal" task → navigating to /nutrition');
+                router.push('/nutrition');
+              }}
+            >
+              <View style={styles.taskRow}>
+                <View style={[styles.taskIconCircle, { backgroundColor: C.tealMuted }]}>
+                  <Zap size={16} color={C.teal} strokeWidth={2} />
+                </View>
+                <View style={styles.taskTextGroup}>
+                  <Text style={styles.taskTitle}>Nutrition</Text>
+                  <Text style={styles.taskSubtitle}>Hit protein goal</Text>
+                </View>
+                <Text style={[styles.taskMetric, { color: C.teal }]}>{proteinLeftText}</Text>
+                <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
               </View>
-            </View>
-          )}
+            </AnimatedPressable>
+
+            <View style={styles.taskDivider} />
+
+            {/* Row 2: Hydration */}
+            <AnimatedPressable
+              scaleValue={0.98}
+              onPress={() => {
+                console.log('[Home] User tapped "Drink water" task → navigating to /nutrition');
+                router.push('/nutrition');
+              }}
+            >
+              <View style={styles.taskRow}>
+                <View style={[styles.taskIconCircle, { backgroundColor: C.blueMuted }]}>
+                  <Droplets size={16} color={C.blue} strokeWidth={2} />
+                </View>
+                <View style={styles.taskTextGroup}>
+                  <Text style={styles.taskTitle}>Hydration</Text>
+                  <Text style={styles.taskSubtitle}>Drink water</Text>
+                </View>
+                <Text style={[styles.taskMetric, { color: C.blue }]}>{waterLeftText}</Text>
+                <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
+              </View>
+            </AnimatedPressable>
+
+            <View style={styles.taskDivider} />
+
+            {/* Row 3: Mobility */}
+            <AnimatedPressable
+              scaleValue={0.98}
+              onPress={() => {
+                console.log('[Home] User tapped "Evening stretch" task → navigating to /habits');
+                router.push('/habits');
+              }}
+            >
+              <View style={styles.taskRow}>
+                <View style={[styles.taskIconCircle, { backgroundColor: C.amberMuted }]}>
+                  <Footprints size={16} color={C.amber} strokeWidth={2} />
+                </View>
+                <View style={styles.taskTextGroup}>
+                  <Text style={styles.taskTitle}>Mobility</Text>
+                  <Text style={styles.taskSubtitle}>Evening stretch</Text>
+                </View>
+                <Text style={[styles.taskMetric, { color: C.amber }]}>10 min</Text>
+                <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
+              </View>
+            </AnimatedPressable>
+          </View>
         </FadeSection>
 
-        {/* ── 4. Progress snapshot ── */}
-        <FadeSection index={4}>
-          <Text style={styles.sectionHeader}>Progress</Text>
-          <AnimatedPressable
-            onPress={() => {
-              console.log('[Home] User tapped momentum strip → navigating to /streak-detail');
-              router.push('/streak-detail');
-            }}
-            style={styles.momentumCard}
-          >
-            <View style={styles.momentumStat}>
-              <Flame size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{streakText}</Text>
-              <Text style={styles.momentumLabel}>STREAK</Text>
-            </View>
-            <View style={styles.momentumDivider} />
-            <View style={styles.momentumStat}>
-              <BarChart2 size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{weekScoreText}</Text>
-              <Text style={styles.momentumLabel}>THIS WEEK</Text>
-            </View>
-            <View style={styles.momentumDivider} />
-            <View style={styles.momentumStat}>
-              <Check size={18} color={C.tealLight} strokeWidth={2} />
-              <Text style={styles.momentumValue}>{habitsText}</Text>
-              <Text style={styles.momentumLabel}>HABITS</Text>
-            </View>
-          </AnimatedPressable>
+        {/* ── 4. Progress Row ── */}
+        <FadeSection index={3}>
+          <View style={styles.progressRow}>
+            {/* Streak */}
+            <AnimatedPressable
+              scaleValue={0.97}
+              onPress={() => {
+                console.log('[Home] User tapped streak stat card → navigating to /streak-detail');
+                router.push('/streak-detail');
+              }}
+              style={styles.statCard}
+            >
+              <Flame size={20} color={C.teal} strokeWidth={2} />
+              <Text style={styles.statCardNumber}>{streakNum}</Text>
+              <Text style={styles.statCardLabel}>day streak</Text>
+            </AnimatedPressable>
+
+            {/* Weekly */}
+            <AnimatedPressable
+              scaleValue={0.97}
+              onPress={() => {
+                console.log('[Home] User tapped weekly stat card → navigating to /weekly-adherence-detail');
+                router.push('/weekly-adherence-detail');
+              }}
+              style={styles.statCard}
+            >
+              <BarChart2 size={20} color={C.teal} strokeWidth={2} />
+              <Text style={styles.statCardNumber}>{weeklyText}</Text>
+              <Text style={styles.statCardLabel}>workouts</Text>
+            </AnimatedPressable>
+
+            {/* Habits */}
+            <AnimatedPressable
+              scaleValue={0.97}
+              onPress={() => {
+                console.log('[Home] User tapped habits stat card → navigating to /habits');
+                router.push('/habits');
+              }}
+              style={styles.statCard}
+            >
+              <CheckCircle size={20} color={C.teal} strokeWidth={2} />
+              <Text style={styles.statCardNumber}>{habitsText}</Text>
+              <Text style={styles.statCardLabel}>habits done</Text>
+            </AnimatedPressable>
+          </View>
         </FadeSection>
 
         {/* ── 5. Coming up ── */}
-        <FadeSection index={5}>
-          <Text style={styles.sectionHeader}>Coming up</Text>
-          <View style={styles.upcomingRow}>
+        <FadeSection index={4}>
+          <SectionHeader title="Coming up" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.upcomingScroll}
+          >
             {homeData.upcomingDays.map((day, i) => (
-              <AnimatedPressable
+              <UpcomingCard
                 key={i}
-                scaleValue={0.96}
+                day={day}
                 onPress={() => {
                   console.log(`[Home] User tapped upcoming day "${day.label}" → navigating to /training-plan`);
                   router.push('/training-plan');
                 }}
-                style={[styles.upcomingCard, i === 0 && styles.upcomingCardFirst]}
-              >
-                <Text style={styles.upcomingDayLabel}>{day.label}</Text>
-                <Text style={styles.upcomingWorkoutName} numberOfLines={2}>{day.workout}</Text>
-                <View style={styles.upcomingBottom}>
-                  {day.isRest ? (
-                    <Moon size={12} color={C.textTertiary} strokeWidth={2} />
-                  ) : (
-                    <View style={styles.upcomingDurationBadge}>
-                      <Text style={styles.upcomingDurationText}>{day.duration} min</Text>
-                    </View>
-                  )}
-                </View>
-              </AnimatedPressable>
+              />
             ))}
-          </View>
+          </ScrollView>
         </FadeSection>
 
-        {/* ── 6. Coach insight ── */}
-        {!insightDismissed && (
-          <FadeSection index={6}>
-            <View style={[styles.insightCard, { borderLeftColor: insightAccent }]}>
-              <View style={styles.insightTopRow}>
-                <Text style={[styles.insightLabel, { color: insightAccent }]}>COACH INSIGHT</Text>
-                <AnimatedPressable
-                  scaleValue={0.9}
-                  onPress={() => {
-                    console.log('[Home] User dismissed coach insight');
-                    setInsightDismissed(true);
-                  }}
-                  style={styles.insightDismiss}
-                >
-                  <X size={16} color={C.textTertiary} strokeWidth={2} />
-                </AnimatedPressable>
-              </View>
-              <Text style={styles.insightTitle}>{coachInsight.title}</Text>
-              <Text style={styles.insightReason} numberOfLines={2}>{coachInsight.shortReason}</Text>
-              <AnimatedPressable
-                onPress={() => {
-                  console.log('[Home] User tapped See all insights → navigating to /coach-insights');
-                  router.push('/coach-insights');
-                }}
-              >
-                <Text style={styles.insightLink}>See all insights →</Text>
-              </AnimatedPressable>
+        {/* ── 6. Coach Insight ── */}
+        <FadeSection index={5}>
+          <AnimatedPressable
+            scaleValue={0.98}
+            onPress={() => {
+              console.log('[Home] User tapped coach insight card → navigating to /coach-insights');
+              router.push('/coach-insights');
+            }}
+            style={styles.insightCard}
+          >
+            <View style={styles.insightTopRow}>
+              <Sparkles size={14} color={C.teal} strokeWidth={2} />
+              <Text style={styles.insightLabel}>COACH INSIGHT</Text>
             </View>
-          </FadeSection>
-        )}
-
-        {/* ── 7. Active mode banners ── */}
-        {(homeData.travelModeActive || homeData.studentModeActive) && (
-          <FadeSection index={7}>
-            <View style={styles.modeBannersContainer}>
-              {homeData.travelModeActive && (
-                <AnimatedPressable
-                  onPress={() => {
-                    console.log('[Home] User tapped Travel Mode banner → navigating to /travel-mode');
-                    router.push('/travel-mode');
-                  }}
-                  style={[styles.modeBanner, { borderColor: `${C.teal}30` }]}
-                >
-                  <Plane size={14} color={C.teal} strokeWidth={2} />
-                  <Text style={styles.modeBannerText}>Travel Mode</Text>
-                  <Text style={styles.modeBannerDetail}>{homeData.travelDestination}</Text>
-                  <ChevronRight size={14} color={C.teal} strokeWidth={2} />
-                </AnimatedPressable>
-              )}
-              {homeData.studentModeActive && (
-                <AnimatedPressable
-                  onPress={() => {
-                    console.log('[Home] User tapped Student Mode banner → navigating to /student-mode');
-                    router.push('/student-mode');
-                  }}
-                  style={[styles.modeBanner, { borderColor: `${C.violet}30` }]}
-                >
-                  <BookOpen size={14} color={C.violet} strokeWidth={2} />
-                  <Text style={styles.modeBannerText}>Student Mode</Text>
-                  <Text style={styles.modeBannerDetail}>{homeData.studentExamName}</Text>
-                  <ChevronRight size={14} color={C.violet} strokeWidth={2} />
-                </AnimatedPressable>
-              )}
-            </View>
-          </FadeSection>
-        )}
+            <Text style={styles.insightTitle}>{coachInsight.title}</Text>
+            <Text style={styles.insightReason} numberOfLines={2}>{coachInsight.reason}</Text>
+            <Text style={styles.insightLink}>See full analysis →</Text>
+          </AnimatedPressable>
+        </FadeSection>
       </ScrollView>
     </View>
   );
@@ -546,110 +446,145 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 20,
   },
+
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
   },
   headerLeft: {
     flex: 1,
     paddingRight: 12,
   },
-  greeting: {
-    fontSize: 26,
+  headerGreeting: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: C.textSecondary,
+    marginBottom: 2,
+  },
+  headerName: {
+    fontSize: 28,
     fontWeight: '800',
     color: C.text,
     letterSpacing: -0.5,
-    marginBottom: 4,
+    lineHeight: 34,
   },
-  contextLine: {
-    fontSize: 13,
+  headerSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
     color: C.textSecondary,
-    lineHeight: 18,
+    marginTop: 2,
   },
-  streakWidget: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.tealMuted,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: `${C.teal}30`,
-    borderCurve: 'continuous',
+    gap: 10,
+    paddingTop: 4,
   },
-  streakWidgetText: {
+  headerIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,212,170,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,212,170,0.3)',
+  },
+  avatarInitials: {
     fontSize: 15,
     fontWeight: '700',
-    color: C.tealLight,
+    color: C.teal,
+    letterSpacing: 0.5,
   },
+
   // Hero card
   heroCard: {
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
-    minHeight: 160,
-    justifyContent: 'space-between',
-    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: C.border,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(0,212,170,0.07)',
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   heroLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: C.tealLight,
+    color: C.teal,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
-  heroDayBadge: {
-    backgroundColor: C.tealMuted,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderCurve: 'continuous',
+  intensityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.amberMuted,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
   },
-  heroDayBadgeText: {
+  intensityChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: C.tealLight,
+    color: C.amber,
   },
   heroTitle: {
     fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5,
-    marginBottom: 10,
+    marginBottom: 14,
+    lineHeight: 32,
   },
-  heroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.65)',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  heroChipsRow: {
+  heroStatsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 18,
   },
-  chip: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  statChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.surface2,
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderCurve: 'continuous',
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  chipText: {
+  statChipText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '500',
+    color: C.textSecondary,
   },
   heroButton: {
     backgroundColor: C.teal,
@@ -657,232 +592,173 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderCurve: 'continuous',
   },
   heroButtonText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: '#000000',
+    letterSpacing: 0.2,
   },
+
   // Section header
-  sectionHeader: {
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
     fontSize: 17,
     fontWeight: '600',
     color: C.text,
-    marginBottom: 12,
   },
-  // Quick Actions Grid — 2×2, vertical card layout
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  quickCard: {
-    // Each card takes ~half the row width, accounting for the gap
-    width: '48%',
-    flexGrow: 1,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 10,
+  sectionBadge: {
+    backgroundColor: C.tealMuted,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderCurve: 'continuous',
-    position: 'relative',
-    minHeight: 100,
+    borderColor: C.tealBorder,
   },
-  quickCardShine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  quickCardIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderCurve: 'continuous',
-  },
-  quickCardTextGroup: {
-    gap: 3,
-  },
-  quickCardLabel: {
-    fontSize: 14,
+  sectionBadgeText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: C.text,
-    letterSpacing: -0.2,
+    color: C.teal,
   },
-  quickCardDesc: {
-    fontSize: 11,
-    color: C.textSecondary,
-    fontWeight: '500',
-  },
-  // Tasks
-  taskList: {
-    backgroundColor: C.card,
+
+  // Task card
+  taskCard: {
+    backgroundColor: C.surface,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
     overflow: 'hidden',
-    borderCurve: 'continuous',
   },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 10,
+    gap: 12,
   },
-  taskRowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: C.divider,
+  taskDivider: {
+    height: 1,
+    backgroundColor: C.divider,
+    marginHorizontal: 16,
   },
-  taskDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  taskIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  taskLabel: {
+  taskTextGroup: {
     flex: 1,
+    gap: 2,
+  },
+  taskTitle: {
     fontSize: 15,
     fontWeight: '500',
     color: C.text,
   },
-  taskDetail: {
-    fontSize: 13,
+  taskSubtitle: {
+    fontSize: 12,
+    fontWeight: '400',
     color: C.textSecondary,
-    marginRight: 4,
   },
-  allDoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(34,197,94,0.08)',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.2)',
-    borderCurve: 'continuous',
-  },
-  allDoneText: {
-    fontSize: 15,
+  taskMetric: {
+    fontSize: 13,
     fontWeight: '600',
-    color: C.green,
+    marginRight: 2,
   },
-  // Upcoming
-  upcomingRow: {
+
+  // Progress row
+  progressRow: {
     flexDirection: 'row',
     gap: 10,
   },
-  upcomingCard: {
+  statCard: {
     flex: 1,
-    backgroundColor: C.card,
-    borderRadius: 12,
-    padding: 12,
-    minHeight: 88,
-    justifyContent: 'space-between',
-    borderCurve: 'continuous',
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: C.tealBorder,
   },
-  upcomingCardFirst: {
-    borderLeftWidth: 3,
-    borderLeftColor: C.teal,
+  statCardNumber: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: C.text,
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
+  statCardLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: C.textSecondary,
+    textAlign: 'center',
+  },
+
+  // Coming up
+  upcomingScroll: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  upcomingCard: {
+    width: 120,
+    height: 110,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 14,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: C.border,
   },
   upcomingDayLabel: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '500',
     color: C.textSecondary,
-    marginBottom: 4,
   },
-  upcomingWorkoutName: {
+  upcomingSessionName: {
     fontSize: 14,
     fontWeight: '600',
     color: C.text,
-    lineHeight: 19,
-    flex: 1,
+    lineHeight: 18,
   },
-  upcomingBottom: {
-    marginTop: 6,
+  upcomingDuration: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: C.textSecondary,
   },
-  upcomingDurationBadge: {
-    backgroundColor: C.tealMuted,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignSelf: 'flex-start',
-    borderCurve: 'continuous',
-  },
-  upcomingDurationText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.tealLight,
-  },
-  // Momentum
-  momentumCard: {
-    flexDirection: 'row',
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderCurve: 'continuous',
-  },
-  momentumStat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  momentumDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: C.border,
-  },
-  momentumValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: C.text,
-    letterSpacing: -0.3,
-  },
-  momentumLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  // Insight
+
+  // Coach insight
   insightCard: {
-    backgroundColor: C.card,
+    backgroundColor: C.surface3,
     borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: C.border,
     borderLeftWidth: 3,
-    borderCurve: 'continuous',
+    borderLeftColor: C.teal,
   },
   insightTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 6,
     marginBottom: 8,
   },
   insightLabel: {
     fontSize: 10,
     fontWeight: '700',
+    color: C.teal,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-  insightDismiss: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: -12,
-    marginTop: -12,
-  },
   insightTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: C.text,
     marginBottom: 6,
@@ -891,37 +767,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.textSecondary,
     lineHeight: 19,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   insightLink: {
     fontSize: 13,
-    fontWeight: '600',
-    color: C.tealLight,
-    textAlign: 'right',
-  },
-  // Mode banners
-  modeBannersContainer: {
-    gap: 8,
-  },
-  modeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 48,
-    backgroundColor: C.card,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderCurve: 'continuous',
-  },
-  modeBannerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.text,
-  },
-  modeBannerDetail: {
-    flex: 1,
-    fontSize: 13,
-    color: C.textSecondary,
+    fontWeight: '500',
+    color: C.teal,
   },
 });
