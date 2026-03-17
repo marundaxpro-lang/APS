@@ -172,6 +172,52 @@ const DIET_PREFERENCES = [
 
 const DIET_STORAGE_KEY = 'nutritionDietPreference';
 
+const DIET_EXCLUDED_IDS: Record<string, string[]> = {
+  none: [],
+  vegetarian: [
+    'chicken_rice_bowl', 'tuna_wrap', 'tuna_salad', 'salmon_sweet_potato',
+    'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl', 'chicken_pasta',
+    'turkey_sandwich', 'shrimp_rice', 'chicken_salad', 'chicken_wrap',
+    'bagel_cream_cheese',
+  ],
+  vegan: [
+    'chicken_rice_bowl', 'tuna_wrap', 'tuna_salad', 'salmon_sweet_potato',
+    'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl', 'chicken_pasta',
+    'turkey_sandwich', 'shrimp_rice', 'chicken_salad', 'chicken_wrap',
+    'bagel_cream_cheese', 'skyr_whey_berries', 'eggs_toast', 'protein_shake',
+    'greek_yogurt_granola', 'egg_white_omelette', 'cottage_cheese_fruit',
+    'protein_pancakes', 'protein_oats', 'protein_bar', 'overnight_oats',
+    'greek_salad',
+  ],
+  pescatarian: [
+    'chicken_rice_bowl', 'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl',
+    'chicken_pasta', 'turkey_sandwich', 'chicken_salad', 'chicken_wrap',
+  ],
+  keto: [
+    'oatmeal_banana', 'chicken_rice_bowl', 'chicken_pasta', 'pasta_marinara',
+    'bagel_cream_cheese', 'rice_cakes_pb', 'smoothie_bowl', 'overnight_oats',
+    'protein_oats', 'shrimp_rice', 'beef_quinoa_bowl',
+  ],
+  paleo: [
+    'skyr_whey_berries', 'protein_shake', 'greek_yogurt_granola', 'chicken_pasta',
+    'pasta_marinara', 'bagel_cream_cheese', 'rice_cakes_pb', 'tuna_wrap',
+    'turkey_avocado_wrap', 'turkey_sandwich', 'chicken_wrap', 'protein_pancakes',
+    'protein_oats', 'overnight_oats', 'hummus_veggies', 'cottage_cheese_fruit',
+    'protein_bar',
+  ],
+  'gluten-free': [
+    'tuna_wrap', 'turkey_avocado_wrap', 'chicken_pasta', 'pasta_marinara',
+    'bagel_cream_cheese', 'turkey_sandwich', 'chicken_wrap',
+  ],
+};
+
+function filterMealsByDiet(meals: MacroMeal[], diet: string): MacroMeal[] {
+  const excluded = DIET_EXCLUDED_IDS[diet] || [];
+  if (excluded.length === 0) return meals;
+  const filtered = meals.filter(m => !excluded.includes(m.id));
+  return filtered.length > 0 ? filtered : meals;
+}
+
 export default function NutritionScreen() {
   const router = useRouter();
   const { isPremium } = useAuth();
@@ -273,22 +319,29 @@ export default function NutritionScreen() {
     loadData();
   }, [loadData]);
 
-  const generateTodaysPlan = () => {
-    const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-    const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
-    const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
-    
-    const plan: TodaysPlan = {
-      Breakfast: highCarb.length > 0 ? highCarb[Math.floor(Math.random() * highCarb.length)] : MACRO_MEALS_LIBRARY[0],
-      Lunch: balanced.length > 0 ? balanced[Math.floor(Math.random() * balanced.length)] : MACRO_MEALS_LIBRARY[1],
-      Dinner: balanced.length > 0 ? balanced[Math.floor(Math.random() * balanced.length)] : MACRO_MEALS_LIBRARY[1],
-      Snacks: highProtein.length > 0 ? highProtein[Math.floor(Math.random() * highProtein.length)] : MACRO_MEALS_LIBRARY[0],
+  const generateTodaysPlan = (diet?: string) => {
+    const activeDiet = diet !== undefined ? diet : dietPreference;
+    const allowed = filterMealsByDiet(MACRO_MEALS_LIBRARY, activeDiet);
+    const balanced = allowed.filter(m => m.category === 'balanced');
+    const highProtein = allowed.filter(m => m.category === 'high_protein');
+    const highCarb = allowed.filter(m => m.category === 'high_carb');
+
+    const pickFrom = (arr: MacroMeal[], fallback: MacroMeal[]): MacroMeal => {
+      const pool = arr.length > 0 ? arr : fallback;
+      return pool[Math.floor(Math.random() * pool.length)];
     };
-    
+
+    const plan: TodaysPlan = {
+      Breakfast: pickFrom(highCarb, allowed),
+      Lunch: pickFrom(balanced, allowed),
+      Dinner: pickFrom(balanced, allowed),
+      Snacks: pickFrom(highProtein, allowed),
+    };
+
     setTodaysPlan(plan);
     const today = new Date().toISOString().split('T')[0];
     AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan }));
-    console.log('[Nutrition] Generated new today plan');
+    console.log('[Nutrition] Generated new today plan for diet:', activeDiet);
   };
 
   const saveDailyData = async (data: DailyNutritionData) => {
@@ -436,6 +489,8 @@ export default function NutritionScreen() {
     setDietPreference(pref);
     await AsyncStorage.setItem(DIET_STORAGE_KEY, pref);
     console.log('[Nutrition] User changed diet preference to:', pref);
+    // Regenerate today's plan immediately with the new diet so UI updates without navigation
+    generateTodaysPlan(pref);
     setShowDietModal(false);
   };
 
@@ -452,12 +507,13 @@ export default function NutritionScreen() {
   };
 
   const getSuggestedMeals = (): MacroMeal[] => {
-    const sortedByProtein = [...MACRO_MEALS_LIBRARY].sort((a, b) => {
+    const allowed = filterMealsByDiet(MACRO_MEALS_LIBRARY, dietPreference);
+    const sortedByMacros = [...allowed].sort((a, b) => {
       const aScore = Math.abs(a.P - remaining.P) + Math.abs(a.C - remaining.C) + Math.abs(a.F - remaining.F);
       const bScore = Math.abs(b.P - remaining.P) + Math.abs(b.C - remaining.C) + Math.abs(b.F - remaining.F);
       return aScore - bScore;
     });
-    return sortedByProtein.slice(0, 3);
+    return sortedByMacros.slice(0, 3);
   };
 
   const consumed = dailyData.entries.reduce(

@@ -136,7 +136,7 @@ export default function ParticleBackground() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       {particles}
     </View>
   );
@@ -146,7 +146,6 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-    pointerEvents: 'none',
   },
   particle: {
     position: 'absolute',

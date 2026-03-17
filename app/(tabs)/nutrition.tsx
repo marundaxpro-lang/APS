@@ -558,6 +558,55 @@ const DIET_PREFERENCES = [
 
 const DIET_STORAGE_KEY = 'nutritionDietPreference';
 
+// Meals that are safe for each diet. Empty set = all meals allowed.
+const DIET_EXCLUDED_IDS: Record<string, string[]> = {
+  none: [],
+  vegetarian: [
+    'chicken_rice_bowl', 'tuna_wrap', 'tuna_salad', 'salmon_sweet_potato',
+    'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl', 'chicken_pasta',
+    'turkey_sandwich', 'shrimp_rice', 'chicken_salad', 'chicken_wrap',
+    'bagel_cream_cheese', // smoked salmon
+  ],
+  vegan: [
+    'chicken_rice_bowl', 'tuna_wrap', 'tuna_salad', 'salmon_sweet_potato',
+    'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl', 'chicken_pasta',
+    'turkey_sandwich', 'shrimp_rice', 'chicken_salad', 'chicken_wrap',
+    'bagel_cream_cheese', 'skyr_whey_berries', 'eggs_toast', 'protein_shake',
+    'greek_yogurt_granola', 'egg_white_omelette', 'cottage_cheese_fruit',
+    'protein_pancakes', 'protein_oats', 'protein_bar', 'overnight_oats',
+  ],
+  pescatarian: [
+    'chicken_rice_bowl', 'turkey_avocado_wrap', 'steak_veggies', 'beef_quinoa_bowl',
+    'chicken_pasta', 'turkey_sandwich', 'chicken_salad', 'chicken_wrap',
+  ],
+  keto: [
+    // exclude high-carb items
+    'oats_banana', 'chicken_rice_bowl', 'chicken_pasta', 'pasta_marinara',
+    'bagel_cream_cheese', 'rice_cakes_pb', 'smoothie_bowl', 'overnight_oats',
+    'protein_oats', 'shrimp_rice', 'beef_quinoa_bowl',
+  ],
+  paleo: [
+    // exclude dairy, grains, legumes
+    'skyr_whey_berries', 'protein_shake', 'greek_yogurt_granola', 'chicken_pasta',
+    'pasta_marinara', 'bagel_cream_cheese', 'rice_cakes_pb', 'tuna_wrap',
+    'turkey_avocado_wrap', 'turkey_sandwich', 'chicken_wrap', 'protein_pancakes',
+    'protein_oats', 'overnight_oats', 'hummus_veggies', 'cottage_cheese_fruit',
+    'protein_bar',
+  ],
+  'gluten-free': [
+    'tuna_wrap', 'turkey_avocado_wrap', 'chicken_pasta', 'pasta_marinara',
+    'bagel_cream_cheese', 'turkey_sandwich', 'chicken_wrap',
+  ],
+};
+
+function filterMealsByDiet(meals: MacroMeal[], diet: string): MacroMeal[] {
+  const excluded = DIET_EXCLUDED_IDS[diet] || [];
+  if (excluded.length === 0) return meals;
+  const filtered = meals.filter(m => !excluded.includes(m.id));
+  // Fall back to full list if diet filter removes everything
+  return filtered.length > 0 ? filtered : meals;
+}
+
 export default function NutritionScreen() {
   const router = useRouter();
   const { isPremium } = useAuth();
@@ -660,22 +709,29 @@ export default function NutritionScreen() {
     loadData();
   }, [loadData]);
 
-  const generateTodaysPlan = () => {
-    const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-    const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
-    const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
-    
+  const generateTodaysPlan = (diet?: string) => {
+    const activeDiet = diet !== undefined ? diet : dietPreference;
+    const allowed = filterMealsByDiet(MACRO_MEALS_LIBRARY, activeDiet);
+    const balanced = allowed.filter(m => m.category === 'balanced');
+    const highProtein = allowed.filter(m => m.category === 'high_protein');
+    const highCarb = allowed.filter(m => m.category === 'high_carb');
+
+    const pickFrom = (arr: MacroMeal[], fallback: MacroMeal[]): MacroMeal => {
+      const pool = arr.length > 0 ? arr : fallback;
+      return pool[Math.floor(Math.random() * pool.length)];
+    };
+
     const plan: TodaysPlan = {
-      Breakfast: highCarb[Math.floor(Math.random() * highCarb.length)],
-      Lunch: balanced[Math.floor(Math.random() * balanced.length)],
-      Dinner: balanced[Math.floor(Math.random() * balanced.length)],
-      Snacks: highProtein[Math.floor(Math.random() * highProtein.length)],
+      Breakfast: pickFrom(highCarb, allowed),
+      Lunch: pickFrom(balanced, allowed),
+      Dinner: pickFrom(balanced, allowed),
+      Snacks: pickFrom(highProtein, allowed),
     };
     
     setTodaysPlan(plan);
     const today = new Date().toISOString().split('T')[0];
     AsyncStorage.setItem('todaysPlan', JSON.stringify({ date: today, plan }));
-    console.log('[Nutrition] Generated new today plan');
+    console.log('[Nutrition] Generated new today plan for diet:', activeDiet);
   };
 
   const saveDailyData = async (data: DailyNutritionData) => {
@@ -767,18 +823,22 @@ export default function NutritionScreen() {
       C: targets.carbsGoal - consumed.C,
       F: targets.fatGoal - consumed.F,
     };
+
+    const allowed = filterMealsByDiet(MACRO_MEALS_LIBRARY, dietPreference);
     
     let filtered: MacroMeal[] = [];
     
     if (remaining.P > remaining.C && remaining.P > remaining.F) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein');
+      filtered = allowed.filter(m => m.category === 'high_protein');
     } else if (remaining.C > remaining.P && remaining.C > remaining.F) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb');
+      filtered = allowed.filter(m => m.category === 'high_carb');
     } else if (remaining.kcal < 400) {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light');
+      filtered = allowed.filter(m => m.category === 'light');
     } else {
-      filtered = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
+      filtered = allowed.filter(m => m.category === 'balanced');
     }
+
+    if (filtered.length === 0) filtered = allowed;
     
     const shuffled = [...filtered].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
@@ -791,11 +851,13 @@ export default function NutritionScreen() {
       C: targets.carbsGoal - consumed.C,
       F: targets.fatGoal - consumed.F,
     };
+
+    const allowed = filterMealsByDiet(MACRO_MEALS_LIBRARY, dietPreference);
     
     const suggestions: (MacroMeal & { reason: string })[] = [];
     
     if (remaining.P > 40) {
-      const highProtein = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_protein' && m.P >= 30);
+      const highProtein = allowed.filter(m => m.category === 'high_protein' && m.P >= 30);
       if (highProtein.length > 0) {
         const meal = highProtein[Math.floor(Math.random() * highProtein.length)];
         suggestions.push({ ...meal, reason: "You're low on protein" });
@@ -803,7 +865,7 @@ export default function NutritionScreen() {
     }
     
     if (remaining.C > 50) {
-      const highCarb = MACRO_MEALS_LIBRARY.filter(m => m.category === 'high_carb' && m.C >= 40);
+      const highCarb = allowed.filter(m => m.category === 'high_carb' && m.C >= 40);
       if (highCarb.length > 0) {
         const meal = highCarb[Math.floor(Math.random() * highCarb.length)];
         suggestions.push({ ...meal, reason: "You need more carbs" });
@@ -811,7 +873,7 @@ export default function NutritionScreen() {
     }
     
     if (remaining.kcal < 400) {
-      const light = MACRO_MEALS_LIBRARY.filter(m => m.category === 'light' && m.kcal <= 300);
+      const light = allowed.filter(m => m.category === 'light' && m.kcal <= 300);
       if (light.length > 0) {
         const meal = light[Math.floor(Math.random() * light.length)];
         suggestions.push({ ...meal, reason: "Light option for remaining calories" });
@@ -819,8 +881,9 @@ export default function NutritionScreen() {
     }
     
     while (suggestions.length < 3) {
-      const balanced = MACRO_MEALS_LIBRARY.filter(m => m.category === 'balanced');
-      const meal = balanced[Math.floor(Math.random() * balanced.length)];
+      const balanced = allowed.filter(m => m.category === 'balanced');
+      const pool = balanced.length > 0 ? balanced : allowed;
+      const meal = pool[Math.floor(Math.random() * pool.length)];
       if (!suggestions.find(s => s.id === meal.id)) {
         suggestions.push({ ...meal, reason: "Balanced macro option" });
       }
@@ -946,6 +1009,8 @@ export default function NutritionScreen() {
     setDietPreference(pref);
     await AsyncStorage.setItem(DIET_STORAGE_KEY, pref);
     console.log('[Nutrition] User changed diet preference to:', pref);
+    // Regenerate today's plan immediately with the new diet so UI updates without navigation
+    generateTodaysPlan(pref);
     setShowDietModal(false);
   };
 
