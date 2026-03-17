@@ -348,7 +348,10 @@ export default function WorkoutSessionScreen() {
 
           {/* Action Button */}
           {!isResting ? (
-            <TouchableOpacity style={styles.completeButton} onPress={completeSet}>
+            <TouchableOpacity style={styles.completeButton} onPress={() => {
+              console.log('[WorkoutSession] User pressed Complete Set/Exercise');
+              completeSet();
+            }}>
               <IconSymbol
                 ios_icon_name="checkmark.circle.fill"
                 android_material_icon_name="check-circle"
@@ -363,10 +366,14 @@ export default function WorkoutSessionScreen() {
             </TouchableOpacity>
           ) : (
             <View style={styles.restContainer}>
-              <Text style={styles.restTitle}>Rest Time</Text>
+              <Text style={styles.restTitle}>RECOVERY RESET</Text>
+              <Text style={styles.restContextLine}>Let your system rebuild.</Text>
               <Text style={styles.restTimer}>{restTimer}s</Text>
-              <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
-                <Text style={styles.skipButtonText}>Skip Rest</Text>
+              <TouchableOpacity style={styles.skipButton} onPress={() => {
+                console.log('[WorkoutSession] User pressed End Session (skip rest)');
+                skipRest();
+              }}>
+                <Text style={styles.skipButtonText}>End Session</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -617,8 +624,16 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   restTitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 1.2,
+    marginBottom: 4,
+  },
+  restContextLine: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    fontStyle: 'italic',
     marginBottom: 12,
   },
   restTimer: {

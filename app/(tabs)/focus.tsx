@@ -9,11 +9,14 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { useAuth } from '@/contexts/AuthContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,10 +42,19 @@ interface WeekDay {
   isToday: boolean;
 }
 
+interface TimerPreset {
+  id: string;
+  name: string;
+  minutes: number | null;
+  description: string;
+  contextLine: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TEAL = colors.primary;
 const TEAL_DIM = 'rgba(69,155,155,0.15)';
+const TEAL_GLOW = 'rgba(69,155,155,0.25)';
 
 const BADGE_COLORS: Record<PriorityCategory, { bg: string; text: string }> = {
   Workout: { bg: TEAL_DIM, text: TEAL },
@@ -50,6 +62,58 @@ const BADGE_COLORS: Record<PriorityCategory, { bg: string; text: string }> = {
   Recovery: { bg: 'rgba(99,102,241,0.15)', text: '#818cf8' },
   Habit: { bg: 'rgba(34,197,94,0.15)', text: '#4ade80' },
 };
+
+const TIMER_PRESETS: TimerPreset[] = [
+  {
+    id: 'quick-reset',
+    name: 'Quick Reset',
+    minutes: 5,
+    description: 'Clear your head. Reset between tasks.',
+    contextLine: 'Clearing the slate.',
+  },
+  {
+    id: 'recovery-reset',
+    name: 'Recovery Reset',
+    minutes: 10,
+    description: 'Active rest. Let your system rebuild.',
+    contextLine: 'System rebuilding.',
+  },
+  {
+    id: 'wind-down',
+    name: 'Wind Down',
+    minutes: 15,
+    description: 'Decompress. Prepare your body for recovery.',
+    contextLine: 'Preparing for recovery.',
+  },
+  {
+    id: 'meal-prep',
+    name: 'Meal Prep Focus',
+    minutes: 20,
+    description: 'Prep with intention. Fuel your performance.',
+    contextLine: 'Fueling performance.',
+  },
+  {
+    id: 'study-sprint',
+    name: 'Study Sprint',
+    minutes: 25,
+    description: 'Lock in. Execute without distraction.',
+    contextLine: 'Locked in.',
+  },
+  {
+    id: 'deep-work',
+    name: 'Deep Work Block',
+    minutes: 50,
+    description: 'Full immersion. Your best output.',
+    contextLine: 'Full immersion. Executing.',
+  },
+  {
+    id: 'custom',
+    name: 'Custom Session',
+    minutes: null,
+    description: 'Set your own duration. Own your time.',
+    contextLine: 'Your session. Your rules.',
+  },
+];
 
 const INITIAL_PRIORITIES: PriorityItem[] = [
   {
@@ -141,11 +205,741 @@ function AnimatedListItem({ index, children }: { index: number; children: React.
   );
 }
 
+// ─── Progress Arc (SVG-free, using border trick) ──────────────────────────────
+
+function ProgressArc({ progress, size = 180 }: { progress: number; size?: number }) {
+  const animatedProgress = useRef(new Animated.Value(progress)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedProgress, {
+      toValue: progress,
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+  }, [progress, animatedProgress]);
+
+  // Use rotation-based arc: two semicircles
+  const strokeWidth = 6;
+  const leftRotation = animatedProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '180deg', '180deg'],
+  });
+  const rightRotation = animatedProgress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '0deg', '180deg'],
+  });
+  const leftOpacity = animatedProgress.interpolate({
+    inputRange: [0, 0.01, 1],
+    outputRange: [0, 1, 1],
+  });
+
+  const half = size / 2;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Track ring */}
+      <View
+        style={{
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: strokeWidth,
+          borderColor: 'rgba(69,155,155,0.15)',
+        }}
+      />
+      {/* Right half arc */}
+      <View
+        style={{
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          overflow: 'hidden',
+        }}
+      >
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: half,
+            height: size,
+            left: half,
+            overflow: 'hidden',
+            transformOrigin: 'left center',
+            transform: [{ rotate: rightRotation }],
+          }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              width: size,
+              height: size,
+              right: 0,
+              borderRadius: size / 2,
+              borderWidth: strokeWidth,
+              borderColor: TEAL,
+            }}
+          />
+        </Animated.View>
+      </View>
+      {/* Left half arc */}
+      <View
+        style={{
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          overflow: 'hidden',
+        }}
+      >
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: half,
+            height: size,
+            left: 0,
+            overflow: 'hidden',
+            transformOrigin: 'right center',
+            transform: [{ rotate: leftRotation }],
+            opacity: leftOpacity,
+          }}
+        >
+          <View
+            style={{
+              position: 'absolute',
+              width: size,
+              height: size,
+              left: 0,
+              borderRadius: size / 2,
+              borderWidth: strokeWidth,
+              borderColor: TEAL,
+            }}
+          />
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Timer Presets Modal ──────────────────────────────────────────────────────
+
+function TimerPresetsModal({
+  visible,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  selectedId: string | null;
+  onSelect: (preset: TimerPreset) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={timerModalStyles.overlay} onPress={onClose}>
+        <Pressable style={timerModalStyles.sheet} onPress={() => {}}>
+          {/* Handle */}
+          <View style={timerModalStyles.handle} />
+
+          {/* Header */}
+          <View style={timerModalStyles.header}>
+            <View>
+              <Text style={timerModalStyles.headerTitle}>Start a Session</Text>
+              <Text style={timerModalStyles.headerSubtitle}>Choose your focus mode</Text>
+            </View>
+            <AnimatedPressable onPress={onClose} style={timerModalStyles.closeBtn}>
+              <IconSymbol
+                ios_icon_name="xmark"
+                android_material_icon_name="close"
+                size={18}
+                color="rgba(255,255,255,0.5)"
+              />
+            </AnimatedPressable>
+          </View>
+
+          {/* Presets */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={timerModalStyles.presetList}
+          >
+            {TIMER_PRESETS.map((preset) => {
+              const isSelected = selectedId === preset.id;
+              const durationLabel = preset.minutes ? `${preset.minutes} min` : 'Custom';
+              return (
+                <AnimatedPressable
+                  key={preset.id}
+                  style={[
+                    timerModalStyles.presetCard,
+                    isSelected && timerModalStyles.presetCardSelected,
+                  ]}
+                  onPress={() => {
+                    console.log('[Focus] User selected timer preset:', preset.name, preset.minutes ? `${preset.minutes}min` : 'custom');
+                    onSelect(preset);
+                  }}
+                >
+                  <View style={timerModalStyles.presetLeft}>
+                    <Text style={timerModalStyles.presetName}>{preset.name}</Text>
+                    <Text style={timerModalStyles.presetDesc}>{preset.description}</Text>
+                  </View>
+                  <View style={timerModalStyles.presetRight}>
+                    <Text style={timerModalStyles.presetDuration}>{durationLabel}</Text>
+                    {isSelected && (
+                      <View style={timerModalStyles.selectedDot} />
+                    )}
+                  </View>
+                </AnimatedPressable>
+              );
+            })}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const timerModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#0d1012',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    maxHeight: '85%',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.3,
+    marginBottom: 3,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  presetList: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 10,
+    paddingBottom: 8,
+  },
+  presetCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  presetCardSelected: {
+    backgroundColor: TEAL_GLOW,
+    borderColor: TEAL,
+    shadowColor: TEAL,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  presetLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  presetName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  presetDesc: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: 17,
+  },
+  presetRight: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  presetDuration: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: -0.2,
+  },
+  selectedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: TEAL,
+  },
+});
+
+// ─── Active Timer Card ────────────────────────────────────────────────────────
+
+function ActiveTimerCard({
+  preset,
+  secondsLeft,
+  totalSeconds,
+  isRunning,
+  sessionCount,
+  onBegin,
+  onHold,
+  onEnd,
+}: {
+  preset: TimerPreset;
+  secondsLeft: number;
+  totalSeconds: number;
+  isRunning: boolean;
+  sessionCount: number;
+  onBegin: () => void;
+  onHold: () => void;
+  onEnd: () => void;
+}) {
+  const progress = totalSeconds > 0 ? 1 - secondsLeft / totalSeconds : 0;
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const minsStr = String(mins).padStart(2, '0');
+  const secsStr = String(secs).padStart(2, '0');
+
+  const sessionLabel = sessionCount === 0
+    ? 'First session today — build the streak.'
+    : `Session ${sessionCount} of today`;
+
+  const isCustom = preset.id === 'custom';
+
+  return (
+    <View style={timerCardStyles.card}>
+      {/* Teal left accent bar */}
+      <View style={timerCardStyles.accentBar} />
+
+      <View style={timerCardStyles.inner}>
+        {/* Session name + context */}
+        <View style={timerCardStyles.sessionHeader}>
+          <Text style={timerCardStyles.sessionName}>{preset.name}</Text>
+          <Text style={timerCardStyles.contextLine}>{preset.contextLine}</Text>
+        </View>
+
+        {/* Progress arc + countdown */}
+        <View style={timerCardStyles.arcWrapper}>
+          <ProgressArc progress={progress} size={180} />
+          <View style={timerCardStyles.countdownOverlay}>
+            <View style={timerCardStyles.countdownRow}>
+              <Text style={timerCardStyles.countdownMins}>{minsStr}</Text>
+              <Text style={timerCardStyles.countdownColon}>:</Text>
+              <Text style={timerCardStyles.countdownSecs}>{secsStr}</Text>
+            </View>
+            {isCustom && (
+              <Text style={timerCardStyles.customLabel}>custom</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Action buttons */}
+        <View style={timerCardStyles.actions}>
+          {!isRunning ? (
+            <AnimatedPressable
+              style={timerCardStyles.btnPrimary}
+              onPress={() => {
+                console.log('[Focus] User pressed Begin Session:', preset.name);
+                onBegin();
+              }}
+            >
+              <IconSymbol
+                ios_icon_name="play.fill"
+                android_material_icon_name="play-arrow"
+                size={18}
+                color="#fff"
+              />
+              <Text style={timerCardStyles.btnPrimaryText}>Begin Session</Text>
+            </AnimatedPressable>
+          ) : (
+            <AnimatedPressable
+              style={timerCardStyles.btnSecondary}
+              onPress={() => {
+                console.log('[Focus] User pressed Hold:', preset.name);
+                onHold();
+              }}
+            >
+              <IconSymbol
+                ios_icon_name="pause.fill"
+                android_material_icon_name="pause"
+                size={18}
+                color={TEAL}
+              />
+              <Text style={timerCardStyles.btnSecondaryText}>Hold</Text>
+            </AnimatedPressable>
+          )}
+          <AnimatedPressable
+            style={timerCardStyles.btnGhost}
+            onPress={() => {
+              console.log('[Focus] User pressed End Session:', preset.name);
+              onEnd();
+            }}
+          >
+            <Text style={timerCardStyles.btnGhostText}>End Session</Text>
+          </AnimatedPressable>
+        </View>
+
+        {/* Session count */}
+        <View style={timerCardStyles.sessionFooter}>
+          <IconSymbol
+            ios_icon_name="flame.fill"
+            android_material_icon_name="local-fire-department"
+            size={13}
+            color={sessionCount > 0 ? '#f59e0b' : 'rgba(255,255,255,0.25)'}
+          />
+          <Text style={timerCardStyles.sessionCountText}>{sessionLabel}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const timerCardStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    overflow: 'hidden',
+    marginBottom: 28,
+  },
+  accentBar: {
+    width: 3,
+    backgroundColor: TEAL,
+  },
+  inner: {
+    flex: 1,
+    padding: 20,
+    alignItems: 'center',
+    gap: 16,
+  },
+  sessionHeader: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  sessionName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  contextLine: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    fontStyle: 'italic',
+  },
+  arcWrapper: {
+    width: 180,
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  countdownMins: {
+    fontSize: 52,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -2,
+    lineHeight: 58,
+  },
+  countdownColon: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: 4,
+    lineHeight: 52,
+  },
+  countdownSecs: {
+    fontSize: 52,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -2,
+    lineHeight: 58,
+  },
+  customLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  actions: {
+    width: '100%',
+    gap: 10,
+  },
+  btnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: TEAL,
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  btnPrimaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  btnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: TEAL_DIM,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: TEAL,
+  },
+  btnSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEAL,
+  },
+  btnGhost: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  btnGhostText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: '500',
+  },
+  sessionFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sessionCountText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.35)',
+  },
+});
+
+// ─── Discipline Empty State ───────────────────────────────────────────────────
+
+function DisciplineEmptyState({
+  isSignedIn,
+  onSyncPress,
+  onTrainingPress,
+  onNutritionPress,
+}: {
+  isSignedIn: boolean;
+  onSyncPress: () => void;
+  onTrainingPress: () => void;
+  onNutritionPress: () => void;
+}) {
+  if (isSignedIn) {
+    return (
+      <View style={emptyStyles.container}>
+        <View style={emptyStyles.iconCircle}>
+          <IconSymbol
+            ios_icon_name="checkmark.circle"
+            android_material_icon_name="check-circle-outline"
+            size={32}
+            color={TEAL}
+          />
+        </View>
+        <Text style={emptyStyles.headline}>No priorities set for today.</Text>
+        <Text style={emptyStyles.body}>
+          Your execution plan updates based on your training and nutrition activity. Complete a workout or log a meal to generate today's priorities.
+        </Text>
+        <View style={emptyStyles.ctaRow}>
+          <AnimatedPressable
+            style={emptyStyles.ctaSecondary}
+            onPress={() => {
+              console.log('[Focus] Empty state: User tapped Go to Training');
+              onTrainingPress();
+            }}
+          >
+            <Text style={emptyStyles.ctaSecondaryText}>Go to Training</Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={emptyStyles.ctaSecondary}
+            onPress={() => {
+              console.log('[Focus] Empty state: User tapped Log a Meal');
+              onNutritionPress();
+            }}
+          >
+            <Text style={emptyStyles.ctaSecondaryText}>Log a Meal</Text>
+          </AnimatedPressable>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={emptyStyles.container}>
+      <View style={emptyStyles.iconCircle}>
+        <IconSymbol
+          ios_icon_name="target"
+          android_material_icon_name="gps-fixed"
+          size={32}
+          color={TEAL}
+        />
+      </View>
+      <Text style={emptyStyles.headline}>Your daily priorities will appear here.</Text>
+      <Text style={emptyStyles.body}>
+        Apex generates your daily execution plan from your training schedule, nutrition targets, recovery status, and active habits. Sign in to sync your priorities, streaks, and consistency data across devices.
+      </Text>
+      <AnimatedPressable
+        style={emptyStyles.ctaPrimary}
+        onPress={() => {
+          console.log('[Focus] Empty state: User tapped Sync My Plan');
+          onSyncPress();
+        }}
+      >
+        <IconSymbol
+          ios_icon_name="arrow.triangle.2.circlepath"
+          android_material_icon_name="sync"
+          size={16}
+          color="#fff"
+        />
+        <Text style={emptyStyles.ctaPrimaryText}>Sync My Plan</Text>
+      </AnimatedPressable>
+    </View>
+  );
+}
+
+const emptyStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 8,
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: TEAL_DIM,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(69,155,155,0.3)',
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: -0.2,
+  },
+  body: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 24,
+    maxWidth: 320,
+  },
+  ctaPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: TEAL,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+  },
+  ctaPrimaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  ctaSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: TEAL_DIM,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(69,155,155,0.3)',
+  },
+  ctaSecondaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: TEAL,
+  },
+});
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function MomentumScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [priorities, setPriorities] = useState<PriorityItem[]>(INITIAL_PRIORITIES);
+
+  // Timer state
+  const [showPresetsModal, setShowPresetsModal] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<TimerPreset>(TIMER_PRESETS[3]); // Meal Prep default
+  const [secondsLeft, setSecondsLeft] = useState((TIMER_PRESETS[3].minutes ?? 20) * 60);
+  const [totalSeconds, setTotalSeconds] = useState((TIMER_PRESETS[3].minutes ?? 20) * 60);
+  const [isRunning, setIsRunning] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isSignedIn = !!user;
+  const hasPriorities = priorities.length > 0;
 
   const completedCount = priorities.filter((p) => p.completed).length;
   const totalCount = priorities.length;
@@ -168,6 +962,60 @@ export default function MomentumScreen() {
     ...priorities.filter((p) => !p.completed),
     ...priorities.filter((p) => p.completed),
   ];
+
+  // Timer tick
+  useEffect(() => {
+    if (isRunning) {
+      timerRef.current = setInterval(() => {
+        setSecondsLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            setIsRunning(false);
+            setSessionCount((c) => c + 1);
+            console.log('[Focus] Timer completed:', selectedPreset.name);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isRunning, selectedPreset.name]);
+
+  function handleSelectPreset(preset: TimerPreset) {
+    const mins = preset.minutes ?? 25;
+    const secs = mins * 60;
+    setSelectedPreset(preset);
+    setSecondsLeft(secs);
+    setTotalSeconds(secs);
+    setIsRunning(false);
+    setShowPresetsModal(false);
+  }
+
+  function handleBeginSession() {
+    if (secondsLeft === 0) {
+      const mins = selectedPreset.minutes ?? 25;
+      setSecondsLeft(mins * 60);
+      setTotalSeconds(mins * 60);
+    }
+    setIsRunning(true);
+  }
+
+  function handleHold() {
+    setIsRunning(false);
+  }
+
+  function handleEndSession() {
+    console.log('[Focus] Session ended early:', selectedPreset.name);
+    setIsRunning(false);
+    const mins = selectedPreset.minutes ?? 25;
+    setSecondsLeft(mins * 60);
+    setTotalSeconds(mins * 60);
+  }
 
   function togglePriority(id: string) {
     console.log('[Momentum] User toggled priority item:', id);
@@ -221,20 +1069,65 @@ export default function MomentumScreen() {
           <StatCard value={RECOVERY_SCORE} label="Recovery Score" onPress={() => handleStatPress('Recovery Score')} />
         </View>
 
+        {/* ── Focus Timer ── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Focus Timer</Text>
+              <Text style={styles.sectionSubtitle}>Execute with intention</Text>
+            </View>
+            <AnimatedPressable
+              style={styles.changePresetBtn}
+              onPress={() => {
+                console.log('[Focus] User opened timer presets modal');
+                setShowPresetsModal(true);
+              }}
+            >
+              <IconSymbol
+                ios_icon_name="slider.horizontal.3"
+                android_material_icon_name="tune"
+                size={16}
+                color={TEAL}
+              />
+              <Text style={styles.changePresetText}>Change</Text>
+            </AnimatedPressable>
+          </View>
+
+          <ActiveTimerCard
+            preset={selectedPreset}
+            secondsLeft={secondsLeft}
+            totalSeconds={totalSeconds}
+            isRunning={isRunning}
+            sessionCount={sessionCount}
+            onBegin={handleBeginSession}
+            onHold={handleHold}
+            onEnd={handleEndSession}
+          />
+        </View>
+
         {/* ── Today's Priorities ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Today's Priorities</Text>
           <Text style={styles.sectionSubtitle}>{remainingText}</Text>
 
-          {sortedPriorities.map((item, index) => (
-            <AnimatedListItem key={item.id} index={index}>
-              <PriorityRow
-                item={item}
-                onToggle={() => togglePriority(item.id)}
-                onPress={() => handlePriorityPress(item)}
-              />
-            </AnimatedListItem>
-          ))}
+          {hasPriorities ? (
+            sortedPriorities.map((item, index) => (
+              <AnimatedListItem key={item.id} index={index}>
+                <PriorityRow
+                  item={item}
+                  onToggle={() => togglePriority(item.id)}
+                  onPress={() => handlePriorityPress(item)}
+                />
+              </AnimatedListItem>
+            ))
+          ) : (
+            <DisciplineEmptyState
+              isSignedIn={isSignedIn}
+              onSyncPress={() => router.push('/auth' as never)}
+              onTrainingPress={() => router.push('/(tabs)/training' as never)}
+              onNutritionPress={() => router.push('/(tabs)/nutrition' as never)}
+            />
+          )}
         </View>
 
         {/* ── Weekly Heatmap ── */}
@@ -269,6 +1162,17 @@ export default function MomentumScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ── Timer Presets Modal ── */}
+      <TimerPresetsModal
+        visible={showPresetsModal}
+        selectedId={selectedPreset.id}
+        onSelect={handleSelectPreset}
+        onClose={() => {
+          console.log('[Focus] User closed timer presets modal');
+          setShowPresetsModal(false);
+        }}
+      />
     </View>
   );
 }
@@ -469,6 +1373,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 28,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -479,7 +1389,23 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 14,
+  },
+  changePresetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: TEAL_DIM,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(69,155,155,0.3)',
+    marginTop: 2,
+  },
+  changePresetText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEAL,
   },
 
   // Priority cards
