@@ -17,6 +17,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import {
+  AlertTriangle,
+  AlertCircle,
+  Brain,
+} from 'lucide-react-native';
+import {
   FoodItem,
   MealTemplate,
   MealLog,
@@ -27,11 +32,17 @@ import {
   getDailyNutrition,
   logMealFromTemplate,
   logFoodItem,
+  logFoodItems,
   getFrequentTemplates,
   searchTemplates,
   getNutritionFeedback,
   MEAL_TYPE_LABELS,
   ProteinStatus,
+  getNutritionRescue,
+  getMealIdeas,
+  NutritionRescue,
+  MealIdea,
+  MealContext,
 } from '@/utils/nutritionEngine';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -370,6 +381,145 @@ const logStyles = StyleSheet.create({
   deleteText: { fontSize: 13, color: TEXT_MUTED },
 });
 
+// ─── Nutrition Rescue Card ────────────────────────────────────────────────────
+
+function NutritionRescueCard({
+  rescue,
+  onLogSuggestion,
+  onDismiss,
+}: {
+  rescue: NutritionRescue;
+  onLogSuggestion: (foods: FoodItem[]) => void;
+  onDismiss: () => void;
+}) {
+  const isCritical = rescue.severity === 'critical';
+  const accentColor = isCritical ? RED : ORANGE;
+  const effortColor = (effort: 'instant' | 'quick' | 'moderate') => {
+    if (effort === 'instant') return TEAL;
+    if (effort === 'quick') return BLUE;
+    return ORANGE;
+  };
+
+  return (
+    <View style={rescueStyles.card}>
+      <View style={rescueStyles.headerRow}>
+        {isCritical
+          ? <AlertCircle size={16} color={accentColor} />
+          : <AlertTriangle size={16} color={accentColor} />
+        }
+        <Text style={[rescueStyles.label, { color: TEAL }]}>NUTRITION RESCUE</Text>
+      </View>
+      <Text style={rescueStyles.headline}>{rescue.headline}</Text>
+      <Text style={rescueStyles.explanation}>{rescue.explanation}</Text>
+
+      {rescue.suggestions.map(sug => {
+        const eColor = effortColor(sug.effort);
+        const proteinStr = sug.proteinImpact > 0 ? `+${sug.proteinImpact}g` : '';
+        return (
+          <View key={sug.id} style={rescueStyles.suggestionCard}>
+            <View style={rescueStyles.sugLeft}>
+              <Text style={rescueStyles.sugTitle}>{sug.title}</Text>
+              <Text style={rescueStyles.sugSubtitle}>{sug.subtitle}</Text>
+            </View>
+            <View style={rescueStyles.sugRight}>
+              <View style={[rescueStyles.effortBadge, { backgroundColor: eColor + '20', borderColor: eColor + '40' }]}>
+                <Text style={[rescueStyles.effortText, { color: eColor }]}>{sug.effort}</Text>
+              </View>
+              {proteinStr !== '' && <Text style={rescueStyles.proteinImpact}>{proteinStr}</Text>}
+              {sug.foodItems.length > 0 && (
+                <AnimatedPressable
+                  style={rescueStyles.logBtn}
+                  onPress={() => {
+                    console.log('[Nutrition] User tapped Log it for rescue suggestion:', sug.title);
+                    onLogSuggestion(sug.foodItems);
+                  }}
+                >
+                  <Text style={rescueStyles.logBtnText}>Log it</Text>
+                </AnimatedPressable>
+              )}
+            </View>
+          </View>
+        );
+      })}
+
+      <TouchableOpacity onPress={onDismiss} style={rescueStyles.dismissBtn}>
+        <Text style={rescueStyles.dismissText}>Dismiss for 2 hours</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const rescueStyles = StyleSheet.create({
+  card: { backgroundColor: CARD_BG, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  headline: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
+  explanation: { fontSize: 13, color: TEXT_SECONDARY, lineHeight: 18 },
+  suggestionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: CARD_BORDER, gap: 10 },
+  sugLeft: { flex: 1, gap: 3 },
+  sugTitle: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
+  sugSubtitle: { fontSize: 12, color: TEXT_SECONDARY },
+  sugRight: { alignItems: 'flex-end', gap: 6 },
+  effortBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
+  effortText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  proteinImpact: { fontSize: 13, fontWeight: '700', color: TEAL },
+  logBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: TEAL_BORDER, backgroundColor: TEAL_DIM },
+  logBtnText: { fontSize: 12, fontWeight: '600', color: TEAL },
+  dismissBtn: { alignItems: 'center', paddingTop: 4 },
+  dismissText: { fontSize: 12, color: TEXT_MUTED },
+});
+
+// ─── Meal Idea Card ───────────────────────────────────────────────────────────
+
+function MealIdeaCard({ idea, onLog }: { idea: MealIdea; onLog: () => void }) {
+  const calStr = String(idea.calories);
+  const proteinStr = String(idea.protein);
+  const prepStr = String(idea.prepTime);
+
+  return (
+    <View style={ideaStyles.card}>
+      <Text style={ideaStyles.name}>{idea.name}</Text>
+      <Text style={ideaStyles.reason}>{idea.matchReason}</Text>
+      <View style={ideaStyles.macroRow}>
+        <Text style={ideaStyles.protein}>{proteinStr}g P</Text>
+        <Text style={ideaStyles.dot}> · </Text>
+        <Text style={ideaStyles.cal}>{calStr} kcal</Text>
+        <Text style={ideaStyles.dot}> · </Text>
+        <Text style={ideaStyles.prep}>{prepStr} min</Text>
+      </View>
+      <View style={ideaStyles.tagsRow}>
+        {idea.tags.slice(0, 3).map(tag => (
+          <View key={tag} style={ideaStyles.tag}>
+            <Text style={ideaStyles.tagText}>{tag}</Text>
+          </View>
+        ))}
+      </View>
+      <AnimatedPressable style={ideaStyles.logBtn} onPress={() => {
+        console.log('[Nutrition] User tapped Log This Meal for idea:', idea.name);
+        onLog();
+      }}>
+        <Text style={ideaStyles.logBtnText}>Log This Meal</Text>
+      </AnimatedPressable>
+    </View>
+  );
+}
+
+const ideaStyles = StyleSheet.create({
+  card: { width: 220, backgroundColor: CARD_BG, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: CARD_BORDER, gap: 8, marginRight: 12 },
+  name: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
+  reason: { fontSize: 12, fontStyle: 'italic', color: TEAL, lineHeight: 16 },
+  macroRow: { flexDirection: 'row', alignItems: 'center' },
+  protein: { fontSize: 12, fontWeight: '700', color: TEAL },
+  dot: { fontSize: 11, color: TEXT_MUTED },
+  cal: { fontSize: 12, color: TEXT_SECONDARY },
+  prep: { fontSize: 12, color: TEXT_SECONDARY },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  tag: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: CARD_BORDER },
+  tagText: { fontSize: 10, color: TEXT_SECONDARY, fontWeight: '500' },
+  logBtn: { backgroundColor: TEAL, borderRadius: 10, paddingVertical: 9, alignItems: 'center', marginTop: 2 },
+  logBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function NutritionScreen() {
@@ -447,6 +597,65 @@ export default function NutritionScreen() {
     () => QUICK_FOODS.filter(f => f.category === 'protein'),
     []
   );
+
+  // ── Rescue & Meal Ideas ──
+  const hadWorkout = false; // placeholder — no workout state in this screen
+  const rescue: NutritionRescue = useMemo(
+    () => getNutritionRescue(daily, hour, hadWorkout),
+    [daily, hour, hadWorkout]
+  );
+
+  const [rescueDismissedUntil, setRescueDismissedUntil] = useState<number>(0);
+  const showRescue = rescue.severity !== 'none' && Date.now() > rescueDismissedUntil;
+
+  const mealContext: MealContext = useMemo(() => ({
+    hour,
+    proteinRemaining: Math.max(0, targets.protein - daily.totalProtein),
+    caloriesRemaining: Math.max(0, targets.calories - daily.totalCalories),
+    carbsRemaining: Math.max(0, targets.carbs - daily.totalCarbs),
+    fatRemaining: Math.max(0, targets.fat - daily.totalFat),
+    hadWorkoutToday: hadWorkout,
+    workoutWasThisMorning: false,
+  }), [hour, targets, daily, hadWorkout]);
+
+  const mealIdeas: MealIdea[] = useMemo(
+    () => getMealIdeas(mealContext, templates),
+    [mealContext, templates]
+  );
+
+  const handleDismissRescue = useCallback(async () => {
+    console.log('[Nutrition] User dismissed rescue card');
+    const until = Date.now() + 2 * 60 * 60 * 1000; // 2 hours
+    setRescueDismissedUntil(until);
+    try {
+      await AsyncStorage.setItem('apex_rescue_dismissed_until', String(until));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('apex_rescue_dismissed_until').then(raw => {
+      if (raw) setRescueDismissedUntil(Number(raw));
+    }).catch(() => {});
+  }, []);
+
+  const logRescueSuggestion = useCallback(async (foods: FoodItem[]) => {
+    if (foods.length === 0) return;
+    console.log('[Nutrition] User logged rescue suggestion:', foods.map(f => f.name).join(', '));
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const newLog = logFoodItems(foods, today, 'snack');
+    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
+    setAllLogs(updatedLogs);
+    await saveLogs(updatedLogs);
+  }, [allLogs, today, saveLogs]);
+
+  const logMealIdea = useCallback(async (idea: MealIdea) => {
+    console.log('[Nutrition] User logged meal idea:', idea.name);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const newLog = logFoodItems(idea.items, today, idea.mealType === 'post_workout' ? 'post_workout' : idea.mealType);
+    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
+    setAllLogs(updatedLogs);
+    await saveLogs(updatedLogs);
+  }, [allLogs, today, saveLogs]);
 
   // Group today's logs by meal type
   const logsByMealType = useMemo(() => {
@@ -625,6 +834,17 @@ export default function NutritionScreen() {
           </View>
         </View>
 
+        {/* ── Nutrition Rescue ── */}
+        {showRescue && (
+          <View style={s.section}>
+            <NutritionRescueCard
+              rescue={rescue}
+              onLogSuggestion={logRescueSuggestion}
+              onDismiss={handleDismissRescue}
+            />
+          </View>
+        )}
+
         {/* ── Today's Meals ── */}
         <View style={s.section}>
           <View style={s.sectionHeaderRow}>
@@ -738,6 +958,29 @@ export default function NutritionScreen() {
           </View>
         </View>
 
+        {/* ── Meal Ideas ── */}
+        <View style={s.section}>
+          <View style={s.sectionHeaderRow}>
+            <View>
+              <Text style={s.sectionHeader}>MEAL IDEAS FOR YOU</Text>
+              <Text style={s.sectionSubtitle}>
+                {mealContext.proteinRemaining > 30
+                  ? `Based on your remaining ${Math.round(mealContext.proteinRemaining)}g protein`
+                  : mealContext.caloriesRemaining > 200
+                  ? `${Math.round(mealContext.caloriesRemaining)} calories remaining`
+                  : 'Personalised for your goals'}
+              </Text>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.ideasScroll}>
+            {mealIdeas.map((idea, i) => (
+              <AnimatedItem key={idea.id} index={i}>
+                <MealIdeaCard idea={idea} onLog={() => logMealIdea(idea)} />
+              </AnimatedItem>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* ── Daily Insight ── */}
         <View style={s.section}>
           <View style={s.insightCard}>
@@ -833,6 +1076,9 @@ const s = StyleSheet.create({
 
   // Food grid
   foodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+
+  // Ideas scroll
+  ideasScroll: { paddingBottom: 4 },
 
   // Insight card
   insightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, backgroundColor: 'rgba(0,212,170,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(0,212,170,0.15)' },

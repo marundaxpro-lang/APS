@@ -707,6 +707,14 @@ function NutritionQuickCard({ proteinLogged, proteinTarget, onPress }: {
   );
 }
 
+const aiCoachStyles = StyleSheet.create({
+  card: { backgroundColor: CARD_BG, borderRadius: 16, borderLeftWidth: 4, borderLeftColor: TEAL, borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderTopColor: CARD_BORDER, borderRightColor: CARD_BORDER, borderBottomColor: CARD_BORDER, marginBottom: 16 },
+  inner: { padding: 16, gap: 3 },
+  label: { fontSize: 11, fontWeight: '700', color: TEAL, letterSpacing: 1.5, textTransform: 'uppercase' },
+  title: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
+  cta: { fontSize: 13, color: TEXT_SECONDARY },
+});
+
 const nqStyles = StyleSheet.create({
   card: { backgroundColor: '#161616', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 16 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
@@ -1048,6 +1056,21 @@ export default function MomentumScreen() {
             <Text style={s.comebackStreakMsg}>{displayStreakMessage}</Text>
           </View>
         )}
+
+        {/* ── AI Coach Card ── */}
+        <AnimatedPressable
+          style={aiCoachStyles.card}
+          onPress={() => {
+            console.log('[Momentum] User tapped AI Coach card → navigating to /ai-coach');
+            router.push('/ai-coach' as never);
+          }}
+        >
+          <View style={aiCoachStyles.inner}>
+            <Text style={aiCoachStyles.label}>AI COACH</Text>
+            <Text style={aiCoachStyles.title}>Ask anything about your plan</Text>
+            <Text style={aiCoachStyles.cta}>Tap to open →</Text>
+          </View>
+        </AnimatedPressable>
 
         {/* ── Nutrition Quick-Action Card ── */}
         <NutritionQuickCard

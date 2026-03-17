@@ -459,14 +459,30 @@ export default function HomeScreen() {
           <Text style={styles.greetingSuffix}>{greetingSuffix}</Text>
           <Text style={styles.contextLine}>{dynamicContextLine}</Text>
         </View>
-        <AnimatedPressable style={styles.profileButton} onPress={handleNavigateToProfile}>
-          <IconSymbol
-            ios_icon_name="person.circle.fill"
-            android_material_icon_name="account-circle"
-            size={40}
-            color={colors.primary}
-          />
-        </AnimatedPressable>
+        <View style={styles.headerButtons}>
+          <AnimatedPressable
+            style={styles.coachButton}
+            onPress={() => {
+              console.log('[Home] User tapped AI Coach button → navigating to /ai-coach');
+              router.push('/ai-coach' as any);
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="brain.head.profile"
+              android_material_icon_name="psychology"
+              size={22}
+              color={colors.primary}
+            />
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.profileButton} onPress={handleNavigateToProfile}>
+            <IconSymbol
+              ios_icon_name="person.circle.fill"
+              android_material_icon_name="account-circle"
+              size={40}
+              color={colors.primary}
+            />
+          </AnimatedPressable>
+        </View>
       </View>
 
       <ScrollView
@@ -821,6 +837,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  coachButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
   profileButton: {
     width: 48,

@@ -109,6 +109,9 @@ const salmon = QUICK_FOODS.find(f => f.id === 'qf-salmon')!;
 const whey = QUICK_FOODS.find(f => f.id === 'qf-whey')!;
 const milk = QUICK_FOODS.find(f => f.id === 'qf-milk')!;
 const almonds = QUICK_FOODS.find(f => f.id === 'qf-almonds')!;
+const peanutButter = QUICK_FOODS.find(f => f.id === 'qf-peanut-butter')!;
+const cottage = QUICK_FOODS.find(f => f.id === 'qf-cottage')!;
+const riceCakes = QUICK_FOODS.find(f => f.id === 'qf-rice-cakes')!;
 
 export const DEFAULT_MEAL_TEMPLATES: MealTemplate[] = [
   {
@@ -351,6 +354,24 @@ export function logFoodItem(food: FoodItem, date: string): MealLog {
   };
 }
 
+export function logFoodItems(foods: FoodItem[], date: string, mealType: MealLog['mealType'] = 'snack'): MealLog {
+  const totalCalories = foods.reduce((s, f) => s + f.calories, 0);
+  const totalProtein = foods.reduce((s, f) => s + f.protein, 0);
+  const totalCarbs = foods.reduce((s, f) => s + f.carbs, 0);
+  const totalFat = foods.reduce((s, f) => s + f.fat, 0);
+  return {
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    date,
+    mealType,
+    items: foods,
+    loggedAt: new Date().toISOString(),
+    totalCalories,
+    totalProtein,
+    totalCarbs,
+    totalFat,
+  };
+}
+
 export function getFrequentTemplates(templates: MealTemplate[]): MealTemplate[] {
   return [...templates]
     .sort((a, b) => {
@@ -403,3 +424,485 @@ export const MEAL_TYPE_LABELS: Record<MealLog['mealType'], string> = {
   pre_workout: 'Pre-Workout',
   post_workout: 'Post-Workout',
 };
+
+// ── Nutrition Rescue System ────────────────────────────────────────────────────
+
+export type NutritionIssue =
+  | 'behind_protein'
+  | 'over_calories'
+  | 'under_calories'
+  | 'low_carbs'
+  | 'low_fat'
+  | 'on_track';
+
+export interface RescueSuggestion {
+  id: string;
+  title: string;
+  subtitle: string;
+  proteinImpact: number;
+  calorieImpact: number;
+  effort: 'instant' | 'quick' | 'moderate';
+  foodItems: FoodItem[];
+}
+
+export interface NutritionRescue {
+  issue: NutritionIssue;
+  severity: 'critical' | 'moderate' | 'minor' | 'none';
+  headline: string;
+  explanation: string;
+  suggestions: RescueSuggestion[];
+  quickLogItems: FoodItem[];
+}
+
+export function detectNutritionIssues(
+  daily: DailyNutrition,
+  hour: number,
+  hadWorkoutToday: boolean
+): NutritionIssue[] {
+  const issues: NutritionIssue[] = [];
+
+  const proteinRatio = daily.proteinTarget > 0 ? daily.totalProtein / daily.proteinTarget : 1;
+  const calRatio = daily.caloriesTarget > 0 ? daily.totalCalories / daily.caloriesTarget : 1;
+  const carbRatio = daily.carbsTarget > 0 ? daily.totalCarbs / daily.carbsTarget : 1;
+  const fatRatio = daily.fatTarget > 0 ? daily.totalFat / daily.fatTarget : 1;
+
+  const behindProtein =
+    (hour >= 15 && proteinRatio < 0.6) || (hour >= 19 && proteinRatio < 0.8);
+  if (behindProtein) issues.push('behind_protein');
+
+  if (calRatio > 1.1) issues.push('over_calories');
+
+  const underCalories =
+    (hour >= 15 && calRatio < 0.4) || (hour >= 19 && calRatio < 0.6);
+  if (underCalories) issues.push('under_calories');
+
+  if (hadWorkoutToday && carbRatio < 0.4) issues.push('low_carbs');
+
+  if (fatRatio < 0.3) issues.push('low_fat');
+
+  return issues;
+}
+
+export function getNutritionRescue(
+  daily: DailyNutrition,
+  hour: number,
+  hadWorkoutToday: boolean
+): NutritionRescue {
+  const issues = detectNutritionIssues(daily, hour, hadWorkoutToday);
+
+  // Priority order: protein > calories > carbs > fat
+  const priorityOrder: NutritionIssue[] = [
+    'behind_protein',
+    'over_calories',
+    'under_calories',
+    'low_carbs',
+    'low_fat',
+  ];
+
+  const topIssue = priorityOrder.find(i => issues.includes(i)) ?? 'on_track';
+
+  if (topIssue === 'on_track') {
+    return {
+      issue: 'on_track',
+      severity: 'none',
+      headline: "You're on track",
+      explanation: 'Nutrition is looking good today.',
+      suggestions: [],
+      quickLogItems: [],
+    };
+  }
+
+  const proteinRemaining = Math.max(0, daily.proteinTarget - daily.totalProtein);
+  const calRemaining = Math.max(0, daily.caloriesTarget - daily.totalCalories);
+
+  if (topIssue === 'behind_protein') {
+    const severity = hour >= 19 && daily.totalProtein / daily.proteinTarget < 0.6 ? 'critical' : 'moderate';
+    return {
+      issue: 'behind_protein',
+      severity,
+      headline: `You're ${Math.round(proteinRemaining)}g short on protein`,
+      explanation: `Protein synthesis requires consistent intake throughout the day. ${hour >= 19 ? 'Evening is your last window to close the gap.' : 'Getting ahead now prevents a bigger deficit later.'}`,
+      suggestions: [
+        {
+          id: 'rs-shake',
+          title: 'Protein shake',
+          subtitle: '+33g protein · 270 cal · instant',
+          proteinImpact: 33,
+          calorieImpact: 270,
+          effort: 'instant',
+          foodItems: [whey, milk],
+        },
+        {
+          id: 'rs-yogurt-almonds',
+          title: 'Greek yogurt + almonds',
+          subtitle: '+23g protein · 270 cal · instant',
+          proteinImpact: 23,
+          calorieImpact: 270,
+          effort: 'instant',
+          foodItems: [greekYogurt, almonds],
+        },
+        {
+          id: 'rs-tuna-rice',
+          title: 'Tuna on rice cakes',
+          subtitle: '+31g protein · 220 cal · 5 min',
+          proteinImpact: 31,
+          calorieImpact: 220,
+          effort: 'quick',
+          foodItems: [tuna, riceCakes],
+        },
+        {
+          id: 'rs-chicken',
+          title: 'Chicken breast (pre-cooked)',
+          subtitle: '+31g protein · 165 cal · 5 min',
+          proteinImpact: 31,
+          calorieImpact: 165,
+          effort: 'quick',
+          foodItems: [chicken],
+        },
+      ],
+      quickLogItems: [whey, greekYogurt, tuna],
+    };
+  }
+
+  if (topIssue === 'over_calories') {
+    const over = Math.round(daily.totalCalories - daily.caloriesTarget);
+    return {
+      issue: 'over_calories',
+      severity: over > 300 ? 'critical' : 'moderate',
+      headline: `You're ${over} cal over your target`,
+      explanation: 'You\'ve exceeded your calorie target. Focus on lean protein for the rest of the day to minimise the surplus.',
+      suggestions: [
+        {
+          id: 'rs-skip-snack',
+          title: 'Skip the evening snack',
+          subtitle: '-180 cal · no effort needed',
+          proteinImpact: 0,
+          calorieImpact: -180,
+          effort: 'instant',
+          foodItems: [],
+        },
+        {
+          id: 'rs-light-dinner',
+          title: 'Light protein dinner',
+          subtitle: '+31g protein · 200 cal · cook',
+          proteinImpact: 31,
+          calorieImpact: 200,
+          effort: 'moderate',
+          foodItems: [chicken],
+        },
+        {
+          id: 'rs-shake-water',
+          title: 'Protein shake only',
+          subtitle: '+25g protein · 120 cal · instant',
+          proteinImpact: 25,
+          calorieImpact: 120,
+          effort: 'instant',
+          foodItems: [whey],
+        },
+      ],
+      quickLogItems: [chicken, whey, greekYogurt],
+    };
+  }
+
+  if (topIssue === 'under_calories') {
+    return {
+      issue: 'under_calories',
+      severity: 'moderate',
+      headline: `You're ${Math.round(calRemaining)} cal under target`,
+      explanation: 'Eating too little can slow recovery and reduce training performance. Add a balanced meal or snack now.',
+      suggestions: [
+        {
+          id: 'rs-balanced-meal',
+          title: 'Add a balanced meal',
+          subtitle: '+32g protein · 480 cal · cook',
+          proteinImpact: 32,
+          calorieImpact: 480,
+          effort: 'moderate',
+          foodItems: [chicken, rice, avocado],
+        },
+        {
+          id: 'rs-protein-carb',
+          title: 'Protein + carb snack',
+          subtitle: '+35g protein · 420 cal · 5 min',
+          proteinImpact: 35,
+          calorieImpact: 420,
+          effort: 'quick',
+          foodItems: [oats, whey],
+        },
+        {
+          id: 'rs-pb-banana',
+          title: 'Peanut butter + banana',
+          subtitle: '+9g protein · 295 cal · instant',
+          proteinImpact: 9,
+          calorieImpact: 295,
+          effort: 'instant',
+          foodItems: [peanutButter, banana],
+        },
+      ],
+      quickLogItems: [chicken, oats, peanutButter],
+    };
+  }
+
+  if (topIssue === 'low_carbs') {
+    return {
+      issue: 'low_carbs',
+      severity: 'minor',
+      headline: 'Low carbs after a workout day',
+      explanation: 'Carbohydrates replenish glycogen stores after training. Refuelling now supports recovery and tomorrow\'s performance.',
+      suggestions: [
+        {
+          id: 'rs-rice-banana',
+          title: 'Refuel with carbs',
+          subtitle: '+5g protein · 300 cal · 5 min',
+          proteinImpact: 5,
+          calorieImpact: 300,
+          effort: 'quick',
+          foodItems: [rice, banana],
+        },
+        {
+          id: 'rs-oats-whey',
+          title: 'Oats with protein',
+          subtitle: '+35g protein · 420 cal · 5 min',
+          proteinImpact: 35,
+          calorieImpact: 420,
+          effort: 'quick',
+          foodItems: [oats, whey],
+        },
+      ],
+      quickLogItems: [rice, banana, oats],
+    };
+  }
+
+  // low_fat
+  return {
+    issue: 'low_fat',
+    severity: 'minor',
+    headline: 'Fat intake is low today',
+    explanation: 'Dietary fat supports hormone production and nutrient absorption. Add a healthy fat source to your next meal.',
+    suggestions: [
+      {
+        id: 'rs-avocado',
+        title: 'Add avocado',
+        subtitle: '+1g protein · 120 cal · instant',
+        proteinImpact: 1,
+        calorieImpact: 120,
+        effort: 'instant',
+        foodItems: [avocado],
+      },
+      {
+        id: 'rs-almonds',
+        title: 'Handful of almonds',
+        subtitle: '+6g protein · 170 cal · instant',
+        proteinImpact: 6,
+        calorieImpact: 170,
+        effort: 'instant',
+        foodItems: [almonds],
+      },
+    ],
+    quickLogItems: [avocado, almonds, peanutButter],
+  };
+}
+
+// ── Meal Idea Suggestion Engine ────────────────────────────────────────────────
+
+export type MealContext = {
+  hour: number;
+  proteinRemaining: number;
+  caloriesRemaining: number;
+  carbsRemaining: number;
+  fatRemaining: number;
+  hadWorkoutToday: boolean;
+  workoutWasThisMorning: boolean;
+  preferenceTag?: 'quick' | 'high-protein' | 'light' | 'filling' | 'meal-prep';
+};
+
+export interface MealIdea {
+  id: string;
+  name: string;
+  description: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'post_workout';
+  prepTime: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  items: FoodItem[];
+  tags: string[];
+  matchScore: number;
+  matchReason: string;
+}
+
+const HARDCODED_MEAL_IDEAS: Omit<MealIdea, 'matchScore' | 'matchReason'>[] = [
+  {
+    id: 'idea-post-workout-shake',
+    name: 'Post-Workout Shake',
+    description: 'Whey protein blended with banana and milk for fast recovery.',
+    mealType: 'post_workout',
+    prepTime: 10,
+    calories: 375,
+    protein: 34,
+    carbs: 42,
+    fat: 10,
+    items: [whey, banana, milk],
+    tags: ['post-workout', 'quick', 'high-protein'],
+  },
+  {
+    id: 'idea-tuna-bowl',
+    name: 'Quick Tuna Bowl',
+    description: 'Tuna over rice with avocado — high protein, balanced macros.',
+    mealType: 'lunch',
+    prepTime: 10,
+    calories: 403,
+    protein: 34,
+    carbs: 43,
+    fat: 14,
+    items: [tuna, rice, avocado],
+    tags: ['high-protein', 'quick', 'lunch'],
+  },
+  {
+    id: 'idea-egg-scramble',
+    name: 'Egg White Scramble',
+    description: 'Scrambled eggs with cottage cheese for a lean protein breakfast.',
+    mealType: 'breakfast',
+    prepTime: 8,
+    calories: 238,
+    protein: 23,
+    carbs: 5,
+    fat: 14,
+    items: [eggs, cottage],
+    tags: ['breakfast', 'high-protein', 'quick'],
+  },
+  {
+    id: 'idea-bedtime-protein',
+    name: 'Bedtime Protein',
+    description: 'Greek yogurt with almonds — slow-digesting protein for overnight recovery.',
+    mealType: 'snack',
+    prepTime: 2,
+    calories: 270,
+    protein: 23,
+    carbs: 12,
+    fat: 16,
+    items: [greekYogurt, almonds],
+    tags: ['snack', 'quick', 'high-protein'],
+  },
+  {
+    id: 'idea-light-protein-dinner',
+    name: 'Light Protein Dinner',
+    description: 'Chicken breast with sweet potato — lean and filling.',
+    mealType: 'dinner',
+    prepTime: 20,
+    calories: 295,
+    protein: 34,
+    carbs: 30,
+    fat: 4,
+    items: [chicken, sweetPotato],
+    tags: ['dinner', 'high-protein', 'meal-prep'],
+  },
+  {
+    id: 'idea-macro-shake',
+    name: 'Macro Shake',
+    description: 'Whey protein blended with oats and milk — a complete macro shake.',
+    mealType: 'snack',
+    prepTime: 3,
+    calories: 470,
+    protein: 33,
+    carbs: 57,
+    fat: 8,
+    items: [whey, oats, milk],
+    tags: ['snack', 'filling', 'high-protein'],
+  },
+  {
+    id: 'idea-salmon-rice',
+    name: 'Salmon & Rice',
+    description: 'Salmon fillet over white rice — omega-3 rich dinner.',
+    mealType: 'dinner',
+    prepTime: 15,
+    calories: 403,
+    protein: 24,
+    carbs: 43,
+    fat: 13,
+    items: [salmon, rice],
+    tags: ['dinner', 'omega-3', 'high-protein'],
+  },
+  {
+    id: 'idea-overnight-oats',
+    name: 'Overnight Oats',
+    description: 'Oats with Greek yogurt and banana — prep the night before.',
+    mealType: 'breakfast',
+    prepTime: 5,
+    calories: 505,
+    protein: 28,
+    carbs: 87,
+    fat: 7,
+    items: [oats, greekYogurt, banana],
+    tags: ['breakfast', 'meal-prep', 'filling'],
+  },
+];
+
+export function getMealIdeas(context: MealContext, _templates: MealTemplate[]): MealIdea[] {
+  const ideas: MealIdea[] = HARDCODED_MEAL_IDEAS.map(idea => {
+    let score = 0;
+    let topReason = '';
+
+    // Protein gap
+    if (idea.protein >= context.proteinRemaining * 0.5) {
+      score += 30;
+      topReason = 'Closes your protein gap';
+    }
+
+    // Calorie budget
+    if (idea.calories <= context.caloriesRemaining * 1.1) {
+      score += 20;
+      if (!topReason) topReason = 'Fits your calorie budget';
+    }
+
+    // Post-workout bonus
+    if (context.hadWorkoutToday && idea.tags.includes('post-workout')) {
+      score += 15;
+      topReason = 'Perfect for post-workout recovery';
+    }
+
+    // Meal timing
+    if (context.hour < 10 && idea.mealType === 'breakfast') {
+      score += 10;
+      if (!topReason) topReason = 'Great breakfast option';
+    }
+    if (context.hour >= 11 && context.hour < 15 && idea.mealType === 'lunch') {
+      score += 10;
+      if (!topReason) topReason = 'Ideal for lunch';
+    }
+    if (context.hour >= 17 && idea.mealType === 'dinner') {
+      score += 10;
+      if (!topReason) topReason = 'Good dinner choice';
+    }
+    if (context.hour >= 15 && context.hour < 17 && idea.mealType === 'snack') {
+      score += 10;
+      if (!topReason) topReason = 'Perfect afternoon snack';
+    }
+
+    // Penalty: too many calories
+    if (idea.calories > context.caloriesRemaining * 1.3) {
+      score -= 20;
+    }
+
+    // Penalty: low protein
+    if (idea.protein < 10) {
+      score -= 10;
+    }
+
+    // Preference tag bonus
+    if (context.preferenceTag && idea.tags.includes(context.preferenceTag)) {
+      score += 5;
+    }
+
+    if (!topReason) topReason = 'Balanced option for your goals';
+
+    return {
+      ...idea,
+      matchScore: Math.max(0, score),
+      matchReason: topReason,
+    };
+  });
+
+  return ideas.sort((a, b) => b.matchScore - a.matchScore).slice(0, 6);
+}
