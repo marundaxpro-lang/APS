@@ -69,7 +69,10 @@ export const measurements = pgTable(
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_user_measurements').on(table.userId)]
+  (table) => [
+    index('idx_user_measurements').on(table.userId),
+    index('idx_measurements_user_date').on(table.userId, table.measurementDate.desc()),
+  ]
 );
 
 /**
@@ -102,7 +105,10 @@ export const friendConnections = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
-  (table) => [index('idx_user_friends').on(table.userId)]
+  (table) => [
+    index('idx_friend_connections_user_id').on(table.userId),
+    index('idx_friend_connections_friend_id').on(table.friendId),
+  ]
 );
 
 /**
@@ -133,7 +139,10 @@ export const socialPostLikes = pgTable(
     userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_post_likes').on(table.postId)]
+  (table) => [
+    index('idx_social_post_likes_post_id').on(table.postId),
+    index('idx_social_post_likes_user_id').on(table.userId),
+  ]
 );
 
 /**
@@ -160,7 +169,10 @@ export const workoutSessions = pgTable(
     endedAt: timestamp('ended_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_user_workout_sessions').on(table.userId)]
+  (table) => [
+    index('idx_user_workout_sessions').on(table.userId),
+    index('idx_workout_sessions_user_started').on(table.userId, table.startedAt.desc()),
+  ]
 );
 
 /**
@@ -188,7 +200,10 @@ export const nutritionLogs = pgTable(
     logDate: timestamp('log_date', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_user_nutrition_logs').on(table.userId)]
+  (table) => [
+    index('idx_user_nutrition_logs').on(table.userId),
+    index('idx_nutrition_logs_user_date').on(table.userId, table.logDate.desc()),
+  ]
 );
 
 /**
