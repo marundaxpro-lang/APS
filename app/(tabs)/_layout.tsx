@@ -7,10 +7,7 @@ import { View } from 'react-native';
 export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
-      {/* This renders the actual screen content */}
       <Slot />
-      
-      {/* This renders the floating tab bar at the bottom */}
       <FloatingTabBar
         tabs={[
           {
@@ -23,13 +20,7 @@ export default function TabLayout() {
             name: 'training',
             route: '/(tabs)/training',
             icon: 'directions_run',
-            label: 'Training',
-          },
-          {
-            name: 'focus',
-            route: '/(tabs)/focus',
-            icon: 'timer',
-            label: 'Focus',
+            label: 'Train',
           },
           {
             name: 'nutrition',
@@ -38,10 +29,10 @@ export default function TabLayout() {
             label: 'Nutrition',
           },
           {
-            name: 'shop',
-            route: '/(tabs)/shop',
-            icon: 'star',
-            label: 'Premium',
+            name: 'progress',
+            route: '/(tabs)/progress',
+            icon: 'show_chart',
+            label: 'Progress',
           },
           {
             name: 'profile',
