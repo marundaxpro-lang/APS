@@ -213,7 +213,7 @@ export default function HomeScreen() {
   // Quick action configs
   const quickActions: QuickActionConfig[] = [
     {
-      icon: <Layers size={28} color="#2DD4BF" strokeWidth={2} />,
+      icon: <Layers size={24} color="#2DD4BF" strokeWidth={2} />,
       label: 'Programs',
       description: 'Browse packs',
       gradientStart: '#0D2B28',
@@ -222,7 +222,7 @@ export default function HomeScreen() {
       route: '/program-packs',
     },
     {
-      icon: <Apple size={28} color="#F97316" strokeWidth={2} />,
+      icon: <Apple size={24} color="#F97316" strokeWidth={2} />,
       label: 'Nutrition',
       description: 'Log meals',
       gradientStart: '#2B1A0A',
@@ -231,7 +231,7 @@ export default function HomeScreen() {
       route: '/nutrition',
     },
     {
-      icon: <Zap size={28} color="#A78BFA" strokeWidth={2} />,
+      icon: <Zap size={24} color="#A78BFA" strokeWidth={2} />,
       label: 'AI Coach',
       description: 'Ask anything',
       gradientStart: '#1A1030',
@@ -240,7 +240,7 @@ export default function HomeScreen() {
       route: '/ai-coach',
     },
     {
-      icon: <CheckSquare size={28} color="#34D399" strokeWidth={2} />,
+      icon: <CheckSquare size={24} color="#34D399" strokeWidth={2} />,
       label: 'Habits',
       description: 'Track daily',
       gradientStart: '#0A2018',
@@ -671,26 +671,26 @@ const styles = StyleSheet.create({
     color: C.text,
     marginBottom: 12,
   },
-  // Quick Actions Grid
+  // Quick Actions Grid — 2×2, vertical card layout
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
   quickCard: {
-    width: '47.5%',
-    height: 88,
+    // Each card takes ~half the row width, accounting for the gap
+    width: '48%',
+    flexGrow: 1,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    padding: 16,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 10,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
     borderCurve: 'continuous',
     position: 'relative',
+    minHeight: 100,
   },
   quickCardShine: {
     position: 'absolute',
@@ -699,25 +699,25 @@ const styles = StyleSheet.create({
     right: 0,
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.12)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   quickCardIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
     borderCurve: 'continuous',
   },
   quickCardTextGroup: {
-    flex: 1,
+    gap: 3,
   },
   quickCardLabel: {
     fontSize: 14,
     fontWeight: '700',
     color: C.text,
     letterSpacing: -0.2,
-    marginBottom: 2,
   },
   quickCardDesc: {
     fontSize: 11,
