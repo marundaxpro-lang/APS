@@ -454,6 +454,218 @@ export function rebalanceWeek(week: AdaptiveWorkoutDay[], context: AdaptiveConte
   return week;
 }
 
+// ─── Equipment Profiles & Substitution ───────────────────────────────────────
+
+export const EQUIPMENT_PROFILES: Record<EquipmentMode, string[]> = {
+  full_gym: ['barbell', 'dumbbell', 'cable', 'machine', 'bench', 'pullup_bar', 'kettlebell', 'bands'],
+  home: ['dumbbell', 'bench', 'pullup_bar', 'bands', 'kettlebell'],
+  minimal: ['dumbbell', 'bands'],
+  travel: ['bands', 'bodyweight'],
+  bodyweight: ['bodyweight'],
+};
+
+// Master substitution map: exercise name → substitutes per mode
+const EXERCISE_SUBSTITUTIONS: Record<string, Partial<Record<EquipmentMode, string[]>>> = {
+  'Barbell Bench Press': {
+    home: ['Dumbbell Bench Press', 'Push-ups', 'Dumbbell Flyes'],
+    minimal: ['Push-ups', 'Diamond Push-ups', 'Dumbbell Floor Press'],
+    travel: ['Push-Up Variations', 'Decline Push-ups', 'Diamond Push-ups'],
+    bodyweight: ['Archer Push-Ups', 'Diamond Push-ups', 'Wide Push-ups'],
+  },
+  'Incline Dumbbell Press': {
+    home: ['Dumbbell Bench Press', 'Incline Push-ups'],
+    minimal: ['Incline Push-ups', 'Pike Push-ups'],
+    travel: ['Incline Push-ups', 'Pike Push-ups'],
+    bodyweight: ['Incline Push-ups', 'Pike Push-ups'],
+  },
+  'Cable Flyes': {
+    home: ['Dumbbell Flyes', 'Push-ups'],
+    minimal: ['Dumbbell Flyes', 'Push-ups'],
+    travel: ['Push-ups', 'Wide Push-ups'],
+    bodyweight: ['Wide Push-ups', 'Push-ups'],
+  },
+  'Deadlifts': {
+    home: ['Dumbbell RDLs', 'Good Mornings', 'Dumbbell Deadlifts'],
+    minimal: ['Dumbbell RDLs', 'Single Leg Deadlifts'],
+    travel: ['Single Leg Deadlifts', 'Good Mornings', 'Hip Hinges'],
+    bodyweight: ['Single Leg Deadlifts', 'Good Mornings', 'Superman Holds'],
+  },
+  'Barbell Rows': {
+    home: ['Dumbbell Rows', 'Renegade Rows'],
+    minimal: ['Dumbbell Rows', 'Resistance Band Rows'],
+    travel: ['Inverted Rows', 'Band Rows', 'Superman Holds'],
+    bodyweight: ['Inverted Rows', 'Superman Holds', 'Bird Dogs'],
+  },
+  'Lat Pulldowns': {
+    home: ['Pull-ups', 'Band Pull-downs', 'Dumbbell Rows'],
+    minimal: ['Band Pull-downs', 'Resistance Band Rows'],
+    travel: ['Pull-ups', 'Band Pull-downs'],
+    bodyweight: ['Pull-ups', 'Chin-ups', 'Inverted Rows'],
+  },
+  'Cable Rows': {
+    home: ['Dumbbell Rows', 'Resistance Band Rows'],
+    minimal: ['Resistance Band Rows', 'Dumbbell Rows'],
+    travel: ['Resistance Band Rows', 'Inverted Rows'],
+    bodyweight: ['Inverted Rows', 'Superman Holds'],
+  },
+  'Barbell Squats': {
+    home: ['Goblet Squats', 'Bulgarian Split Squats', 'Dumbbell Squats'],
+    minimal: ['Goblet Squats', 'Dumbbell Squats'],
+    travel: ['Bodyweight Squats', 'Jump Squats', 'Bulgarian Split Squats'],
+    bodyweight: ['Pistol Squats', 'Jump Squats', 'Bodyweight Squats'],
+  },
+  'Romanian Deadlifts': {
+    home: ['Dumbbell RDLs', 'Nordic Curls'],
+    minimal: ['Dumbbell RDLs', 'Single Leg Deadlifts'],
+    travel: ['Single Leg Deadlifts', 'Good Mornings'],
+    bodyweight: ['Single Leg Deadlifts', 'Nordic Curls'],
+  },
+  'Leg Press': {
+    home: ['Goblet Squats', 'Dumbbell Lunges', 'Bulgarian Split Squats'],
+    minimal: ['Goblet Squats', 'Dumbbell Lunges'],
+    travel: ['Bodyweight Squats', 'Lunges', 'Jump Squats'],
+    bodyweight: ['Pistol Squats', 'Lunges', 'Jump Squats'],
+  },
+  'Leg Curls': {
+    home: ['Nordic Curls', 'Dumbbell RDLs', 'Stability Ball Curls'],
+    minimal: ['Nordic Curls', 'Dumbbell RDLs'],
+    travel: ['Nordic Curls', 'Single Leg Deadlifts'],
+    bodyweight: ['Nordic Curls', 'Single Leg Deadlifts'],
+  },
+  'Calf Raises': {
+    home: ['Bodyweight Calf Raises', 'Dumbbell Calf Raises'],
+    minimal: ['Bodyweight Calf Raises', 'Dumbbell Calf Raises'],
+    travel: ['Bodyweight Calf Raises', 'Jump Rope Skips'],
+    bodyweight: ['Bodyweight Calf Raises', 'Single Leg Calf Raises'],
+  },
+  'Overhead Press': {
+    home: ['Dumbbell Shoulder Press', 'Arnold Press', 'Pike Push-ups'],
+    minimal: ['Dumbbell Shoulder Press', 'Pike Push-ups'],
+    travel: ['Pike Push-ups', 'Handstand Push-ups', 'Plank to Down Dog'],
+    bodyweight: ['Pike Push-ups', 'Handstand Push-ups', 'Plank to Down Dog'],
+  },
+  'Lateral Raises': {
+    home: ['Dumbbell Lateral Raises', 'Band Lateral Raises'],
+    minimal: ['Band Lateral Raises', 'Dumbbell Lateral Raises'],
+    travel: ['Band Lateral Raises', 'Plank to Down Dog'],
+    bodyweight: ['Plank to Down Dog', 'Pike Push-ups'],
+  },
+  'Face Pulls': {
+    home: ['Band Face Pulls', 'Rear Delt Flyes'],
+    minimal: ['Band Face Pulls', 'Resistance Band Rear Delts'],
+    travel: ['Band Face Pulls', 'Resistance Band Rear Delts'],
+    bodyweight: ['Rear Delt Raises', 'Superman Holds'],
+  },
+  'Barbell Curls': {
+    home: ['Dumbbell Curls', 'Hammer Curls', 'Concentration Curls'],
+    minimal: ['Dumbbell Curls', 'Hammer Curls'],
+    travel: ['Resistance Band Curls', 'Chin-ups'],
+    bodyweight: ['Chin-ups', 'Inverted Rows'],
+  },
+  'Tricep Pushdowns': {
+    home: ['Overhead Tricep Extension', 'Tricep Kickbacks', 'Close Grip Push-ups'],
+    minimal: ['Overhead Tricep Extension', 'Band Tricep Pushdowns'],
+    travel: ['Tricep Dips', 'Close Grip Push-ups', 'Diamond Push-ups'],
+    bodyweight: ['Tricep Dips', 'Diamond Push-ups', 'Close Grip Push-ups'],
+  },
+  'Hanging Leg Raises': {
+    home: ['Lying Leg Raises', 'Reverse Crunches', 'Bicycle Crunches'],
+    minimal: ['Lying Leg Raises', 'Reverse Crunches'],
+    travel: ['Lying Leg Raises', 'Mountain Climbers', 'Reverse Crunches'],
+    bodyweight: ['Lying Leg Raises', 'Mountain Climbers', 'Reverse Crunches'],
+  },
+  'Ab Wheel Rollouts': {
+    home: ['Plank', 'Dead Bug', 'Hollow Body Hold'],
+    minimal: ['Plank', 'Dead Bug'],
+    travel: ['Plank', 'Mountain Climbers', 'Dead Bug'],
+    bodyweight: ['Plank', 'Dead Bug', 'Hollow Body Hold'],
+  },
+  'Pull-ups': {
+    home: ['Pull-ups', 'Band-Assisted Pull-ups', 'Dumbbell Rows'],
+    minimal: ['Band-Assisted Pull-ups', 'Resistance Band Rows'],
+    travel: ['Pull-ups', 'Inverted Rows'],
+    bodyweight: ['Pull-ups', 'Chin-ups', 'Inverted Rows'],
+  },
+};
+
+export function getEquipmentModeLabel(mode: EquipmentMode): string {
+  const labels: Record<EquipmentMode, string> = {
+    full_gym: 'Full Gym',
+    home: 'Home Gym',
+    minimal: 'Minimal Equipment',
+    travel: 'Travel',
+    bodyweight: 'Bodyweight Only',
+  };
+  return labels[mode];
+}
+
+export function getSubstitutesForExercise(exerciseName: string, mode: EquipmentMode): string[] {
+  if (mode === 'full_gym') return [];
+  const subs = EXERCISE_SUBSTITUTIONS[exerciseName];
+  if (!subs) return [];
+  return subs[mode] ?? subs['bodyweight'] ?? [];
+}
+
+export interface WorkoutDay {
+  id: string;
+  name: string;
+  exercises: WorkoutExercise[];
+  isRestDay: boolean;
+  estimatedDuration?: number;
+  travelMode?: boolean;
+}
+
+export interface WorkoutExercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  muscleGroup: string;
+  equipment: string[];
+  note?: string;
+}
+
+export function substituteWorkoutForMode(workout: WorkoutDay, mode: EquipmentMode): WorkoutDay {
+  console.log('[AdaptiveEngine] substituteWorkoutForMode', { workoutId: workout.id, mode });
+  if (workout.isRestDay || mode === 'full_gym') return workout;
+
+  const substitutedExercises = workout.exercises.map(ex => {
+    const subs = getSubstitutesForExercise(ex.name, mode);
+    if (subs.length === 0) return ex;
+    const newName = subs[0];
+    const equipMap: Record<EquipmentMode, string[]> = {
+      full_gym: ['barbell', 'cable', 'machine'],
+      home: ['dumbbell', 'bands'],
+      minimal: ['dumbbell', 'bands'],
+      travel: ['bands', 'bodyweight'],
+      bodyweight: ['bodyweight'],
+    };
+    return {
+      ...ex,
+      name: newName,
+      equipment: equipMap[mode],
+      note: `Substituted from "${ex.name}" for ${getEquipmentModeLabel(mode)} mode`,
+    };
+  });
+
+  return { ...workout, exercises: substitutedExercises };
+}
+
+export function getTravelModeWeek(week: WorkoutDay[], mode: EquipmentMode): WorkoutDay[] {
+  console.log('[AdaptiveEngine] getTravelModeWeek', { mode, days: week.length });
+  const reduceVolume = mode === 'bodyweight' || mode === 'travel';
+
+  return week.map(day => {
+    if (day.isRestDay) return { ...day, travelMode: true };
+    const substituted = substituteWorkoutForMode(day, mode);
+    const exercises = reduceVolume
+      ? substituted.exercises.map(ex => ({ ...ex, sets: Math.max(1, Math.floor(ex.sets * 0.9)) }))
+      : substituted.exercises;
+    return { ...substituted, exercises, travelMode: true };
+  });
+}
+
 export function getAdaptiveRecommendation(context: AdaptiveContext): AdaptiveRecommendation {
   console.log('[AdaptiveEngine] getAdaptiveRecommendation', context);
 

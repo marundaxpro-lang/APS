@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,31 @@ import {
   UIManager,
   Modal,
   Pressable,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  useMomentumStore,
+  generateDailyPriorities,
+  calculateWeeklyAdherence,
+  getMomentumScore,
+  getMomentumLabel,
+  getStreakMessage,
+  Priority,
+  DayContext,
+  DayRecord,
+  CATEGORY_COLORS,
+} from '@/utils/momentumEngine';
+import {
+  getNextBestAction,
+  getCurrentTimeOfDay,
+  NextBestAction,
+  UserDayContext,
+} from '@/utils/nextBestAction';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,16 +58,6 @@ const SCREEN_BG = '#0A0A0A';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PriorityCategory = 'Training' | 'Nutrition' | 'Recovery' | 'Habits';
-type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
-
-interface PriorityItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  category: PriorityCategory;
-  navigateTo?: '/(tabs)/training' | '/(tabs)/nutrition';
-  completed: boolean;
-}
 
 interface WeekDay {
   label: string;
@@ -70,18 +79,9 @@ interface HabitItem {
   icon_ios: string;
   icon_android: string;
   name: string;
-  timeOfDay: TimeOfDay[];
+  timeOfDay: ('morning' | 'afternoon' | 'evening' | 'night')[];
   completed: boolean;
 }
-
-// ─── Category dot colors ──────────────────────────────────────────────────────
-
-const CATEGORY_DOTS: Record<PriorityCategory, string> = {
-  Training: TEAL,
-  Nutrition: '#f59e0b',
-  Recovery: '#a78bfa',
-  Habits: '#60a5fa',
-};
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -93,24 +93,6 @@ const TIMER_PRESETS: TimerPreset[] = [
   { id: 'study-sprint', name: 'Study Sprint', minutes: 25, description: 'Lock in. Execute without distraction.', contextLine: 'Locked in.' },
   { id: 'deep-work', name: 'Deep Work Block', minutes: 50, description: 'Full immersion. Your best output.', contextLine: 'Full immersion. Executing.' },
   { id: 'custom', name: 'Custom Session', minutes: null, description: 'Set your own duration. Own your time.', contextLine: 'Your session. Your rules.' },
-];
-
-const INITIAL_PRIORITIES: PriorityItem[] = [
-  { id: '1', title: 'Complete upper body session', subtitle: 'Push day · 45 min · 6 exercises', category: 'Training', navigateTo: '/(tabs)/training', completed: false },
-  { id: '2', title: 'Hit protein target', subtitle: '160g goal · 42g logged so far', category: 'Nutrition', navigateTo: '/(tabs)/nutrition', completed: false },
-  { id: '3', title: '10 min mobility work', subtitle: 'Hip flexors + thoracic spine', category: 'Recovery', completed: false },
-  { id: '4', title: 'Log meals before 8pm', subtitle: 'Dinner + evening snack pending', category: 'Nutrition', navigateTo: '/(tabs)/nutrition', completed: true },
-  { id: '5', title: 'Evening wind-down routine', subtitle: 'No screens 1hr before bed', category: 'Habits', completed: false },
-];
-
-const WEEK_DAYS: WeekDay[] = [
-  { label: 'M', fullLabel: 'Mon', status: 'full', isToday: false },
-  { label: 'T', fullLabel: 'Tue', status: 'full', isToday: false },
-  { label: 'W', fullLabel: 'Wed', status: 'full', isToday: false },
-  { label: 'T', fullLabel: 'Thu', status: 'partial', isToday: false },
-  { label: 'F', fullLabel: 'Fri', status: 'today', isToday: true },
-  { label: 'S', fullLabel: 'Sat', status: 'missed', isToday: false },
-  { label: 'S', fullLabel: 'Sun', status: 'missed', isToday: false },
 ];
 
 const ALL_HABITS: HabitItem[] = [
@@ -128,21 +110,9 @@ const ALL_HABITS: HabitItem[] = [
   { id: 'h-night-3', icon_ios: 'star.fill', icon_android: 'star', name: "Rate today's execution", timeOfDay: ['night'], completed: false },
 ];
 
-const STREAK = 14;
-const COMPLETED_DAYS = 4;
-const WEEKLY_GOAL_DAYS = 7;
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getTimeOfDay(): TimeOfDay {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 11) return 'morning';
-  if (hour >= 11 && hour < 17) return 'afternoon';
-  if (hour >= 17 && hour < 22) return 'evening';
-  return 'night';
-}
-
-function getTimeOfDayLabel(tod: TimeOfDay): string {
+function getTimeOfDayLabel(tod: string): string {
   if (tod === 'morning') return 'Morning';
   if (tod === 'afternoon') return 'Afternoon';
   if (tod === 'evening') return 'Evening';
@@ -442,33 +412,7 @@ const pbStyles = StyleSheet.create({
   fill: { height: 4, backgroundColor: TEAL, borderRadius: 2 },
 });
 
-// ─── Hero Priority Card ───────────────────────────────────────────────────────
-
-function HeroPriorityCard({ item, onToggle, onPress }: { item: PriorityItem; onToggle: () => void; onPress: () => void }) {
-  return (
-    <AnimatedPressable style={heroStyles.card} onPress={onPress}>
-      <Text style={heroStyles.nextUpLabel}>NEXT UP</Text>
-      <View style={heroStyles.row}>
-        <View style={heroStyles.content}>
-          <Text style={heroStyles.title} numberOfLines={2}>{item.title}</Text>
-          <Text style={heroStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
-        </View>
-        <AnimatedPressable
-          onPress={(e) => { e.stopPropagation?.(); onToggle(); }}
-          style={heroStyles.checkHit}
-          accessibilityLabel="Mark complete"
-        >
-          <IconSymbol
-            ios_icon_name="circle"
-            android_material_icon_name="radio-button-unchecked"
-            size={24}
-            color="rgba(255,255,255,0.25)"
-          />
-        </AnimatedPressable>
-      </View>
-    </AnimatedPressable>
-  );
-}
+// heroStyles defined below — used by EnginePriorityCard
 
 const heroStyles = StyleSheet.create({
   card: {
@@ -500,29 +444,7 @@ const heroStyles = StyleSheet.create({
   checkHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });
 
-// ─── Secondary Priority Card ──────────────────────────────────────────────────
-
-function SecondaryPriorityCard({ item, onToggle, onPress }: { item: PriorityItem; onToggle: () => void; onPress: () => void }) {
-  const dotColor = CATEGORY_DOTS[item.category];
-
-  return (
-    <View style={scStyles.card}>
-      <View style={[scStyles.categoryDot, { backgroundColor: dotColor }]} />
-      <AnimatedPressable style={scStyles.content} onPress={onPress}>
-        <Text style={scStyles.title} numberOfLines={1}>{item.title}</Text>
-        <Text style={scStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
-      </AnimatedPressable>
-      <AnimatedPressable onPress={onToggle} style={scStyles.checkHit} accessibilityLabel="Mark complete">
-        <IconSymbol
-          ios_icon_name="circle"
-          android_material_icon_name="radio-button-unchecked"
-          size={22}
-          color="rgba(255,255,255,0.25)"
-        />
-      </AnimatedPressable>
-    </View>
-  );
-}
+// scStyles used by EnginePriorityCard below
 
 const scStyles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
@@ -533,24 +455,7 @@ const scStyles = StyleSheet.create({
   checkHit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });
 
-// ─── Completed Priority Card ──────────────────────────────────────────────────
-
-function CompletedPriorityCard({ item }: { item: PriorityItem }) {
-  return (
-    <View style={cpStyles.card}>
-      <View style={cpStyles.inner}>
-        <Text style={cpStyles.completedLabel}>COMPLETED</Text>
-        <Text style={cpStyles.title} numberOfLines={1}>{item.title}</Text>
-      </View>
-      <IconSymbol
-        ios_icon_name="checkmark.circle.fill"
-        android_material_icon_name="check-circle"
-        size={20}
-        color={TEAL}
-      />
-    </View>
-  );
-}
+// cpStyles used by EnginePriorityCard below
 
 const cpStyles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 12, opacity: 0.5 },
@@ -559,13 +464,145 @@ const cpStyles = StyleSheet.create({
   title: { fontSize: 14, fontWeight: '500', color: '#555', textDecorationLine: 'line-through' },
 });
 
+// ─── Next Best Action Card ────────────────────────────────────────────────────
+
+function NextBestActionCard({ action, onPress }: { action: NextBestAction; onPress: () => void }) {
+  return (
+    <View style={[nbaStyles.card, { borderLeftColor: action.color }]}>
+      <Text style={nbaStyles.nextUpLabel}>NEXT UP</Text>
+      <Text style={nbaStyles.title}>{action.title}</Text>
+      <Text style={nbaStyles.subtitle}>{action.subtitle}</Text>
+      <Text style={nbaStyles.reasoning}>{action.reasoning}</Text>
+      <TouchableOpacity
+        style={[nbaStyles.ctaBtn, { backgroundColor: action.color }]}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <Text style={nbaStyles.ctaBtnText}>{action.ctaLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const nbaStyles = StyleSheet.create({
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: CARD_BORDER,
+    borderRightColor: CARD_BORDER,
+    borderBottomColor: CARD_BORDER,
+    padding: 18,
+    marginBottom: 16,
+    gap: 6,
+  },
+  nextUpLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TEAL,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: TEXT_SECONDARY,
+  },
+  reasoning: {
+    fontSize: 12,
+    color: TEXT_MUTED,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  ctaBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  ctaBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
+  },
+});
+
+// ─── Engine Priority Card (replaces old HeroPriorityCard for engine priorities) ──
+
+function EnginePriorityCard({ priority, onComplete, onPress }: {
+  priority: Priority;
+  onComplete: () => void;
+  onPress: () => void;
+}) {
+  const isCompleted = priority.isCompleted;
+  if (isCompleted) {
+    return (
+      <View style={cpStyles.card}>
+        <View style={cpStyles.inner}>
+          <Text style={cpStyles.completedLabel}>COMPLETED</Text>
+          <Text style={cpStyles.title} numberOfLines={1}>{priority.title}</Text>
+        </View>
+        <IconSymbol ios_icon_name="checkmark.circle.fill" android_material_icon_name="check-circle" size={20} color={TEAL} />
+      </View>
+    );
+  }
+
+  if (priority.isHero) {
+    return (
+      <AnimatedPressable style={heroStyles.card} onPress={onPress}>
+        <Text style={heroStyles.nextUpLabel}>HERO PRIORITY</Text>
+        <View style={heroStyles.row}>
+          <View style={heroStyles.content}>
+            <Text style={heroStyles.title} numberOfLines={2}>{priority.title}</Text>
+            <Text style={heroStyles.subtitle} numberOfLines={1}>{priority.subtitle}</Text>
+          </View>
+          <AnimatedPressable
+            onPress={(e) => { e.stopPropagation?.(); onComplete(); }}
+            style={heroStyles.checkHit}
+            accessibilityLabel="Mark complete"
+          >
+            <IconSymbol ios_icon_name="circle" android_material_icon_name="radio-button-unchecked" size={24} color="rgba(255,255,255,0.25)" />
+          </AnimatedPressable>
+        </View>
+      </AnimatedPressable>
+    );
+  }
+
+  return (
+    <View style={scStyles.card}>
+      <View style={[scStyles.categoryDot, { backgroundColor: priority.color }]} />
+      <AnimatedPressable style={scStyles.content} onPress={onPress}>
+        <Text style={scStyles.title} numberOfLines={1}>{priority.title}</Text>
+        <Text style={scStyles.subtitle} numberOfLines={1}>{priority.subtitle}</Text>
+      </AnimatedPressable>
+      <AnimatedPressable onPress={onComplete} style={scStyles.checkHit} accessibilityLabel="Mark complete">
+        <IconSymbol ios_icon_name="circle" android_material_icon_name="radio-button-unchecked" size={22} color="rgba(255,255,255,0.25)" />
+      </AnimatedPressable>
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MomentumScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [priorities, setPriorities] = useState<PriorityItem[]>(INITIAL_PRIORITIES);
+  // ── Momentum store (AsyncStorage-backed) ──
+  const { loaded, streakData, completionDates, completedPriorityIds, completePriority } = useMomentumStore();
+
+  // ── Timer state ──
   const [habits, setHabits] = useState<HabitItem[]>(ALL_HABITS);
   const [showPresetsModal, setShowPresetsModal] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<TimerPreset>(TIMER_PRESETS[3]);
@@ -576,55 +613,140 @@ export default function MomentumScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isSignedIn = !!user;
+  const hour = new Date().getHours();
+  const currentTimeOfDay = useMemo(() => getCurrentTimeOfDay(hour), [hour]);
+  const todLabel = getTimeOfDayLabel(currentTimeOfDay);
 
-  // Derived priority state
-  const incompletePriorities = priorities.filter((p) => !p.completed);
-  const completedPriorities = priorities.filter((p) => p.completed);
-  const heroPriority = incompletePriorities[0] ?? null;
-  const secondaryPriorities = incompletePriorities.slice(1);
+  // ── Build day context for engines ──
+  const dayContext: DayContext = useMemo(() => ({
+    date: new Date().toISOString().split('T')[0],
+    timeOfDay: currentTimeOfDay,
+    workoutScheduled: 'Upper Body Push',
+    workoutCompleted: false,
+    proteinTarget: 160,
+    proteinLogged: 42,
+    caloriesTarget: 2400,
+    caloriesLogged: 800,
+    mealsLogged: 1,
+    sleepHours: 7,
+    currentStreak: streakData.currentStreak,
+    weeklyAdherence: 0.6,
+    missedWorkoutsThisWeek: 0,
+    completedPriorityIds,
+  }), [currentTimeOfDay, streakData.currentStreak, completedPriorityIds]);
+
+  const userDayContext: UserDayContext = useMemo(() => ({
+    timeOfDay: currentTimeOfDay,
+    hour,
+    hasWorkoutToday: true,
+    workoutCompleted: false,
+    workoutName: 'Upper Body Push',
+    proteinTarget: 160,
+    proteinLogged: 42,
+    caloriesTarget: 2400,
+    caloriesLogged: 800,
+    mealsLogged: 1,
+    totalMealsTarget: 4,
+    lastSleepHours: 7,
+    currentStreak: streakData.currentStreak,
+    weeklyAdherence: 0.6,
+    missedWorkoutsThisWeek: 0,
+    prioritiesCompleted: completedPriorityIds.length,
+    totalPriorities: 5,
+  }), [currentTimeOfDay, hour, streakData.currentStreak, completedPriorityIds.length]);
+
+  // ── Derived from engines ──
+  const priorities = useMemo(() => generateDailyPriorities(dayContext), [dayContext]);
+  const nextAction = useMemo(() => getNextBestAction(userDayContext), [userDayContext]);
+
+  const weekData: DayRecord[] = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const completed = completionDates.includes(dateStr);
+      return {
+        date: dateStr,
+        workoutCompleted: completed,
+        mealsLogged: completed ? 3 : 0,
+        totalMealsTarget: 4,
+        habitsCompleted: completed ? 2 : 0,
+        totalHabits: 3,
+      };
+    });
+  }, [completionDates]);
+
+  const adherence = useMemo(() => calculateWeeklyAdherence(weekData), [weekData]);
+  const momentumScore = useMemo(() => getMomentumScore(adherence, streakData.currentStreak), [adherence, streakData.currentStreak]);
+  const momentumLabel = getMomentumLabel(momentumScore);
+  const streakMessage = getStreakMessage(streakData.currentStreak);
+
+  // ── Priority derived state ──
+  const incompletePriorities = priorities.filter(p => !p.isCompleted);
+  const completedPrioritiesArr = priorities.filter(p => p.isCompleted);
+  const heroPriority = priorities.find(p => p.isHero && !p.isCompleted) ?? null;
+  const secondaryPriorities = incompletePriorities.filter(p => !p.isHero && p.rank <= 4);
+  const habitPriorities = incompletePriorities.filter(p => p.category === 'habit' && p.rank >= 5);
   const hasPriorities = priorities.length > 0;
   const allComplete = incompletePriorities.length === 0 && priorities.length > 0;
 
-  // Header derived values
+  // ── Header derived ──
   const incompleteCount = incompletePriorities.length;
+  const completedCount = completedPrioritiesArr.length;
   const totalCount = priorities.length;
-  const completedCount = completedPriorities.length;
   const completionFraction = totalCount > 0 ? completedCount / totalCount : 0;
   const completionPercent = Math.round(completionFraction * 100);
   const completionPercentStr = `${completionPercent}%`;
-  const streakStr = String(STREAK);
+  const streakStr = String(streakData.currentStreak);
+  const momentumScoreStr = String(momentumScore);
 
-  // Header text
   const headerHeadline = allComplete ? 'All done. Strong execution.' : `${incompleteCount} ${incompleteCount === 1 ? 'priority' : 'priorities'} left today.`;
-  const headerContext = allComplete ? `Day ${STREAK} streak. Consistency compounds.` : 'Keep the streak alive. Stay locked in.';
 
-  // Weekly consistency
-  const weeklyProgressFraction = COMPLETED_DAYS / WEEKLY_GOAL_DAYS;
-  const weeklyCompletedStr = String(COMPLETED_DAYS);
-  const weeklyGoalStr = String(WEEKLY_GOAL_DAYS);
+  // ── Weekly dot row ──
+  const weekDayDots: WeekDay[] = useMemo(() => {
+    const today = new Date();
+    const todayDow = today.getDay();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const isToday = d.getDay() === todayDow && d.toDateString() === today.toDateString();
+      const completed = completionDates.includes(dateStr);
+      return {
+        label: dayNames[d.getDay()][0],
+        fullLabel: dayNames[d.getDay()],
+        status: isToday ? 'today' : completed ? 'full' : 'missed',
+        isToday,
+      } as WeekDay;
+    });
+  }, [completionDates]);
 
-  // Time-of-day habits
-  const currentTimeOfDay = useMemo(() => getTimeOfDay(), []);
-  const todLabel = getTimeOfDayLabel(currentTimeOfDay);
-  const filteredHabits = habits.filter((h) => h.timeOfDay.includes(currentTimeOfDay));
-  const allHabitsDone = filteredHabits.length > 0 && filteredHabits.every((h) => h.completed);
+  const weeklyCompletedStr = String(adherence.completedDays);
+  const weeklyGoalStr = String(7);
+  const weeklyProgressFraction = adherence.completedDays / 7;
 
-  // Focus session prompt
+  // ── Habits ──
+  const filteredHabits = habits.filter(h => h.timeOfDay.includes(currentTimeOfDay));
+  const allHabitsDone = filteredHabits.length > 0 && filteredHabits.every(h => h.completed);
+
+  // ── Focus prompt ──
   const focusPromptSubtitle = allComplete
     ? 'All priorities complete. Use this time for recovery or reflection.'
     : heroPriority
     ? `Start a session for: ${heroPriority.title}`
     : 'No priorities remaining.';
 
-  // Timer tick
+  // ── Timer tick ──
   useEffect(() => {
     if (isRunning) {
       timerRef.current = setInterval(() => {
-        setSecondsLeft((prev) => {
+        setSecondsLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
             setIsRunning(false);
-            setSessionCount((c) => c + 1);
+            setSessionCount(c => c + 1);
             console.log('[Momentum] Timer completed:', selectedPreset.name);
             return 0;
           }
@@ -670,21 +792,26 @@ export default function MomentumScreen() {
     setTotalSeconds(mins * 60);
   }
 
-  function togglePriority(id: string) {
-    console.log('[Momentum] User toggled priority item:', id);
+  const handleCompletePriority = useCallback((priority: Priority) => {
+    console.log('[Momentum] User completed priority:', priority.id, priority.title);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setPriorities((prev) => prev.map((p) => (p.id === id ? { ...p, completed: !p.completed } : p)));
+    completePriority(priority.id, priority.isHero);
+  }, [completePriority]);
+
+  function handlePriorityPress(priority: Priority) {
+    console.log('[Momentum] User tapped priority:', priority.title, '→', priority.ctaRoute ?? 'no nav');
+    if (priority.ctaRoute) router.push(priority.ctaRoute as never);
+  }
+
+  function handleNextActionPress() {
+    console.log('[Momentum] User tapped Next Best Action CTA:', nextAction.ctaLabel, '→', nextAction.ctaRoute);
+    router.push(nextAction.ctaRoute as never);
   }
 
   function toggleHabit(id: string) {
     console.log('[Momentum] User toggled habit:', id);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setHabits((prev) => prev.map((h) => (h.id === id ? { ...h, completed: !h.completed } : h)));
-  }
-
-  function handlePriorityPress(item: PriorityItem) {
-    console.log('[Momentum] User tapped priority item:', item.title, '→', item.navigateTo ?? 'no nav');
-    if (item.navigateTo) router.push(item.navigateTo as never);
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, completed: !h.completed } : h));
   }
 
   return (
@@ -693,8 +820,15 @@ export default function MomentumScreen() {
 
         {/* ── Section 1: Momentum Header ── */}
         <View style={s.header}>
-          <Text style={s.headerHeadline}>{headerHeadline}</Text>
-          <Text style={s.headerContext}>{headerContext}</Text>
+          <View style={s.headerTopRow}>
+            <Text style={s.headerHeadline}>{headerHeadline}</Text>
+            <View style={s.momentumPill}>
+              <Text style={s.momentumPillScore}>{momentumScoreStr}</Text>
+              <Text style={s.momentumPillDot}> · </Text>
+              <Text style={s.momentumPillLabel}>{momentumLabel}</Text>
+            </View>
+          </View>
+          <Text style={s.headerContext}>{streakMessage}</Text>
 
           {/* Slim completion bar */}
           <View style={s.completionBarRow}>
@@ -710,37 +844,41 @@ export default function MomentumScreen() {
           </View>
         </View>
 
+        {/* ── Next Best Action ── */}
+        <NextBestActionCard action={nextAction} onPress={handleNextActionPress} />
+
         {/* ── Section 2: Today's Priorities ── */}
         <View style={s.section}>
           <Text style={s.sectionHeader}>TODAY'S PRIORITIES</Text>
           {hasPriorities ? (
             <>
-              {/* Hero card — first incomplete */}
               {heroPriority && (
                 <AnimatedListItem index={0}>
-                  <HeroPriorityCard
-                    item={heroPriority}
-                    onToggle={() => togglePriority(heroPriority.id)}
+                  <EnginePriorityCard
+                    priority={heroPriority}
+                    onComplete={() => handleCompletePriority(heroPriority)}
                     onPress={() => handlePriorityPress(heroPriority)}
                   />
                 </AnimatedListItem>
               )}
 
-              {/* Secondary incomplete cards */}
-              {secondaryPriorities.map((item, index) => (
-                <AnimatedListItem key={item.id} index={index + 1}>
-                  <SecondaryPriorityCard
-                    item={item}
-                    onToggle={() => togglePriority(item.id)}
-                    onPress={() => handlePriorityPress(item)}
+              {secondaryPriorities.map((p, index) => (
+                <AnimatedListItem key={p.id} index={index + 1}>
+                  <EnginePriorityCard
+                    priority={p}
+                    onComplete={() => handleCompletePriority(p)}
+                    onPress={() => handlePriorityPress(p)}
                   />
                 </AnimatedListItem>
               ))}
 
-              {/* Completed cards */}
-              {completedPriorities.map((item, index) => (
-                <AnimatedListItem key={item.id} index={incompletePriorities.length + index}>
-                  <CompletedPriorityCard item={item} />
+              {completedPrioritiesArr.map((p, index) => (
+                <AnimatedListItem key={p.id} index={incompletePriorities.length + index}>
+                  <EnginePriorityCard
+                    priority={p}
+                    onComplete={() => {}}
+                    onPress={() => {}}
+                  />
                 </AnimatedListItem>
               ))}
             </>
@@ -802,26 +940,25 @@ export default function MomentumScreen() {
         <View style={s.section}>
           <Text style={s.sectionHeader}>THIS WEEK</Text>
 
-          {/* 7-day dot row */}
           <View style={s.weekRow}>
-            {WEEK_DAYS.map((day, i) => (
+            {weekDayDots.map((day, i) => (
               <WeekDayDot key={i} day={day} />
             ))}
           </View>
 
-          {/* Single summary line */}
           <View style={s.weekSummaryRow}>
             <Text style={s.weekSummaryText}>
               <Text style={s.weekSummaryHighlight}>{weeklyCompletedStr}</Text>
               <Text style={s.weekSummaryText}> of </Text>
               <Text style={s.weekSummaryHighlight}>{weeklyGoalStr}</Text>
-              <Text style={s.weekSummaryText}> days complete · 🔥 </Text>
+              <Text style={s.weekSummaryText}> days · 🔥 </Text>
               <Text style={s.weekSummaryHighlight}>{streakStr}</Text>
-              <Text style={s.weekSummaryText}>-day streak</Text>
+              <Text style={s.weekSummaryText}> day streak · </Text>
+              <Text style={s.weekSummaryHighlight}>{momentumScoreStr}</Text>
+              <Text style={s.weekSummaryText}> Momentum</Text>
             </Text>
           </View>
 
-          {/* Slim weekly progress bar */}
           <AnimatedProgressBar fraction={weeklyProgressFraction} />
         </View>
 
@@ -928,7 +1065,12 @@ const s = StyleSheet.create({
 
   // Header
   header: { marginBottom: 32 },
-  headerHeadline: { fontSize: 30, fontWeight: '800', color: TEXT_PRIMARY, letterSpacing: -0.5, marginBottom: 6 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 },
+  headerHeadline: { fontSize: 28, fontWeight: '800', color: TEXT_PRIMARY, letterSpacing: -0.5, flex: 1, marginRight: 10 },
+  momentumPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,212,170,0.15)', borderWidth: 1, borderColor: '#00D4AA', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginTop: 4 },
+  momentumPillScore: { fontSize: 13, fontWeight: '800', color: TEAL },
+  momentumPillDot: { fontSize: 12, color: TEAL, opacity: 0.6 },
+  momentumPillLabel: { fontSize: 12, fontWeight: '600', color: TEAL },
   headerContext: { fontSize: 14, color: TEAL, marginBottom: 20 },
 
   // Completion bar

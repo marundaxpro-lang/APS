@@ -23,6 +23,10 @@ import {
   substituteEquipment,
   handleMissedWorkout,
   getAdaptiveRecommendation,
+  getSubstitutesForExercise,
+  getTravelModeWeek,
+  getEquipmentModeLabel,
+  EQUIPMENT_PROFILES,
   AdaptiveWorkoutDay,
   AdaptiveExercise,
   EquipmentMode,
@@ -32,6 +36,7 @@ import {
   MissedWorkoutResolution,
   AdaptiveContext,
 } from '@/utils/adaptiveWorkoutEngine';
+import { STORAGE_KEYS } from '@/utils/momentumEngine';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,12 +44,21 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const TEAL = '#00D4AA';
 const ORANGE = '#FF6B35';
+const AMBER = '#F59E0B';
 const BG = '#0A0A0A';
 const CARD = '#161616';
 const CARD_BORDER = 'rgba(255,255,255,0.06)';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const TIME_OPTIONS = [15, 25, 35, 45];
+
+const EQUIPMENT_MODES: { mode: EquipmentMode; icon_ios: string; icon_android: string }[] = [
+  { mode: 'full_gym', icon_ios: 'dumbbell.fill', icon_android: 'fitness-center' },
+  { mode: 'home', icon_ios: 'house.fill', icon_android: 'home' },
+  { mode: 'minimal', icon_ios: 'minus.circle.fill', icon_android: 'remove-circle' },
+  { mode: 'travel', icon_ios: 'airplane', icon_android: 'flight' },
+  { mode: 'bodyweight', icon_ios: 'figure.walk', icon_android: 'directions-walk' },
+];
 
 function mapGoal(raw: string | undefined): GoalType {
   if (raw === 'strength') return 'strength';
@@ -57,6 +71,8 @@ function mapGoal(raw: string | undefined): GoalType {
 function mapEquipment(raw: string | undefined): EquipmentMode {
   if (raw === 'home') return 'home';
   if (raw === 'minimal') return 'minimal';
+  if (raw === 'travel') return 'travel';
+  if (raw === 'bodyweight') return 'bodyweight';
   return 'full_gym';
 }
 
@@ -100,26 +116,75 @@ function PillButton({
   );
 }
 
+// ─── Equipment Mode Card ──────────────────────────────────────────────────────
+
+function EquipmentModeCard({
+  mode,
+  icon_ios,
+  icon_android,
+  selected,
+  onPress,
+}: {
+  mode: EquipmentMode;
+  icon_ios: string;
+  icon_android: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const label = getEquipmentModeLabel(mode);
+  return (
+    <TouchableOpacity
+      style={[styles.equipCard, selected && styles.equipCardSelected]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <IconSymbol
+        ios_icon_name={icon_ios}
+        android_material_icon_name={icon_android}
+        size={20}
+        color={selected ? TEAL : '#666'}
+      />
+      <Text style={[styles.equipCardLabel, selected && styles.equipCardLabelSelected]} numberOfLines={2}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Exercise Row ─────────────────────────────────────────────────────────────
+
 function ExerciseRow({
   exercise,
   onSwap,
   swapOpen,
+  isSubstituted,
+  equipmentMode,
+  onSelectSubstitute,
 }: {
   exercise: AdaptiveExercise;
   onSwap: () => void;
   swapOpen: boolean;
+  isSubstituted: boolean;
+  equipmentMode: EquipmentMode;
+  onSelectSubstitute: (name: string) => void;
 }) {
-  const muscleColor = exercise.isPrimary ? TEAL : '#888';
+  const nameColor = isSubstituted ? TEAL : '#fff';
   const restText = exercise.restSeconds >= 60
     ? `${Math.round(exercise.restSeconds / 60)}m rest`
     : `${exercise.restSeconds}s rest`;
+
+  const substitutes = getSubstitutesForExercise(exercise.name, equipmentMode);
+  const dropdownOptions = substitutes.length > 0 ? substitutes : exercise.alternatives;
 
   return (
     <View>
       <View style={styles.exerciseRow}>
         <View style={[styles.primaryDot, { backgroundColor: exercise.isPrimary ? TEAL : 'transparent', borderColor: exercise.isPrimary ? TEAL : '#444' }]} />
         <View style={styles.exerciseInfo}>
-          <Text style={styles.exerciseName}>{exercise.name}</Text>
+          <Text style={[styles.exerciseName, { color: nameColor }]}>{exercise.name}</Text>
+          {isSubstituted && (
+            <Text style={styles.substitutedBadge}>substituted</Text>
+          )}
           <View style={styles.exerciseMeta}>
             <Text style={styles.exerciseMetaText}>
               {exercise.sets}×{exercise.reps}
@@ -127,22 +192,22 @@ function ExerciseRow({
             <Text style={styles.exerciseMetaDot}>·</Text>
             <Text style={styles.exerciseMetaText}>{restText}</Text>
             <Text style={styles.exerciseMetaDot}>·</Text>
-            <Text style={[styles.muscleTag, { color: muscleColor }]}>{exercise.muscleGroup}</Text>
+            <Text style={[styles.muscleTag, { color: exercise.isPrimary ? TEAL : '#888' }]}>{exercise.muscleGroup}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.swapBtn} onPress={onSwap} activeOpacity={0.7}>
           <Text style={styles.swapIcon}>⇄</Text>
         </TouchableOpacity>
       </View>
-      {swapOpen && exercise.alternatives.length > 0 && (
+      {swapOpen && dropdownOptions.length > 0 && (
         <View style={styles.swapDropdown}>
-          {exercise.alternatives.map((alt, i) => (
+          {dropdownOptions.map((alt, i) => (
             <TouchableOpacity
               key={i}
               style={styles.swapOption}
               onPress={() => {
-                console.log('[TrainingPlan] User swapped exercise:', exercise.name, '→', alt);
-                onSwap();
+                console.log('[TrainingPlan] User selected substitute:', exercise.name, '→', alt);
+                onSelectSubstitute(alt);
               }}
               activeOpacity={0.7}
             >
@@ -162,12 +227,14 @@ export default function TrainingPlanScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [week, setWeek] = useState<AdaptiveWorkoutDay[]>([]);
+  const [baseWeek, setBaseWeek] = useState<AdaptiveWorkoutDay[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [goal, setGoal] = useState<GoalType>('hypertrophy');
   const [experience, setExperience] = useState<ExperienceLevel>('intermediate');
   const [equipment, setEquipment] = useState<EquipmentMode>('full_gym');
-  const [travelMode, setTravelMode] = useState(false);
   const [openSwapId, setOpenSwapId] = useState<string | null>(null);
+  // Per-exercise locked substitutes: exerciseId → custom name
+  const [lockedSubs, setLockedSubs] = useState<Record<string, string>>({});
 
   // Modals
   const [showTimeModal, setShowTimeModal] = useState(false);
@@ -178,6 +245,12 @@ export default function TrainingPlanScreen() {
 
   const travelBannerAnim = useRef(new Animated.Value(0)).current;
 
+  const isTravelActive = equipment !== 'full_gym';
+  const substitutedCount = week.reduce((acc, day) => {
+    if (day.isRestDay) return acc;
+    return acc + day.exercises.filter(ex => ex.alternatives && ex.alternatives.length > 0 && equipment !== 'full_gym').length;
+  }, 0);
+
   useEffect(() => {
     loadPlan();
   }, []);
@@ -185,26 +258,46 @@ export default function TrainingPlanScreen() {
   const loadPlan = async () => {
     console.log('[TrainingPlan] Loading plan from storage');
     try {
-      const raw = await AsyncStorage.getItem('fitnessProfile');
+      const [raw, savedMode] = await Promise.all([
+        AsyncStorage.getItem('fitnessProfile'),
+        AsyncStorage.getItem(STORAGE_KEYS.EQUIPMENT_MODE),
+      ]);
+
+      let g: GoalType = 'hypertrophy';
+      let exp: ExperienceLevel = 'intermediate';
+      let eq: EquipmentMode = 'full_gym';
+
       if (raw) {
         const profile = JSON.parse(raw);
-        const g = mapGoal(profile.goal);
-        const exp = mapExperience(profile.experienceLevel);
-        const eq = mapEquipment(profile.equipmentType);
-        setGoal(g);
-        setExperience(exp);
-        setEquipment(eq);
-        const plan = generateWeeklyPlan(g, exp, eq);
-        setWeek(plan);
-        // Default select today's workout
-        const todayDow = new Date().getDay();
-        const todayDay = plan.find(d => d.dayOfWeek === todayDow && !d.isRestDay);
-        if (todayDay) setSelectedDayId(todayDay.id);
-        else if (plan.length > 0) setSelectedDayId(plan.find(d => !d.isRestDay)?.id ?? null);
-      } else {
-        const plan = generateWeeklyPlan('hypertrophy', 'intermediate', 'full_gym');
-        setWeek(plan);
-        setSelectedDayId(plan.find(d => !d.isRestDay)?.id ?? null);
+        g = mapGoal(profile.goal);
+        exp = mapExperience(profile.experienceLevel);
+        eq = mapEquipment(profile.equipmentType);
+      }
+
+      // Saved equipment mode overrides profile
+      if (savedMode && ['full_gym', 'home', 'minimal', 'travel', 'bodyweight'].includes(savedMode)) {
+        eq = savedMode as EquipmentMode;
+      }
+
+      setGoal(g);
+      setExperience(exp);
+      setEquipment(eq);
+
+      const basePlan = generateWeeklyPlan(g, exp, 'full_gym');
+      setBaseWeek(basePlan);
+
+      const plan = eq === 'full_gym'
+        ? basePlan
+        : generateWeeklyPlan(g, exp, eq);
+      setWeek(plan);
+
+      const todayDow = new Date().getDay();
+      const todayDay = plan.find(d => d.dayOfWeek === todayDow && !d.isRestDay);
+      if (todayDay) setSelectedDayId(todayDay.id);
+      else if (plan.length > 0) setSelectedDayId(plan.find(d => !d.isRestDay)?.id ?? null);
+
+      if (eq !== 'full_gym') {
+        Animated.timing(travelBannerAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
       }
     } catch (e) {
       console.error('[TrainingPlan] Error loading plan:', e);
@@ -213,29 +306,37 @@ export default function TrainingPlanScreen() {
     }
   };
 
-  const activateTravel = useCallback(() => {
-    console.log('[TrainingPlan] User activated Travel Mode');
+  const selectEquipmentMode = useCallback(async (mode: EquipmentMode) => {
+    console.log('[TrainingPlan] User selected equipment mode:', mode);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    const newEquip: EquipmentMode = 'travel';
-    setEquipment(newEquip);
-    setTravelMode(true);
-    const newWeek = week.map(day => day.isRestDay ? day : substituteEquipment(day, newEquip));
-    setWeek(newWeek);
-    Animated.sequence([
-      Animated.timing(travelBannerAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, [week, travelBannerAnim]);
+    setEquipment(mode);
+    setLockedSubs({});
+    setOpenSwapId(null);
+
+    await AsyncStorage.setItem(STORAGE_KEYS.EQUIPMENT_MODE, mode);
+
+    if (mode === 'full_gym') {
+      const plan = generateWeeklyPlan(goal, experience, 'full_gym');
+      setBaseWeek(plan);
+      setWeek(plan);
+      Animated.timing(travelBannerAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    } else {
+      const plan = generateWeeklyPlan(goal, experience, mode);
+      setBaseWeek(generateWeeklyPlan(goal, experience, 'full_gym'));
+      setWeek(plan);
+      Animated.timing(travelBannerAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    }
+
+    const todayDow = new Date().getDay();
+    const newPlan = generateWeeklyPlan(goal, experience, mode);
+    const todayDay = newPlan.find(d => d.dayOfWeek === todayDow && !d.isRestDay);
+    if (todayDay) setSelectedDayId(todayDay.id);
+  }, [goal, experience, travelBannerAnim]);
 
   const deactivateTravel = useCallback(() => {
-    console.log('[TrainingPlan] User deactivated Travel Mode');
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setTravelMode(false);
-    const eq = mapEquipment(undefined);
-    setEquipment(eq);
-    const plan = generateWeeklyPlan(goal, experience, eq);
-    setWeek(plan);
-    Animated.timing(travelBannerAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
-  }, [goal, experience, travelBannerAnim]);
+    console.log('[TrainingPlan] User exited Travel Mode');
+    selectEquipmentMode('full_gym');
+  }, [selectEquipmentMode]);
 
   const openTimeModal = () => {
     console.log('[TrainingPlan] User opened Short on Time modal');
@@ -274,12 +375,11 @@ export default function TrainingPlanScreen() {
     const day = week.find(d => d.id === id);
     if (!day || day.isRestDay) return;
     console.log('[TrainingPlan] User tapped Start Session for:', day.name);
-    // Convert to legacy format for workout-session
     const legacyWorkout = {
       name: day.name,
       exercises: day.exercises.map(ex => ({
         id: ex.id,
-        name: ex.name,
+        name: lockedSubs[ex.id] ?? ex.name,
         sets: ex.sets,
         reps: ex.reps,
         muscleGroups: [ex.muscleGroup],
@@ -315,12 +415,23 @@ export default function TrainingPlanScreen() {
     });
   };
 
+  const handleLockSubstitute = (exerciseId: string, newName: string) => {
+    setLockedSubs(prev => ({ ...prev, [exerciseId]: newName }));
+    setOpenSwapId(null);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
   const selectedDay = week.find(d => d.id === selectedDayId) ?? null;
   const totalWorkouts = week.filter(d => !d.isRestDay).length;
   const completedWorkouts = week.filter(d => d.status === 'completed').length;
   const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
   const expLabel = experience.charAt(0).toUpperCase() + experience.slice(1);
-  const equipLabel = equipment.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const equipLabel = getEquipmentModeLabel(equipment);
+
+  // Count substituted exercises in selected day
+  const selectedDaySubCount = selectedDay
+    ? selectedDay.exercises.filter(ex => equipment !== 'full_gym' && getSubstitutesForExercise(ex.name, equipment).length > 0).length
+    : 0;
 
   if (loading) {
     return (
@@ -348,12 +459,20 @@ export default function TrainingPlanScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Travel Mode Banner ── */}
-        {travelMode && (
+        {isTravelActive && (
           <Animated.View style={[styles.travelBanner, { opacity: travelBannerAnim }]}>
-            <IconSymbol ios_icon_name="airplane" android_material_icon_name="flight" size={16} color={TEAL} />
-            <Text style={styles.travelBannerText}>Travel Mode Active — Bodyweight plan loaded.</Text>
+            <View style={styles.travelBannerLeft}>
+              <Text style={styles.travelBannerTitle}>
+                {equipment === 'travel' || equipment === 'bodyweight' ? '✈ Travel Mode Active' : `${equipLabel} Mode Active`}
+              </Text>
+              <Text style={styles.travelBannerSubtitle}>
+                {equipment === 'travel' || equipment === 'bodyweight'
+                  ? 'Your plan has been adapted. Bodyweight & band alternatives loaded.'
+                  : `Plan adapted for ${equipLabel}. Equipment-appropriate exercises loaded.`}
+              </Text>
+            </View>
             <TouchableOpacity onPress={deactivateTravel} activeOpacity={0.7}>
-              <Text style={styles.travelBannerDismiss}>Dismiss</Text>
+              <Text style={styles.travelBannerExit}>Exit</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -392,14 +511,33 @@ export default function TrainingPlanScreen() {
           </View>
         </View>
 
+        {/* ── Equipment Mode Selector ── */}
+        <View style={styles.equipSection}>
+          <SectionHeader label="EQUIPMENT MODE" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.equipRow}>
+            {EQUIPMENT_MODES.map(({ mode, icon_ios, icon_android }) => (
+              <EquipmentModeCard
+                key={mode}
+                mode={mode}
+                icon_ios={icon_ios}
+                icon_android={icon_android}
+                selected={equipment === mode}
+                onPress={() => selectEquipmentMode(mode)}
+              />
+            ))}
+          </ScrollView>
+          {isTravelActive && (
+            <View style={styles.substitutionBanner}>
+              <IconSymbol ios_icon_name="arrow.2.squarepath" android_material_icon_name="swap-horiz" size={13} color={TEAL} />
+              <Text style={styles.substitutionBannerText}>
+                Plan adapted for {equipLabel}. {selectedDaySubCount} exercise{selectedDaySubCount !== 1 ? 's' : ''} substituted.
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* ── Adaptive Controls ── */}
         <View style={styles.adaptiveRow}>
-          <PillButton
-            label="Travel Mode"
-            icon="airplane"
-            active={travelMode}
-            onPress={travelMode ? deactivateTravel : activateTravel}
-          />
           <PillButton
             label="Short on Time"
             icon="clock"
@@ -484,18 +622,26 @@ export default function TrainingPlanScreen() {
             ) : (
               <View style={styles.exerciseList}>
                 <SectionHeader label="EXERCISES" />
-                {selectedDay.exercises.map(ex => (
-                  <ExerciseRow
-                    key={ex.id}
-                    exercise={ex}
-                    swapOpen={openSwapId === ex.id}
-                    onSwap={() => {
-                      console.log('[TrainingPlan] User tapped swap for:', ex.name);
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setOpenSwapId(prev => prev === ex.id ? null : ex.id);
-                    }}
-                  />
-                ))}
+                {selectedDay.exercises.map(ex => {
+                  const displayName = lockedSubs[ex.id] ?? ex.name;
+                  const displayEx = { ...ex, name: displayName };
+                  const isSubstituted = equipment !== 'full_gym' && getSubstitutesForExercise(ex.name, equipment).length > 0;
+                  return (
+                    <ExerciseRow
+                      key={ex.id}
+                      exercise={displayEx}
+                      swapOpen={openSwapId === ex.id}
+                      isSubstituted={isSubstituted && !lockedSubs[ex.id]}
+                      equipmentMode={equipment}
+                      onSwap={() => {
+                        console.log('[TrainingPlan] User tapped swap for:', ex.name);
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setOpenSwapId(prev => prev === ex.id ? null : ex.id);
+                      }}
+                      onSelectSubstitute={(name) => handleLockSubstitute(ex.id, name)}
+                    />
+                  );
+                })}
               </View>
             )}
           </View>
@@ -682,24 +828,83 @@ const styles = StyleSheet.create({
   travelBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(0,212,170,0.1)',
+    gap: 12,
+    backgroundColor: 'rgba(245,158,11,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(0,212,170,0.3)',
-    borderRadius: 12,
-    padding: 12,
+    borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 16,
   },
-  travelBannerText: {
+  travelBannerLeft: {
     flex: 1,
-    fontSize: 13,
-    color: TEAL,
-    fontWeight: '600',
+    gap: 3,
   },
-  travelBannerDismiss: {
+  travelBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: AMBER,
+  },
+  travelBannerSubtitle: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(245,158,11,0.7)',
+    lineHeight: 17,
+  },
+  travelBannerExit: {
+    fontSize: 12,
+    color: TEAL,
+    fontWeight: '700',
+  },
+  // Equipment Mode Selector
+  equipSection: {
+    marginBottom: 16,
+  },
+  equipRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  equipCard: {
+    width: 80,
+    alignItems: 'center',
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+  equipCardSelected: {
+    borderColor: TEAL,
+    backgroundColor: 'rgba(0,212,170,0.1)',
+  },
+  equipCardLabel: {
+    fontSize: 10,
     fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
+  equipCardLabelSelected: {
+    color: TEAL,
+  },
+  substitutionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: 'rgba(0,212,170,0.08)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  substitutionBannerText: {
+    fontSize: 12,
+    color: TEAL,
+    fontWeight: '500',
+    flex: 1,
   },
   // Summary Card
   summaryCard: {
@@ -906,8 +1111,16 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 3,
+    marginBottom: 2,
+  },
+  substitutedBadge: {
+    fontSize: 10,
+    color: TEAL,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+    opacity: 0.7,
   },
   exerciseMeta: {
     flexDirection: 'row',
