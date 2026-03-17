@@ -120,8 +120,8 @@ export default function TrainingScreen() {
   }, [loadWorkout]);
 
   const handleViewWeeklyPlan = () => {
-    console.log('[Training] User tapped View Weekly Plan button - navigating to Plan screen');
-    router.push('/(tabs)/plan');
+    console.log('[Training] User tapped View Weekly Plan button - navigating to Training Plan screen');
+    router.push('/training-plan');
   };
 
   const handleStartWorkout = async () => {

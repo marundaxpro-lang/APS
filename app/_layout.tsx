@@ -96,6 +96,8 @@ export default function RootLayout() {
                 {/* Main app with tabs */}
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="workout-session" options={{ headerShown: false }} />
+                <Stack.Screen name="training-plan" options={{ headerShown: true }} />
+                <Stack.Screen name="workout-detail/[id]" options={{ headerShown: true }} />
 
                 {/* Modal Demo Screens */}
                 <Stack.Screen

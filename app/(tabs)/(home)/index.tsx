@@ -219,8 +219,8 @@ export default function HomeScreen() {
   };
 
   const handleViewFullPlan = () => {
-    console.log('[Home] User tapped View Full Plan');
-    router.push('/(tabs)/plan');
+    console.log('[Home] User tapped View Full Plan — navigating to training-plan');
+    router.push('/training-plan');
   };
 
   const getDayWorkout = (dayIndex: number): WorkoutDay | null =>
