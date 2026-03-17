@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
@@ -25,10 +26,16 @@ import {
   getMomentumScore,
   getMomentumLabel,
   getStreakMessage,
+  detectComebackState,
+  generateComebackPlan,
+  getComebackDailyPriorities,
+  ComebackState,
+  ComebackPlan,
   Priority,
   DayContext,
   DayRecord,
   CATEGORY_COLORS,
+  STORAGE_KEYS,
 } from '@/utils/momentumEngine';
 import {
   getNextBestAction,
@@ -595,12 +602,176 @@ function EnginePriorityCard({ priority, onComplete, onPress }: {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+// ─── Comeback Mode Banner ─────────────────────────────────────────────────────
+
+const ORANGE = '#FF8C42';
+const ORANGE_DIM = 'rgba(255,140,66,0.08)';
+const ORANGE_BORDER = 'rgba(255,140,66,0.2)';
+
+function ComebackBanner({ plan, state, onStartSession, onDismiss }: {
+  plan: ComebackPlan;
+  state: ComebackState;
+  onStartSession: () => void;
+  onDismiss: () => void;
+}) {
+  const weekTargetStr = String(plan.weekTarget);
+  const durationStr = String(plan.lightWorkoutDuration);
+  const proteinStr = String(plan.proteinTarget);
+
+  return (
+    <View style={cbStyles.card}>
+      <View style={cbStyles.accentBar} />
+      <View style={cbStyles.inner}>
+        <View style={cbStyles.topRow}>
+          <View style={cbStyles.badge}>
+            <Text style={cbStyles.badgeText}>COMEBACK MODE</Text>
+          </View>
+        </View>
+        <Text style={cbStyles.headline}>{plan.headline}</Text>
+        <Text style={cbStyles.subtext}>{plan.subtext}</Text>
+        <View style={cbStyles.chipsRow}>
+          <View style={cbStyles.chip}>
+            <Text style={cbStyles.chipValue}>{weekTargetStr}</Text>
+            <Text style={cbStyles.chipLabel}> day target</Text>
+          </View>
+          <View style={cbStyles.chip}>
+            <Text style={cbStyles.chipValue}>~{durationStr}</Text>
+            <Text style={cbStyles.chipLabel}> min session</Text>
+          </View>
+          <View style={cbStyles.chip}>
+            <Text style={cbStyles.chipValue}>{proteinStr}g</Text>
+            <Text style={cbStyles.chipLabel}> protein</Text>
+          </View>
+        </View>
+        <AnimatedPressable style={cbStyles.startBtn} onPress={() => { console.log('[Momentum] User pressed Start Comeback Session'); onStartSession(); }}>
+          <Text style={cbStyles.startBtnText}>Start Comeback Session</Text>
+        </AnimatedPressable>
+        <TouchableOpacity onPress={() => { console.log('[Momentum] User dismissed comeback banner'); onDismiss(); }} style={cbStyles.dismissBtn}>
+          <Text style={cbStyles.dismissText}>Dismiss for today</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const cbStyles = StyleSheet.create({
+  card: { flexDirection: 'row', backgroundColor: ORANGE_DIM, borderRadius: 16, borderWidth: 1, borderColor: ORANGE_BORDER, overflow: 'hidden', marginBottom: 20 },
+  accentBar: { width: 4, backgroundColor: ORANGE },
+  inner: { flex: 1, padding: 18, gap: 10 },
+  topRow: { flexDirection: 'row', alignItems: 'center' },
+  badge: { backgroundColor: 'rgba(255,140,66,0.18)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: ORANGE_BORDER },
+  badgeText: { fontSize: 11, fontWeight: '600', color: ORANGE, letterSpacing: 1, textTransform: 'uppercase' },
+  headline: { fontSize: 22, fontWeight: '700', color: '#F5F5F5', letterSpacing: -0.3 },
+  subtext: { fontSize: 14, color: '#888', lineHeight: 20 },
+  chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  chip: { flexDirection: 'row', alignItems: 'baseline', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  chipValue: { fontSize: 13, fontWeight: '700', color: '#00D4AA' },
+  chipLabel: { fontSize: 12, color: '#888' },
+  startBtn: { backgroundColor: '#00D4AA', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  startBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+  dismissBtn: { alignItems: 'center', paddingVertical: 6 },
+  dismissText: { fontSize: 13, color: 'rgba(255,255,255,0.3)' },
+});
+
+// ─── Nutrition Quick-Action Card ──────────────────────────────────────────────
+
+function NutritionQuickCard({ proteinLogged, proteinTarget, onPress }: {
+  proteinLogged: number;
+  proteinTarget: number;
+  onPress: () => void;
+}) {
+  const fraction = proteinTarget > 0 ? Math.min(1, proteinLogged / proteinTarget) : 0;
+  const loggedStr = String(Math.round(proteinLogged));
+  const targetStr = String(Math.round(proteinTarget));
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, { toValue: fraction, duration: 700, useNativeDriver: false }).start();
+  }, [fraction, anim]);
+
+  return (
+    <AnimatedPressable style={nqStyles.card} onPress={() => { console.log('[Momentum] User tapped Nutrition quick-action card'); onPress(); }}>
+      <View style={nqStyles.topRow}>
+        <Text style={nqStyles.label}>NUTRITION</Text>
+        <Text style={nqStyles.cta}>Log Meal →</Text>
+      </View>
+      <View style={nqStyles.proteinRow}>
+        <Text style={nqStyles.logged}>{loggedStr}g</Text>
+        <Text style={nqStyles.sep}> / </Text>
+        <Text style={nqStyles.target}>{targetStr}g protein</Text>
+      </View>
+      <View style={nqStyles.track}>
+        <Animated.View style={[nqStyles.fill, { width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+const nqStyles = StyleSheet.create({
+  card: { backgroundColor: '#161616', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 16 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  label: { fontSize: 11, fontWeight: '600', color: '#FF8C42', letterSpacing: 1.5, textTransform: 'uppercase' },
+  cta: { fontSize: 13, fontWeight: '600', color: '#00D4AA' },
+  proteinRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 10 },
+  logged: { fontSize: 22, fontWeight: '700', color: '#F5F5F5' },
+  sep: { fontSize: 14, color: 'rgba(255,255,255,0.3)' },
+  target: { fontSize: 14, color: '#888' },
+  track: { height: 6, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 3, overflow: 'hidden' },
+  fill: { height: 6, backgroundColor: '#00D4AA', borderRadius: 3 },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function MomentumScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
   // ── Momentum store (AsyncStorage-backed) ──
   const { loaded, streakData, completionDates, completedPriorityIds, completePriority } = useMomentumStore();
+
+  // ── Comeback state ──
+  const [comebackState, setComebackState] = useState<ComebackState>({ isActive: false, daysMissed: 0, lastActiveDate: '', phase: 'reentry' });
+  const [comebackDismissed, setComebackDismissed] = useState(false);
+
+  // Detect comeback state once completionDates are loaded
+  useEffect(() => {
+    if (!loaded) return;
+    const state = detectComebackState(completionDates);
+    setComebackState(state);
+    console.log('[Momentum] Comeback state:', state.isActive ? `ACTIVE phase=${state.phase} daysMissed=${state.daysMissed}` : 'inactive');
+  }, [loaded, completionDates]);
+
+  // Check if comeback banner was dismissed today
+  useEffect(() => {
+    async function checkDismissed() {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.COMEBACK_DISMISSED).catch(() => null);
+      if (raw) {
+        const today = new Date().toISOString().split('T')[0];
+        setComebackDismissed(raw === today);
+      }
+    }
+    checkDismissed();
+  }, []);
+
+  const handleDismissComeback = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+    await AsyncStorage.setItem(STORAGE_KEYS.COMEBACK_DISMISSED, today);
+    setComebackDismissed(true);
+  }, []);
+
+  // Comeback plan (memoized)
+  const comebackPlan = useMemo<ComebackPlan | null>(() => {
+    if (!comebackState.isActive) return null;
+    return generateComebackPlan(comebackState, 160, 4);
+  }, [comebackState]);
+
+  const showComebackBanner = comebackState.isActive && !comebackDismissed && comebackPlan !== null;
+
+  // Comeback priorities override normal priorities when active
+  const comebackPriorities = useMemo<Priority[]>(() => {
+    if (!comebackPlan) return [];
+    return getComebackDailyPriorities(comebackPlan);
+  }, [comebackPlan]);
 
   // ── Timer state ──
   const [habits, setHabits] = useState<HabitItem[]>(ALL_HABITS);
@@ -814,55 +985,101 @@ export default function MomentumScreen() {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, completed: !h.completed } : h));
   }
 
+  // ── Derived display values for comeback streak ──
+  const displayStreak = showComebackBanner ? 0 : streakData.currentStreak;
+  const displayStreakStr = String(displayStreak);
+  const displayStreakMessage = showComebackBanner && comebackPlan
+    ? comebackPlan.streakResetMessage
+    : streakMessage;
+
+  // ── Active priorities (comeback overrides normal) ──
+  const activePriorities = showComebackBanner ? comebackPriorities : priorities;
+  const activeIncompletePriorities = activePriorities.filter(p => !p.isCompleted);
+  const activeCompletedPriorities = activePriorities.filter(p => p.isCompleted);
+  const activeHeroPriority = activePriorities.find(p => p.isHero && !p.isCompleted) ?? null;
+  const activeSecondaryPriorities = activeIncompletePriorities.filter(p => !p.isHero && p.rank <= 4);
+  const activeHasPriorities = activePriorities.length > 0;
+  const activeAllComplete = activeIncompletePriorities.length === 0 && activePriorities.length > 0;
+
   return (
     <View style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ── Section 1: Momentum Header ── */}
-        <View style={s.header}>
-          <View style={s.headerTopRow}>
-            <Text style={s.headerHeadline}>{headerHeadline}</Text>
-            <View style={s.momentumPill}>
-              <Text style={s.momentumPillScore}>{momentumScoreStr}</Text>
-              <Text style={s.momentumPillDot}> · </Text>
-              <Text style={s.momentumPillLabel}>{momentumLabel}</Text>
+        {showComebackBanner && comebackPlan ? (
+          <ComebackBanner
+            plan={comebackPlan}
+            state={comebackState}
+            onStartSession={() => { console.log('[Momentum] Comeback session started'); router.push('/training-plan' as never); }}
+            onDismiss={handleDismissComeback}
+          />
+        ) : (
+          <View style={s.header}>
+            <View style={s.headerTopRow}>
+              <Text style={s.headerHeadline}>{headerHeadline}</Text>
+              <View style={s.momentumPill}>
+                <Text style={s.momentumPillScore}>{momentumScoreStr}</Text>
+                <Text style={s.momentumPillDot}> · </Text>
+                <Text style={s.momentumPillLabel}>{momentumLabel}</Text>
+              </View>
             </View>
-          </View>
-          <Text style={s.headerContext}>{streakMessage}</Text>
+            <Text style={s.headerContext}>{streakMessage}</Text>
 
-          {/* Slim completion bar */}
-          <View style={s.completionBarRow}>
-            <View style={s.completionBarLeft}>
-              <Text style={s.flameEmoji}>🔥</Text>
-              <Text style={s.streakCount}>{streakStr}</Text>
+            {/* Slim completion bar */}
+            <View style={s.completionBarRow}>
+              <View style={s.completionBarLeft}>
+                <Text style={s.flameEmoji}>🔥</Text>
+                <Text style={s.streakCount}>{streakStr}</Text>
+              </View>
+              <View style={s.completionBarTrackWrap}>
+                <AnimatedProgressBar fraction={completionFraction} />
+              </View>
+              <Text style={s.completionPercent}>{completionPercentStr}</Text>
+              <Text style={s.completionLabel}> complete</Text>
             </View>
-            <View style={s.completionBarTrackWrap}>
-              <AnimatedProgressBar fraction={completionFraction} />
-            </View>
-            <Text style={s.completionPercent}>{completionPercentStr}</Text>
-            <Text style={s.completionLabel}> complete</Text>
           </View>
-        </View>
+        )}
+
+        {/* Comeback streak display */}
+        {showComebackBanner && comebackPlan && (
+          <View style={s.comebackStreakRow}>
+            <Text style={s.comebackStreakNum}>{displayStreakStr}</Text>
+            <Text style={s.comebackStreakBadge}> 🔄 Rebuilding</Text>
+            <Text style={s.comebackStreakMsg}>{displayStreakMessage}</Text>
+          </View>
+        )}
+
+        {/* ── Nutrition Quick-Action Card ── */}
+        <NutritionQuickCard
+          proteinLogged={dayContext.proteinLogged}
+          proteinTarget={dayContext.proteinTarget}
+          onPress={() => router.push('/nutrition' as never)}
+        />
 
         {/* ── Next Best Action ── */}
-        <NextBestActionCard action={nextAction} onPress={handleNextActionPress} />
+        {!showComebackBanner && (
+          <NextBestActionCard action={nextAction} onPress={handleNextActionPress} />
+        )}
 
         {/* ── Section 2: Today's Priorities ── */}
         <View style={s.section}>
           <Text style={s.sectionHeader}>TODAY'S PRIORITIES</Text>
-          {hasPriorities ? (
+          {showComebackBanner && (
+            <Text style={s.comebackSimplifiedLabel}>Simplified for your comeback</Text>
+          )}
+          {activeHasPriorities ? (
             <>
-              {heroPriority && (
+              {activeHeroPriority && (
                 <AnimatedListItem index={0}>
                   <EnginePriorityCard
-                    priority={heroPriority}
-                    onComplete={() => handleCompletePriority(heroPriority)}
-                    onPress={() => handlePriorityPress(heroPriority)}
+                    priority={activeHeroPriority}
+                    onComplete={() => handleCompletePriority(activeHeroPriority)}
+                    onPress={() => handlePriorityPress(activeHeroPriority)}
                   />
                 </AnimatedListItem>
               )}
 
-              {secondaryPriorities.map((p, index) => (
+              {activeSecondaryPriorities.map((p, index) => (
                 <AnimatedListItem key={p.id} index={index + 1}>
                   <EnginePriorityCard
                     priority={p}
@@ -872,8 +1089,8 @@ export default function MomentumScreen() {
                 </AnimatedListItem>
               ))}
 
-              {completedPrioritiesArr.map((p, index) => (
-                <AnimatedListItem key={p.id} index={incompletePriorities.length + index}>
+              {activeCompletedPriorities.map((p, index) => (
+                <AnimatedListItem key={p.id} index={activeIncompletePriorities.length + index}>
                   <EnginePriorityCard
                     priority={p}
                     onComplete={() => {}}
@@ -887,7 +1104,7 @@ export default function MomentumScreen() {
               isSignedIn={isSignedIn}
               onSyncPress={() => router.push('/auth' as never)}
               onTrainingPress={() => router.push('/(tabs)/training' as never)}
-              onNutritionPress={() => router.push('/(tabs)/nutrition' as never)}
+              onNutritionPress={() => router.push('/nutrition' as never)}
             />
           )}
         </View>
@@ -1088,6 +1305,13 @@ const s = StyleSheet.create({
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   changeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: TEAL_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: TEAL_BORDER },
   changeBtnText: { fontSize: 12, fontWeight: '600', color: TEAL },
+
+  // Comeback streak row
+  comebackStreakRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
+  comebackStreakNum: { fontSize: 28, fontWeight: '800', color: '#F5F5F5', letterSpacing: -0.5 },
+  comebackStreakBadge: { fontSize: 14, color: '#FF8C42', fontWeight: '600' },
+  comebackStreakMsg: { fontSize: 12, color: 'rgba(255,255,255,0.3)', marginLeft: 8, flex: 1 },
+  comebackSimplifiedLabel: { fontSize: 12, color: 'rgba(255,255,255,0.3)', fontStyle: 'italic', marginBottom: 10 },
 
   // Focus prompt card
   focusPromptCard: { flexDirection: 'row', backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: CARD_BORDER, overflow: 'hidden' },

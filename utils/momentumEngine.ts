@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   STREAK_DATA: 'apex_streak_data',
   EQUIPMENT_MODE: 'apex_equipment_mode',
   DAY_CONTEXT: 'apex_day_context',
+  COMEBACK_DISMISSED: 'apex_comeback_dismissed',
 } as const;
 
 // ─── Streak Logic ─────────────────────────────────────────────────────────────
@@ -220,7 +221,7 @@ export function generateDailyPriorities(context: DayContext): Priority[] {
       rank: 1,
       color: CATEGORY_COLORS.nutrition,
       ctaLabel: 'Log Nutrition',
-      ctaRoute: '/(tabs)/nutrition',
+      ctaRoute: '/nutrition',
     };
   } else if (mealsLogged === 0 && hour > 10) {
     heroPriority = {
@@ -233,7 +234,7 @@ export function generateDailyPriorities(context: DayContext): Priority[] {
       rank: 1,
       color: CATEGORY_COLORS.nutrition,
       ctaLabel: 'Log a Meal',
-      ctaRoute: '/(tabs)/nutrition',
+      ctaRoute: '/nutrition',
     };
   } else if (currentStreak > 0 && hour > 18 && !workoutCompleted) {
     heroPriority = {
@@ -280,7 +281,7 @@ export function generateDailyPriorities(context: DayContext): Priority[] {
       rank: rank++,
       color: CATEGORY_COLORS.nutrition,
       ctaLabel: 'Log Nutrition',
-      ctaRoute: '/(tabs)/nutrition',
+      ctaRoute: '/nutrition',
     });
   }
 
@@ -295,7 +296,7 @@ export function generateDailyPriorities(context: DayContext): Priority[] {
       rank: rank++,
       color: CATEGORY_COLORS.nutrition,
       ctaLabel: 'Log a Meal',
-      ctaRoute: '/(tabs)/nutrition',
+      ctaRoute: '/nutrition',
     });
   }
 
@@ -420,6 +421,162 @@ export function getMomentumLabel(score: number): string {
   if (score <= 60) return 'Consistent';
   if (score <= 80) return 'Strong';
   return 'Elite';
+}
+
+// ─── Comeback Mode ────────────────────────────────────────────────────────────
+
+export interface ComebackState {
+  isActive: boolean;
+  daysMissed: number;
+  lastActiveDate: string;
+  phase: 'reentry' | 'rebuild' | 'momentum';
+}
+
+export function detectComebackState(completionDates: string[]): ComebackState {
+  if (completionDates.length === 0) {
+    return { isActive: false, daysMissed: 0, lastActiveDate: '', phase: 'reentry' };
+  }
+
+  const sorted = [...new Set(completionDates)].sort();
+  const lastActiveDate = sorted[sorted.length - 1];
+  const today = toDateStr(new Date());
+
+  const daysMissed = daysBetween(lastActiveDate, today);
+
+  if (daysMissed === 0) {
+    return { isActive: false, daysMissed: 0, lastActiveDate, phase: 'reentry' };
+  }
+
+  let phase: 'reentry' | 'rebuild' | 'momentum';
+  if (daysMissed <= 3) {
+    phase = 'reentry';
+  } else if (daysMissed <= 7) {
+    phase = 'rebuild';
+  } else {
+    phase = 'momentum';
+  }
+
+  return { isActive: true, daysMissed, lastActiveDate, phase };
+}
+
+export interface ComebackPlan {
+  headline: string;
+  subtext: string;
+  weekTarget: number;
+  dailyPriorities: string[];
+  lightWorkoutName: string;
+  lightWorkoutDuration: number;
+  lightWorkoutExercises: string[];
+  proteinTarget: number;
+  streakResetMessage: string;
+  motivationalNote: string;
+}
+
+export function generateComebackPlan(
+  state: ComebackState,
+  normalProteinTarget: number,
+  normalWeeklyWorkouts: number
+): ComebackPlan {
+  if (state.phase === 'reentry') {
+    return {
+      headline: 'Good to see you back.',
+      subtext: `You missed ${state.daysMissed} day${state.daysMissed === 1 ? '' : 's'}. No big deal — one session gets you back on track.`,
+      weekTarget: normalWeeklyWorkouts,
+      dailyPriorities: ['Complete your reactivation session', 'Hit your protein target', 'Log one win today'],
+      lightWorkoutName: 'Reactivation Session',
+      lightWorkoutDuration: 25,
+      lightWorkoutExercises: [
+        '5 min walk',
+        'Bodyweight squats 3×10',
+        'Push-ups 3×8',
+        'Plank 3×20s',
+        'Hip hinges 3×10',
+      ],
+      proteinTarget: normalProteinTarget,
+      streakResetMessage: 'Streak reset to 0. Every comeback starts here.',
+      motivationalNote: 'One session is all it takes to restart momentum.',
+    };
+  }
+
+  if (state.phase === 'rebuild') {
+    return {
+      headline: "Let's get back on track.",
+      subtext: `${state.daysMissed} days away. We're rebuilding with a lighter week — same commitment, reduced load.`,
+      weekTarget: Math.max(2, normalWeeklyWorkouts - 2),
+      dailyPriorities: ['Complete your full body reset', 'Hit reduced protein target', 'Log one win today'],
+      lightWorkoutName: 'Full Body Reset',
+      lightWorkoutDuration: 30,
+      lightWorkoutExercises: [
+        '10 min walk',
+        'Goblet squat 3×10',
+        'DB Row 3×10',
+        'Push-ups 3×10',
+        'Glute bridge 3×12',
+        'Dead bug 3×8',
+      ],
+      proteinTarget: Math.round(normalProteinTarget * 0.9),
+      streakResetMessage: 'Streak reset to 0. Every comeback starts here.',
+      motivationalNote: "Progress isn't lost. Muscle memory is real. You'll be back faster than you think.",
+    };
+  }
+
+  // momentum phase (8+ days)
+  return {
+    headline: 'Fresh start. No judgment.',
+    subtext: `${state.daysMissed} days away. We start small, stay consistent, and rebuild from here.`,
+    weekTarget: 2,
+    dailyPriorities: ['Complete your movement reactivation', 'Hit reduced protein target', 'Log one win today'],
+    lightWorkoutName: 'Movement Reactivation',
+    lightWorkoutDuration: 20,
+    lightWorkoutExercises: [
+      '15 min easy walk',
+      'Bodyweight squats 2×10',
+      'Push-ups 2×8',
+      'Stretching 5 min',
+    ],
+    proteinTarget: Math.round(normalProteinTarget * 0.85),
+    streakResetMessage: 'Streak reset to 0. Every comeback starts here.',
+    motivationalNote: 'The best workout is the one you actually do. Start small, stay consistent.',
+  };
+}
+
+export function getComebackDailyPriorities(plan: ComebackPlan): Priority[] {
+  return [
+    {
+      id: 'comeback-workout',
+      category: 'training',
+      title: plan.lightWorkoutName,
+      subtitle: `${plan.lightWorkoutDuration} min · Comeback session`,
+      isHero: true,
+      isCompleted: false,
+      rank: 1,
+      color: CATEGORY_COLORS.training,
+      ctaLabel: 'Start Session',
+      ctaRoute: '/training-plan',
+    },
+    {
+      id: 'comeback-protein',
+      category: 'nutrition',
+      title: `Hit ${plan.proteinTarget}g protein today`,
+      subtitle: 'Reduced target for comeback week',
+      isHero: false,
+      isCompleted: false,
+      rank: 2,
+      color: CATEGORY_COLORS.nutrition,
+      ctaLabel: 'Log Nutrition',
+      ctaRoute: '/nutrition',
+    },
+    {
+      id: 'comeback-habit',
+      category: 'habit',
+      title: 'Log one win today — anything counts',
+      subtitle: 'Small actions rebuild momentum',
+      isHero: false,
+      isCompleted: false,
+      rank: 3,
+      color: CATEGORY_COLORS.habit,
+    },
+  ];
 }
 
 // ─── useMomentumStore hook ────────────────────────────────────────────────────
