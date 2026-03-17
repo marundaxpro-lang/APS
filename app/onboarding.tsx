@@ -125,6 +125,10 @@ export default function OnboardingScreen() {
     nutritionPreference?: string;
   }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
+  const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
+  const [heightFt, setHeightFt] = useState('');
+  const [heightIn, setHeightIn] = useState('');
 
   useEffect(() => {
     AsyncStorage.getItem('fitnessProfile').then((data) => {
@@ -288,11 +292,28 @@ export default function OnboardingScreen() {
       return profile.trainingConfidence;
     }
     if (step === 9) {
-      return profile.gender && profile.weight && profile.height && profile.age;
+      if (!profile.gender || !profile.age || !profile.weight || !profile.height) return false;
+      const age = profile.age;
+      if (age < 13 || age > 100) return false;
+      if (weightUnit === 'kg') {
+        if (profile.weight < 30 || profile.weight > 300) return false;
+      } else {
+        if (profile.weight < 66 || profile.weight > 660) return false;
+      }
+      if (heightUnit === 'cm') {
+        if (profile.height < 100 || profile.height > 250) return false;
+      } else {
+        const ft = parseInt(heightFt) || 0;
+        const inches = parseInt(heightIn) || 0;
+        if (ft < 3 || ft > 8 || inches < 0 || inches > 11) return false;
+      }
+      return true;
     }
     if (step === 10) {
-      return profile.trainingExperience && profile.activityLevelOutsideTraining &&
-             profile.nutritionPreference;
+      return profile.trainingExperience && profile.activityLevelOutsideTraining;
+    }
+    if (step === 11) {
+      return profile.nutritionPreference;
     }
     return false;
   };
@@ -910,138 +931,206 @@ export default function OnboardingScreen() {
     );
   };
 
-  const renderStep9 = () => (
-    <ScrollView
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.step9ScrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.finalHeader}>
-        <IconSymbol
-          ios_icon_name="person.fill"
-          android_material_icon_name="person"
-          size={56}
-          color={colors.primary}
-        />
-        <Text style={styles.finalTitle}>Almost there!</Text>
-      </View>
-      <Text style={styles.finalSubtitle}>
-        Tell us a bit about yourself
-      </Text>
+  const renderStep9 = () => {
+    const age = profile.age || 0;
+    const weight = profile.weight || 0;
+    const height = profile.height || 0;
 
-      <View style={styles.sectionBlock}>
-        <Text style={styles.sectionBlockTitle}>Sex for Calculation Purposes</Text>
-        <Text style={styles.sectionBlockSubtitle}>Used for metabolic calculations only</Text>
-        <View style={styles.genderButtons}>
-          {(['male', 'female', 'prefer-not-to-say'] as const).map((gender) => (
-            <TouchableOpacity
-              key={gender}
-              style={[
-                styles.genderButton,
-                profile.gender === gender && styles.genderButtonSelected,
-              ]}
-              onPress={() => {
-                console.log('[Onboarding] Gender selected:', gender);
-                setProfile({ ...profile, gender });
-              }}
-            >
-              <Text style={[
-                styles.genderButtonText,
-                profile.gender === gender && styles.genderButtonTextSelected
-              ]}>
-                {gender === 'prefer-not-to-say' ? 'Prefer not to say' : gender.charAt(0).toUpperCase() + gender.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+    const ageError = age > 0 && (age < 13 || age > 100)
+      ? 'Please enter a valid age (13–100)' : '';
+    const weightErrorKg = weightUnit === 'kg' && weight > 0 && (weight < 30 || weight > 300)
+      ? 'Please enter a valid weight (30–300 kg)' : '';
+    const weightErrorLbs = weightUnit === 'lbs' && weight > 0 && (weight < 66 || weight > 660)
+      ? 'Please enter a valid weight (66–660 lbs)' : '';
+    const weightError = weightErrorKg || weightErrorLbs;
+
+    const ft = parseInt(heightFt) || 0;
+    const inches = parseInt(heightIn) || 0;
+    const heightErrorCm = heightUnit === 'cm' && height > 0 && (height < 100 || height > 250)
+      ? 'Please enter a valid height (100–250 cm)' : '';
+    const heightErrorFt = heightUnit === 'ft' && (heightFt || heightIn)
+      && (ft < 3 || ft > 8 || inches < 0 || inches > 11)
+      ? 'Please enter valid height (3–8 ft, 0–11 in)' : '';
+    const heightError = heightErrorCm || heightErrorFt;
+
+    const genderLabel = (g: string) => {
+      if (g === 'prefer-not-to-say') return 'Prefer not to say';
+      return g.charAt(0).toUpperCase() + g.slice(1);
+    };
+
+    return (
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.step9ScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.stepTitle}>About You</Text>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionBlockTitle}>Sex</Text>
+          <View style={styles.segmentedControl}>
+            {(['male', 'female', 'prefer-not-to-say'] as const).map((gender) => {
+              const isActive = profile.gender === gender;
+              return (
+                <TouchableOpacity
+                  key={gender}
+                  style={[styles.segmentedOption, isActive && styles.segmentedOptionActive]}
+                  onPress={() => {
+                    console.log('[Onboarding] Gender selected:', gender);
+                    setProfile({ ...profile, gender });
+                  }}
+                >
+                  <Text style={[styles.segmentedOptionText, isActive && styles.segmentedOptionTextActive]}>
+                    {genderLabel(gender)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.fieldCaption}>Used for metabolic calculations only</Text>
         </View>
-      </View>
 
-      <View style={styles.statsContainer}>
-        <View style={styles.inputGroup}>
+        <View style={styles.sectionBlock}>
           <Text style={styles.inputLabel}>Age (years)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, ageError ? styles.inputError : null]}
             keyboardType="numeric"
             placeholder="25"
             placeholderTextColor={colors.grey}
-            value={profile.age?.toString()}
+            value={profile.age ? profile.age.toString() : ''}
             onChangeText={(text) => {
               console.log('[Onboarding] Age entered:', text);
               setProfile({ ...profile, age: parseInt(text) || 0 });
             }}
           />
+          {ageError ? <Text style={styles.fieldError}>{ageError}</Text> : null}
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Current Weight (kg)</Text>
+        <View style={styles.sectionBlock}>
+          <View style={styles.labelRow}>
+            <Text style={styles.inputLabel}>Weight</Text>
+            <View style={styles.unitToggle}>
+              {(['kg', 'lbs'] as const).map((u) => {
+                const isActive = weightUnit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    style={[styles.unitOption, isActive && styles.unitOptionActive]}
+                    onPress={() => {
+                      console.log('[Onboarding] Weight unit toggled:', u);
+                      setWeightUnit(u);
+                      setProfile({ ...profile, weight: 0 });
+                    }}
+                  >
+                    <Text style={[styles.unitOptionText, isActive && styles.unitOptionTextActive]}>{u}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <TextInput
-            style={styles.input}
+            style={[styles.input, weightError ? styles.inputError : null]}
             keyboardType="numeric"
-            placeholder="70"
+            placeholder={weightUnit === 'kg' ? '70' : '154'}
             placeholderTextColor={colors.grey}
-            value={profile.weight?.toString()}
+            value={profile.weight ? profile.weight.toString() : ''}
             onChangeText={(text) => {
-              console.log('[Onboarding] Weight entered:', text);
+              console.log('[Onboarding] Weight entered:', text, weightUnit);
               setProfile({ ...profile, weight: parseFloat(text) || 0 });
             }}
           />
+          {weightError ? <Text style={styles.fieldError}>{weightError}</Text> : null}
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Height (cm)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="175"
-            placeholderTextColor={colors.grey}
-            value={profile.height?.toString()}
-            onChangeText={(text) => {
-              console.log('[Onboarding] Height entered:', text);
-              setProfile({ ...profile, height: parseFloat(text) || 0 });
-            }}
-          />
+        <View style={styles.sectionBlock}>
+          <View style={styles.labelRow}>
+            <Text style={styles.inputLabel}>Height</Text>
+            <View style={styles.unitToggle}>
+              {(['cm', 'ft'] as const).map((u) => {
+                const isActive = heightUnit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    style={[styles.unitOption, isActive && styles.unitOptionActive]}
+                    onPress={() => {
+                      console.log('[Onboarding] Height unit toggled:', u);
+                      setHeightUnit(u);
+                      setProfile({ ...profile, height: 0 });
+                      setHeightFt('');
+                      setHeightIn('');
+                    }}
+                  >
+                    <Text style={[styles.unitOptionText, isActive && styles.unitOptionTextActive]}>{u}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          {heightUnit === 'cm' ? (
+            <TextInput
+              style={[styles.input, heightError ? styles.inputError : null]}
+              keyboardType="numeric"
+              placeholder="175"
+              placeholderTextColor={colors.grey}
+              value={profile.height ? profile.height.toString() : ''}
+              onChangeText={(text) => {
+                console.log('[Onboarding] Height cm entered:', text);
+                setProfile({ ...profile, height: parseFloat(text) || 0 });
+              }}
+            />
+          ) : (
+            <View style={styles.ftInRow}>
+              <TextInput
+                style={[styles.input, styles.ftInput, heightError ? styles.inputError : null]}
+                keyboardType="numeric"
+                placeholder="5"
+                placeholderTextColor={colors.grey}
+                value={heightFt}
+                onChangeText={(text) => {
+                  console.log('[Onboarding] Height ft entered:', text);
+                  setHeightFt(text);
+                  const f = parseInt(text) || 0;
+                  const i = parseInt(heightIn) || 0;
+                  setProfile({ ...profile, height: Math.round(f * 30.48 + i * 2.54) });
+                }}
+              />
+              <Text style={styles.ftSeparator}>ft</Text>
+              <TextInput
+                style={[styles.input, styles.ftInput, heightError ? styles.inputError : null]}
+                keyboardType="numeric"
+                placeholder="10"
+                placeholderTextColor={colors.grey}
+                value={heightIn}
+                onChangeText={(text) => {
+                  console.log('[Onboarding] Height in entered:', text);
+                  setHeightIn(text);
+                  const f = parseInt(heightFt) || 0;
+                  const i = parseInt(text) || 0;
+                  setProfile({ ...profile, height: Math.round(f * 30.48 + i * 2.54) });
+                }}
+              />
+              <Text style={styles.ftSeparator}>in</Text>
+            </View>
+          )}
+          {heightError ? <Text style={styles.fieldError}>{heightError}</Text> : null}
         </View>
-      </View>
-    </ScrollView>
-  );
+      </ScrollView>
+    );
+  };
 
   const renderStep10 = () => {
-    const daysCount = profile.selectedDays?.length || 0;
-    const selectedDayNames = profile.selectedDays?.map(dayId => DAYS_OF_WEEK[dayId].full) || [];
-    const dayScheduleText = selectedDayNames.length > 0
-      ? selectedDayNames.slice(0, 3).join('-') + (selectedDayNames.length > 3 ? '...' : '')
-      : 'your schedule';
-
-    const focusAreasText = profile.focusAreas && profile.focusAreas.length > 0
-      ? profile.focusAreas.map(a => a.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ')
-      : null;
-
-    const equipmentText = profile.equipmentType === 'gym' ? 'gym-based' :
-                         profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
-
-    const sessionLengthText = profile.sessionLength === '20-30' ? '20–30' :
-                             profile.sessionLength === '30-45' ? '30–45' :
-                             profile.sessionLength === '45-60' ? '45–55' : '60+';
-
     const trainingExperienceOptions = [
       { id: 'beginner', label: 'Beginner', description: 'New to structured training' },
-      { id: 'returning', label: 'Returning', description: 'Getting back after a break' },
-      { id: 'intermediate', label: 'Intermediate', description: '6+ months consistent training' },
-      { id: 'advanced', label: 'Advanced', description: '2+ years of experience' },
+      { id: 'intermediate', label: 'Intermediate', description: '6+ months of consistent training' },
+      { id: 'advanced', label: 'Advanced', description: '2+ years of serious training' },
     ];
 
     const activityLevelOptions = [
-      { id: 'sedentary', label: 'Sedentary', description: 'Desk job, minimal movement' },
-      { id: 'lightly-active', label: 'Lightly Active', description: 'Some walking, light activity' },
-      { id: 'moderately-active', label: 'Moderately Active', description: 'Active job or daily movement' },
-      { id: 'very-active', label: 'Very Active', description: 'Physical job or high activity' },
-    ];
-
-    const nutritionPreferenceOptions = [
-      { id: 'just-calories', label: 'Just Calories', description: 'Simple calorie tracking' },
-      { id: 'macros', label: 'Macros', description: 'Protein, carbs, and fats' },
-      { id: 'meal-ideas', label: 'Meal Ideas', description: 'Suggestions and recipes' },
-      { id: 'full-structure', label: 'Full Structure', description: 'Complete meal plans' },
+      { id: 'sedentary', label: 'Sedentary', description: 'Mostly sitting, little to no exercise' },
+      { id: 'lightly-active', label: 'Lightly Active', description: 'Light movement, 1–3 days per week' },
+      { id: 'moderately-active', label: 'Moderately Active', description: 'Regular exercise, 3–5 days per week' },
+      { id: 'very-active', label: 'Very Active', description: 'Intense training, 6–7 days per week' },
+      { id: 'extremely-active', label: 'Extremely Active', description: 'Physical job or twice-daily training' },
     ];
 
     return (
@@ -1050,162 +1139,143 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.step9ScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.finalHeader}>
-          <IconSymbol
-            ios_icon_name="sparkles"
-            android_material_icon_name="auto-awesome"
-            size={56}
-            color={colors.primary}
-          />
-          <Text style={styles.finalTitle}>One last step!</Text>
-        </View>
-        <Text style={styles.finalSubtitle}>
-          Fitness details to complete your plan
-        </Text>
+        <Text style={styles.stepTitle}>Your Training</Text>
 
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionBlockTitle}>Training Experience</Text>
-          <View style={styles.optionsGrid}>
-            {trainingExperienceOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.optionCard,
-                  profile.trainingExperience === option.id && styles.optionCardSelected,
-                ]}
-                onPress={() => {
-                  console.log('[Onboarding] Training experience selected:', option.id);
-                  setProfile({ ...profile, trainingExperience: option.id });
-                }}
-              >
-                <Text style={[
-                  styles.optionCardLabel,
-                  profile.trainingExperience === option.id && styles.optionCardLabelSelected
-                ]}>
-                  {option.label}
-                </Text>
-                <Text style={styles.optionCardDescription}>
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.optionsStack}>
+            {trainingExperienceOptions.map((option) => {
+              const isSelected = profile.trainingExperience === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.optionCardWide, isSelected && styles.optionCardSelected]}
+                  onPress={() => {
+                    console.log('[Onboarding] Training experience selected:', option.id);
+                    setProfile({ ...profile, trainingExperience: option.id });
+                  }}
+                >
+                  <Text style={[styles.optionCardLabel, isSelected && styles.optionCardLabelSelected]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.optionCardDescription}>{option.description}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionBlockTitle}>Activity Level Outside Training</Text>
-          <View style={styles.optionsGrid}>
-            {activityLevelOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.optionCard,
-                  profile.activityLevelOutsideTraining === option.id && styles.optionCardSelected,
-                ]}
-                onPress={() => {
-                  console.log('[Onboarding] Activity level selected:', option.id);
-                  setProfile({ ...profile, activityLevelOutsideTraining: option.id });
-                }}
-              >
-                <Text style={[
-                  styles.optionCardLabel,
-                  profile.activityLevelOutsideTraining === option.id && styles.optionCardLabelSelected
-                ]}>
-                  {option.label}
-                </Text>
-                <Text style={styles.optionCardDescription}>
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.optionsStack}>
+            {activityLevelOptions.map((option) => {
+              const isSelected = profile.activityLevelOutsideTraining === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.optionCardWide, isSelected && styles.optionCardSelected]}
+                  onPress={() => {
+                    console.log('[Onboarding] Activity level selected:', option.id);
+                    setProfile({ ...profile, activityLevelOutsideTraining: option.id });
+                  }}
+                >
+                  <Text style={[styles.optionCardLabel, isSelected && styles.optionCardLabelSelected]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.optionCardDescription}>{option.description}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
+      </ScrollView>
+    );
+  };
+
+  const renderStep11 = () => {
+    const nutritionPreferenceOptions = [
+      { id: 'balanced', label: 'Balanced', description: 'A mix of all food groups, no restrictions' },
+      { id: 'high-protein', label: 'High Protein', description: 'Protein-forward meals to support muscle growth' },
+      { id: 'low-carb', label: 'Low Carb', description: 'Reduced carbohydrates, higher fats and protein' },
+      { id: 'vegan', label: 'Vegan', description: '100% plant-based, no animal products' },
+      { id: 'vegetarian', label: 'Vegetarian', description: 'Plant-based with dairy and eggs permitted' },
+      { id: 'keto', label: 'Keto', description: 'Very low carb, high fat, metabolic focus' },
+    ];
+
+    const daysCount = profile.selectedDays?.length || 0;
+    const equipmentText = profile.equipmentType === 'gym' ? 'gym-based'
+      : profile.equipmentType === 'home' ? 'home equipment' : 'bodyweight';
+    const sessionLengthText = profile.sessionLength === '20-30' ? '20–30'
+      : profile.sessionLength === '30-45' ? '30–45'
+      : profile.sessionLength === '45-60' ? '45–60' : '60+';
+
+    const goalBullet = profile.primaryGoal === 'lose-fat'
+      ? 'Tailored to your fat-loss goal with a sustainable calorie approach'
+      : profile.primaryGoal === 'build-muscle'
+      ? 'Built around your muscle-building goal with progressive overload'
+      : profile.primaryGoal === 'get-stronger'
+      ? 'Structured around strength progression and compound lifts'
+      : profile.primaryGoal === 'improve-endurance'
+      ? 'Designed around your endurance goal with conditioning work'
+      : 'Tailored to your profile and the goals you have set';
+
+    const nutritionBullet = profile.nutritionPreference === 'high-protein'
+      ? 'Nutrition guidance built around high-protein meals'
+      : profile.nutritionPreference === 'vegan'
+      ? 'Nutrition guidance adapted for a fully plant-based approach'
+      : profile.nutritionPreference === 'keto'
+      ? 'Nutrition guidance aligned with a low-carb, high-fat approach'
+      : 'Nutrition guidance personalised to how you prefer to eat';
+
+    return (
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.step9ScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.stepTitle}>Your Nutrition</Text>
 
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionBlockTitle}>Nutrition Preference</Text>
-          <View style={styles.optionsGrid}>
-            {nutritionPreferenceOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.optionCard,
-                  profile.nutritionPreference === option.id && styles.optionCardSelected,
-                ]}
-                onPress={() => {
-                  console.log('[Onboarding] Nutrition preference selected:', option.id);
-                  setProfile({ ...profile, nutritionPreference: option.id });
-                }}
-              >
-                <Text style={[
-                  styles.optionCardLabel,
-                  profile.nutritionPreference === option.id && styles.optionCardLabelSelected
-                ]}>
-                  {option.label}
-                </Text>
-                <Text style={styles.optionCardDescription}>
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.optionsStack}>
+            {nutritionPreferenceOptions.map((option) => {
+              const isSelected = profile.nutritionPreference === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[styles.optionCardWide, isSelected && styles.optionCardSelected]}
+                  onPress={() => {
+                    console.log('[Onboarding] Nutrition preference selected:', option.id);
+                    setProfile({ ...profile, nutritionPreference: option.id });
+                  }}
+                >
+                  <Text style={[styles.optionCardLabel, isSelected && styles.optionCardLabelSelected]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.optionCardDescription}>{option.description}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <IconSymbol
-              ios_icon_name="checkmark.seal.fill"
-              android_material_icon_name="verified"
-              size={32}
-              color={colors.primary}
-            />
-            <Text style={styles.summaryTitle}>Your Personalized Plan</Text>
-          </View>
-
+        <View style={styles.planPreviewCard}>
+          <Text style={styles.planPreviewTitle}>Your Plan</Text>
           <View style={styles.summaryContent}>
             <View style={styles.summaryBullet}>
               <Text style={styles.summaryBulletDot}>•</Text>
-              <Text style={styles.summaryText}>
-                {daysCount} strength sessions/week built around your {dayScheduleText} schedule
-              </Text>
+              <Text style={styles.summaryText}>{goalBullet}</Text>
             </View>
-
-            {focusAreasText && (
-              <View style={styles.summaryBullet}>
-                <Text style={styles.summaryBulletDot}>•</Text>
-                <Text style={styles.summaryText}>
-                  Extra {focusAreasText.toLowerCase()} emphasis without neglecting legs
-                </Text>
-              </View>
-            )}
-
             <View style={styles.summaryBullet}>
               <Text style={styles.summaryBulletDot}>•</Text>
               <Text style={styles.summaryText}>
-                {equipmentText.charAt(0).toUpperCase() + equipmentText.slice(1)} plan with simple progression
+                {daysCount > 0 ? `${daysCount} sessions/week` : 'Weekly sessions'} using {equipmentText}, {sessionLengthText} min each — built around how you train
               </Text>
             </View>
-
-            {profile.primaryGoal === 'improve-endurance' && (
-              <View style={styles.summaryBullet}>
-                <Text style={styles.summaryBulletDot}>•</Text>
-                <Text style={styles.summaryText}>
-                  Endurance finishers 2x/week
-                </Text>
-              </View>
-            )}
-
             <View style={styles.summaryBullet}>
               <Text style={styles.summaryBulletDot}>•</Text>
-              <Text style={styles.summaryText}>
-                Estimated session length: {sessionLengthText} min
-              </Text>
+              <Text style={styles.summaryText}>{nutritionBullet}</Text>
             </View>
-          </View>
-
-          <View style={styles.confidenceBox}>
-            <Text style={styles.confidenceText}>
-              ✨ Your plan is scientifically designed to match your goals, schedule, and equipment. Everything is ready.
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -1230,7 +1300,7 @@ export default function OnboardingScreen() {
         >
           <View style={styles.content}>
             <View style={styles.progressBar}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((s) => (
                 <View
                   key={s}
                   style={[
@@ -1251,6 +1321,7 @@ export default function OnboardingScreen() {
             {step === 8 && renderStep8()}
             {step === 9 && renderStep9()}
             {step === 10 && renderStep10()}
+            {step === 11 && renderStep11()}
 
             <View style={styles.navigation}>
               {step > 1 && (
@@ -1271,7 +1342,7 @@ export default function OnboardingScreen() {
                   !canProceed() && styles.nextButtonDisabled,
                 ]}
                 onPress={() => {
-                  if (step < 10) {
+                  if (step < 11) {
                     console.log('[Onboarding] User tapped Next, step:', step);
                     setStep(step + 1);
                   } else {
@@ -1281,7 +1352,7 @@ export default function OnboardingScreen() {
                 disabled={!canProceed()}
               >
                 <Text style={styles.nextButtonText}>
-                  {step === 10 ? 'Start My Journey' : 'Next'}
+                  {step === 11 ? 'Build My Plan' : 'Next'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -2038,6 +2109,114 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(69, 155, 155, 0.15)',
     borderRadius: 12,
     padding: 16,
+  },
+  // New styles for step 9 redesign and steps 10/11
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 6,
+  },
+  segmentedOption: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  segmentedOptionActive: {
+    backgroundColor: '#00D4AA',
+  },
+  segmentedOptionText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.grey,
+  },
+  segmentedOptionTextActive: {
+    color: '#000',
+    fontWeight: '700',
+  },
+  fieldCaption: {
+    fontSize: 12,
+    color: colors.grey,
+    marginTop: 4,
+  },
+  fieldError: {
+    fontSize: 12,
+    color: '#FF5A5A',
+    marginTop: 4,
+  },
+  inputError: {
+    borderColor: '#FF5A5A',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  unitToggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 8,
+    padding: 2,
+  },
+  unitOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  unitOptionActive: {
+    backgroundColor: '#00D4AA',
+  },
+  unitOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.grey,
+  },
+  unitOptionTextActive: {
+    color: '#000',
+  },
+  ftInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ftInput: {
+    flex: 1,
+  },
+  ftSeparator: {
+    fontSize: 14,
+    color: colors.grey,
+    fontWeight: '500',
+  },
+  optionsStack: {
+    gap: 8,
+  },
+  optionCardWide: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 14,
+  },
+  planPreviewCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00D4AA',
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  planPreviewTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#00D4AA',
+    marginBottom: 12,
   },
   confidenceText: {
     fontSize: 14,
