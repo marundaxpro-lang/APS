@@ -25,6 +25,8 @@ import { WeeklyAdherenceCard } from '@/components/WeeklyAdherenceCard';
 import { WeekAdherence } from '@/utils/adherenceEngine';
 import { getCurrentWeek, seedDemoWeek } from '@/utils/adherenceStore';
 import { HabitSurfaceSection } from '@/components/HabitSurfaceSection';
+import { PackCard } from '@/components/PackCard';
+import { PROGRAM_PACKS } from '@/data/programPacks';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -866,8 +868,37 @@ export default function HomeScreen() {
           />
         </AnimatedItem>
 
-        {/* ── Coach Explainability Feed ── */}
+        {/* ── Program Packs ── */}
         <AnimatedItem index={6}>
+          <View style={styles.packsSection}>
+            <View style={styles.packsSectionHeader}>
+              <Text style={styles.sectionTitle}>Program Packs</Text>
+              <AnimatedPressable onPress={() => {
+                console.log('[Home] User tapped Browse all program packs');
+                router.push('/program-packs' as any);
+              }}>
+                <Text style={styles.viewAllLink}>Browse all →</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </AnimatedItem>
+
+        <AnimatedItem index={6}>
+          <View style={styles.packsScrollWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.packsScrollContent}
+            >
+              {PROGRAM_PACKS.map(pack => (
+                <PackCard key={pack.id} pack={pack} width={200} height={260} />
+              ))}
+            </ScrollView>
+          </View>
+        </AnimatedItem>
+
+        {/* ── Coach Explainability Feed ── */}
+        <AnimatedItem index={7}>
           <CoachExplainabilityFeed refreshKey={coachFeedKey} />
         </AnimatedItem>
       </ScrollView>
@@ -1302,5 +1333,20 @@ const styles = StyleSheet.create({
   quickTaskTextCompleted: {
     textDecorationLine: 'line-through',
     color: colors.grey,
+  },
+  // Program Packs
+  packsSection: {},
+  packsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  packsScrollWrapper: {
+    marginHorizontal: -20,
+  },
+  packsScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
   },
 });

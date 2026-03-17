@@ -26,6 +26,12 @@ import { WeeklyAdherenceCard } from '@/components/WeeklyAdherenceCard';
 import { WeekAdherence } from '@/utils/adherenceEngine';
 import { getCurrentWeek, seedDemoWeek } from '@/utils/adherenceStore';
 import { HabitSurfaceSection } from '@/components/HabitSurfaceSection';
+import { PackCard } from '@/components/PackCard';
+import { PROGRAM_PACKS } from '@/data/programPacks';
+import { TravelSession, STORAGE_KEY_SESSION } from '@/utils/travelModeEngine';
+import { getStudentSession } from '@/utils/studentModeStore';
+import { StudentSession } from '@/utils/studentModeEngine';
+import { Plane, BookOpen } from 'lucide-react-native';
 
 interface DashboardStats {
   dailyCalorieGoal: number;
@@ -124,13 +130,44 @@ export default function HomeScreen() {
   const [streakState, setStreakState] = useState<StreakState | null>(null);
   const [coachFeedKey, setCoachFeedKey] = useState(0);
   const [weekAdherence, setWeekAdherence] = useState<WeekAdherence | null>(null);
+  const [activeTravelSession, setActiveTravelSession] = useState<TravelSession | null>(null);
+  const [activeStudentSession, setActiveStudentSession] = useState<StudentSession | null>(null);
 
   useEffect(() => {
     loadData();
     loadStreak();
     initCoachChanges();
     loadAdherence();
+    loadTravelSession();
+    loadStudentSession();
   }, []);
+
+  const loadTravelSession = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY_SESSION);
+      if (raw) {
+        const s: TravelSession = JSON.parse(raw);
+        if (s.isActive) {
+          console.log('[Home] Active travel session found:', s.destination);
+          setActiveTravelSession(s);
+        }
+      }
+    } catch (e) {
+      console.error('[Home] Error loading travel session:', e);
+    }
+  };
+
+  const loadStudentSession = async () => {
+    try {
+      const s = await getStudentSession();
+      if (s) {
+        console.log('[Home] Active student session found:', s.examName);
+        setActiveStudentSession(s);
+      }
+    } catch (e) {
+      console.error('[Home] Error loading student session:', e);
+    }
+  };
 
   const loadAdherence = async () => {
     try {
@@ -537,6 +574,54 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Travel Mode Banner ── */}
+        {activeTravelSession && (
+          <AnimatedItem index={0}>
+            <AnimatedPressable
+              style={styles.travelBanner}
+              onPress={() => {
+                console.log('[Home] User tapped Travel Mode banner — navigating to /travel-mode');
+                router.push('/travel-mode' as any);
+              }}
+            >
+              <Plane size={16} color="#0EA5E9" />
+              <Text style={styles.travelBannerText}>
+                Travel Mode active
+              </Text>
+              <Text style={styles.travelBannerDest}>{activeTravelSession.destination}</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={14}
+                color="#0EA5E9"
+              />
+            </AnimatedPressable>
+          </AnimatedItem>
+        )}
+
+        {/* ── Student Mode Banner ── */}
+        {activeStudentSession && (
+          <AnimatedItem index={0}>
+            <AnimatedPressable
+              style={styles.studentBanner}
+              onPress={() => {
+                console.log('[Home] User tapped Student Mode banner — navigating to /student-mode');
+                router.push('/student-mode' as any);
+              }}
+            >
+              <BookOpen size={16} color="#8B5CF6" />
+              <Text style={styles.studentBannerText}>Student Mode active</Text>
+              <Text style={styles.studentBannerExam} numberOfLines={1}>{activeStudentSession.examName}</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={14}
+                color="#8B5CF6"
+              />
+            </AnimatedPressable>
+          </AnimatedItem>
+        )}
+
         {/* ── Streak Card ── */}
         {streakState && (
           <AnimatedItem index={0}>
@@ -867,8 +952,37 @@ export default function HomeScreen() {
           />
         </AnimatedItem>
 
-        {/* ── Coach Explainability Feed ── */}
+        {/* ── Program Packs ── */}
         <AnimatedItem index={6}>
+          <View style={styles.packsSection}>
+            <View style={styles.packsSectionHeader}>
+              <Text style={styles.sectionTitle}>Program Packs</Text>
+              <AnimatedPressable onPress={() => {
+                console.log('[Home] User tapped Browse all program packs');
+                router.push('/program-packs' as any);
+              }}>
+                <Text style={styles.viewAllLink}>Browse all →</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </AnimatedItem>
+
+        <AnimatedItem index={6}>
+          <View style={styles.packsScrollWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.packsScrollContent}
+            >
+              {PROGRAM_PACKS.map(pack => (
+                <PackCard key={pack.id} pack={pack} width={200} height={260} />
+              ))}
+            </ScrollView>
+          </View>
+        </AnimatedItem>
+
+        {/* ── Coach Explainability Feed ── */}
+        <AnimatedItem index={7}>
           <CoachExplainabilityFeed refreshKey={coachFeedKey} />
         </AnimatedItem>
       </ScrollView>
@@ -1310,5 +1424,66 @@ const styles = StyleSheet.create({
   quickTaskTextCompleted: {
     textDecorationLine: 'line-through',
     color: colors.grey,
+  },
+  // Program Packs
+  packsSection: {},
+  packsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  packsScrollWrapper: {
+    marginHorizontal: -20,
+  },
+  packsScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  // Travel Mode Banner
+  travelBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(14,165,233,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(14,165,233,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  travelBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0EA5E9',
+  },
+  travelBannerDest: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(14,165,233,0.7)',
+  },
+  // Student Mode Banner
+  studentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(139,92,246,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  studentBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  studentBannerExam: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(139,92,246,0.7)',
   },
 });

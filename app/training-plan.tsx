@@ -16,6 +16,8 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/IconSymbol';
+import { PackCard } from '@/components/PackCard';
+import { PROGRAM_PACKS } from '@/data/programPacks';
 import { colors } from '@/styles/commonStyles';
 import {
   generateWeeklyPlan,
@@ -646,6 +648,31 @@ export default function TrainingPlanScreen() {
             )}
           </View>
         )}
+
+        {/* ── Program Packs ── */}
+        <View style={styles.packsSection}>
+          <View style={styles.packsSectionHeader}>
+            <Text style={styles.packsSectionTitle}>Program Packs</Text>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('[TrainingPlan] User tapped Browse all program packs');
+                router.push('/program-packs' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.packsBrowseLink}>Browse all →</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.packsScrollContent}
+          >
+            {PROGRAM_PACKS.map(pack => (
+              <PackCard key={pack.id} pack={pack} width={200} height={240} />
+            ))}
+          </ScrollView>
+        </View>
 
         {/* ── Spacer for Start Button ── */}
         <View style={{ height: 100 }} />
@@ -1418,5 +1445,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#888',
+  },
+  // Program Packs
+  packsSection: {
+    marginBottom: 16,
+  },
+  packsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  packsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: -0.2,
+  },
+  packsBrowseLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEAL,
+  },
+  packsScrollContent: {
+    gap: 12,
+    paddingRight: 4,
   },
 });
