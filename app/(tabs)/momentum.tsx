@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ const TEAL_DIM = 'rgba(0,212,170,0.12)';
 const TEAL_GLOW = 'rgba(0,212,170,0.22)';
 const TEAL_BORDER = 'rgba(0,212,170,0.3)';
 const CARD_BG = '#161616';
-const CARD_BG_ALT = '#1A1A1A';
+const CARD_BG_HERO = '#1E1E1E';
 const CARD_BORDER = 'rgba(255,255,255,0.06)';
 const TEXT_PRIMARY = '#F5F5F5';
 const TEXT_SECONDARY = '#888';
@@ -39,6 +39,7 @@ const SCREEN_BG = '#0A0A0A';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PriorityCategory = 'Training' | 'Nutrition' | 'Recovery' | 'Habits';
+type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
 interface PriorityItem {
   id: string;
@@ -69,6 +70,7 @@ interface HabitItem {
   icon_ios: string;
   icon_android: string;
   name: string;
+  timeOfDay: TimeOfDay[];
   completed: boolean;
 }
 
@@ -111,30 +113,40 @@ const WEEK_DAYS: WeekDay[] = [
   { label: 'S', fullLabel: 'Sun', status: 'missed', isToday: false },
 ];
 
-const INITIAL_HABITS: HabitItem[] = [
-  { id: 'h1', icon_ios: 'drop.fill', icon_android: 'water-drop', name: 'Morning hydration', completed: true },
-  { id: 'h2', icon_ios: 'figure.flexibility', icon_android: 'self-improvement', name: 'Evening stretch', completed: false },
-  { id: 'h3', icon_ios: 'moon.fill', icon_android: 'bedtime', name: 'No screens 1hr before bed', completed: false },
-  { id: 'h4', icon_ios: 'fork.knife', icon_android: 'restaurant', name: 'Meal prep logged', completed: true },
+const ALL_HABITS: HabitItem[] = [
+  { id: 'h-morn-1', icon_ios: 'drop.fill', icon_android: 'water-drop', name: 'Morning hydration', timeOfDay: ['morning'], completed: false },
+  { id: 'h-morn-2', icon_ios: 'pills.fill', icon_android: 'medication', name: 'Take supplements', timeOfDay: ['morning'], completed: false },
+  { id: 'h-morn-3', icon_ios: 'list.bullet.clipboard', icon_android: 'assignment', name: "Review today's plan", timeOfDay: ['morning'], completed: false },
+  { id: 'h-aft-1', icon_ios: 'figure.walk', icon_android: 'directions-walk', name: 'Midday movement', timeOfDay: ['afternoon'], completed: false },
+  { id: 'h-aft-2', icon_ios: 'fork.knife', icon_android: 'restaurant', name: 'Log lunch', timeOfDay: ['afternoon'], completed: false },
+  { id: 'h-aft-3', icon_ios: 'drop.fill', icon_android: 'water-drop', name: 'Avoid afternoon crash — stay hydrated', timeOfDay: ['afternoon'], completed: false },
+  { id: 'h-eve-1', icon_ios: 'fork.knife', icon_android: 'restaurant', name: 'Log dinner', timeOfDay: ['evening'], completed: false },
+  { id: 'h-eve-2', icon_ios: 'figure.flexibility', icon_android: 'self-improvement', name: 'Evening stretch', timeOfDay: ['evening'], completed: false },
+  { id: 'h-eve-3', icon_ios: 'bag.fill', icon_android: 'kitchen', name: "Prep tomorrow's meals", timeOfDay: ['evening'], completed: false },
+  { id: 'h-night-1', icon_ios: 'iphone.slash', icon_android: 'no-cell', name: 'No screens 1hr before bed', timeOfDay: ['night'], completed: false },
+  { id: 'h-night-2', icon_ios: 'moon.fill', icon_android: 'bedtime', name: 'Wind-down routine', timeOfDay: ['night'], completed: false },
+  { id: 'h-night-3', icon_ios: 'star.fill', icon_android: 'star', name: "Rate today's execution", timeOfDay: ['night'], completed: false },
 ];
 
 const STREAK = 14;
-const WEEKLY_ADHERENCE = 71;
-const SESSIONS_THIS_WEEK = 3;
-const WEEKLY_GOAL_DAYS = 7;
 const COMPLETED_DAYS = 4;
+const WEEKLY_GOAL_DAYS = 7;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getGreeting(): string {
+function getTimeOfDay(): TimeOfDay {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour >= 5 && hour < 11) return 'morning';
+  if (hour >= 11 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
 }
 
-function getTodayDate(): string {
-  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+function getTimeOfDayLabel(tod: TimeOfDay): string {
+  if (tod === 'morning') return 'Morning';
+  if (tod === 'afternoon') return 'Afternoon';
+  if (tod === 'evening') return 'Evening';
+  return 'Night';
 }
 
 // ─── Animated list item ───────────────────────────────────────────────────────
@@ -404,6 +416,149 @@ const emptyStyles = StyleSheet.create({
   ctaBtnText: { fontSize: 14, fontWeight: '600', color: TEAL },
 });
 
+// ─── Animated Progress Bar ────────────────────────────────────────────────────
+
+function AnimatedProgressBar({ fraction }: { fraction: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, { toValue: fraction, duration: 700, useNativeDriver: false }).start();
+  }, [fraction, anim]);
+
+  return (
+    <View style={pbStyles.track}>
+      <Animated.View
+        style={[
+          pbStyles.fill,
+          { width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+        ]}
+      />
+    </View>
+  );
+}
+
+const pbStyles = StyleSheet.create({
+  track: { height: 4, backgroundColor: '#222', borderRadius: 2, overflow: 'hidden' },
+  fill: { height: 4, backgroundColor: TEAL, borderRadius: 2 },
+});
+
+// ─── Hero Priority Card ───────────────────────────────────────────────────────
+
+function HeroPriorityCard({ item, onToggle, onPress }: { item: PriorityItem; onToggle: () => void; onPress: () => void }) {
+  return (
+    <AnimatedPressable style={heroStyles.card} onPress={onPress}>
+      <Text style={heroStyles.nextUpLabel}>NEXT UP</Text>
+      <View style={heroStyles.row}>
+        <View style={heroStyles.content}>
+          <Text style={heroStyles.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={heroStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+        </View>
+        <AnimatedPressable
+          onPress={(e) => { e.stopPropagation?.(); onToggle(); }}
+          style={heroStyles.checkHit}
+          accessibilityLabel="Mark complete"
+        >
+          <IconSymbol
+            ios_icon_name="circle"
+            android_material_icon_name="radio-button-unchecked"
+            size={24}
+            color="rgba(255,255,255,0.25)"
+          />
+        </AnimatedPressable>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+const heroStyles = StyleSheet.create({
+  card: {
+    backgroundColor: CARD_BG_HERO,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: TEAL,
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: CARD_BORDER,
+    borderRightColor: CARD_BORDER,
+    borderBottomColor: CARD_BORDER,
+    padding: 18,
+    marginBottom: 10,
+  },
+  nextUpLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TEAL,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  content: { flex: 1, gap: 5 },
+  title: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY, letterSpacing: -0.2 },
+  subtitle: { fontSize: 13, color: TEXT_SECONDARY },
+  checkHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Secondary Priority Card ──────────────────────────────────────────────────
+
+function SecondaryPriorityCard({ item, onToggle, onPress }: { item: PriorityItem; onToggle: () => void; onPress: () => void }) {
+  const dotColor = CATEGORY_DOTS[item.category];
+
+  return (
+    <View style={scStyles.card}>
+      <View style={[scStyles.categoryDot, { backgroundColor: dotColor }]} />
+      <AnimatedPressable style={scStyles.content} onPress={onPress}>
+        <Text style={scStyles.title} numberOfLines={1}>{item.title}</Text>
+        <Text style={scStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+      </AnimatedPressable>
+      <AnimatedPressable onPress={onToggle} style={scStyles.checkHit} accessibilityLabel="Mark complete">
+        <IconSymbol
+          ios_icon_name="circle"
+          android_material_icon_name="radio-button-unchecked"
+          size={22}
+          color="rgba(255,255,255,0.25)"
+        />
+      </AnimatedPressable>
+    </View>
+  );
+}
+
+const scStyles = StyleSheet.create({
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
+  categoryDot: { width: 4, height: 32, borderRadius: 2 },
+  content: { flex: 1, gap: 4 },
+  title: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
+  subtitle: { fontSize: 13, color: TEXT_SECONDARY },
+  checkHit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Completed Priority Card ──────────────────────────────────────────────────
+
+function CompletedPriorityCard({ item }: { item: PriorityItem }) {
+  return (
+    <View style={cpStyles.card}>
+      <View style={cpStyles.inner}>
+        <Text style={cpStyles.completedLabel}>COMPLETED</Text>
+        <Text style={cpStyles.title} numberOfLines={1}>{item.title}</Text>
+      </View>
+      <IconSymbol
+        ios_icon_name="checkmark.circle.fill"
+        android_material_icon_name="check-circle"
+        size={20}
+        color={TEAL}
+      />
+    </View>
+  );
+}
+
+const cpStyles = StyleSheet.create({
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 12, opacity: 0.5 },
+  inner: { flex: 1, gap: 3 },
+  completedLabel: { fontSize: 10, fontWeight: '600', color: '#444', letterSpacing: 1.2, textTransform: 'uppercase' },
+  title: { fontSize: 14, fontWeight: '500', color: '#555', textDecorationLine: 'line-through' },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MomentumScreen() {
@@ -411,7 +566,7 @@ export default function MomentumScreen() {
   const { user } = useAuth();
 
   const [priorities, setPriorities] = useState<PriorityItem[]>(INITIAL_PRIORITIES);
-  const [habits, setHabits] = useState<HabitItem[]>(INITIAL_HABITS);
+  const [habits, setHabits] = useState<HabitItem[]>(ALL_HABITS);
   const [showPresetsModal, setShowPresetsModal] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<TimerPreset>(TIMER_PRESETS[3]);
   const [secondsLeft, setSecondsLeft] = useState((TIMER_PRESETS[3].minutes ?? 20) * 60);
@@ -421,18 +576,45 @@ export default function MomentumScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isSignedIn = !!user;
-  const userName = user?.name ? user.name.split(' ')[0] : null;
-  const greeting = getGreeting();
-  const todayDate = getTodayDate();
-  const completedCount = priorities.filter((p) => p.completed).length;
-  const totalCount = priorities.length;
+
+  // Derived priority state
+  const incompletePriorities = priorities.filter((p) => !p.completed);
+  const completedPriorities = priorities.filter((p) => p.completed);
+  const heroPriority = incompletePriorities[0] ?? null;
+  const secondaryPriorities = incompletePriorities.slice(1);
   const hasPriorities = priorities.length > 0;
-  const sortedPriorities = [...priorities.filter((p) => !p.completed), ...priorities.filter((p) => p.completed)];
-  const weeklyAdherenceStr = `${WEEKLY_ADHERENCE}%`;
+  const allComplete = incompletePriorities.length === 0 && priorities.length > 0;
+
+  // Header derived values
+  const incompleteCount = incompletePriorities.length;
+  const totalCount = priorities.length;
+  const completedCount = completedPriorities.length;
+  const completionFraction = totalCount > 0 ? completedCount / totalCount : 0;
+  const completionPercent = Math.round(completionFraction * 100);
+  const completionPercentStr = `${completionPercent}%`;
   const streakStr = String(STREAK);
-  const progressFraction = COMPLETED_DAYS / WEEKLY_GOAL_DAYS;
-  const progressPercent = Math.round(progressFraction * 100);
-  const progressPercentStr = `${progressPercent}%`;
+
+  // Header text
+  const headerHeadline = allComplete ? 'All done. Strong execution.' : `${incompleteCount} ${incompleteCount === 1 ? 'priority' : 'priorities'} left today.`;
+  const headerContext = allComplete ? `Day ${STREAK} streak. Consistency compounds.` : 'Keep the streak alive. Stay locked in.';
+
+  // Weekly consistency
+  const weeklyProgressFraction = COMPLETED_DAYS / WEEKLY_GOAL_DAYS;
+  const weeklyCompletedStr = String(COMPLETED_DAYS);
+  const weeklyGoalStr = String(WEEKLY_GOAL_DAYS);
+
+  // Time-of-day habits
+  const currentTimeOfDay = useMemo(() => getTimeOfDay(), []);
+  const todLabel = getTimeOfDayLabel(currentTimeOfDay);
+  const filteredHabits = habits.filter((h) => h.timeOfDay.includes(currentTimeOfDay));
+  const allHabitsDone = filteredHabits.length > 0 && filteredHabits.every((h) => h.completed);
+
+  // Focus session prompt
+  const focusPromptSubtitle = allComplete
+    ? 'All priorities complete. Use this time for recovery or reflection.'
+    : heroPriority
+    ? `Start a session for: ${heroPriority.title}`
+    : 'No priorities remaining.';
 
   // Timer tick
   useEffect(() => {
@@ -466,6 +648,7 @@ export default function MomentumScreen() {
   }
 
   function handleBeginSession() {
+    console.log('[Momentum] User pressed Begin Session:', selectedPreset.name);
     if (secondsLeft === 0) {
       const mins = selectedPreset.minutes ?? 25;
       setSecondsLeft(mins * 60);
@@ -474,7 +657,10 @@ export default function MomentumScreen() {
     setIsRunning(true);
   }
 
-  function handleHold() { setIsRunning(false); }
+  function handleHold() {
+    console.log('[Momentum] User pressed Hold:', selectedPreset.name);
+    setIsRunning(false);
+  }
 
   function handleEndSession() {
     console.log('[Momentum] Session ended early:', selectedPreset.name);
@@ -501,25 +687,26 @@ export default function MomentumScreen() {
     if (item.navigateTo) router.push(item.navigateTo as never);
   }
 
-  const greetingLine = userName ? `${greeting}, ${userName}.` : `${greeting}.`;
-  const contextLine = STREAK > 0 ? `Day ${STREAK} of your current streak.` : `${SESSIONS_THIS_WEEK} sessions completed this week.`;
-
   return (
     <View style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* ── Section 1: Daily Header ── */}
+        {/* ── Section 1: Momentum Header ── */}
         <View style={s.header}>
-          <Text style={s.greeting}>{greetingLine}</Text>
-          <Text style={s.dateText}>{todayDate}</Text>
-          <Text style={s.contextText}>{contextLine}</Text>
+          <Text style={s.headerHeadline}>{headerHeadline}</Text>
+          <Text style={s.headerContext}>{headerContext}</Text>
 
-          {/* Micro-stat pills */}
-          <View style={s.pillRow}>
-            <MicroPill icon_ios="figure.strengthtraining.traditional" icon_android="fitness-center" label="Workout" value="✓" valueColor={TEAL} />
-            <MicroPill icon_ios="fork.knife" icon_android="restaurant" label="Nutrition" value="78%" valueColor={TEXT_PRIMARY} />
-            <MicroPill icon_ios="moon.fill" icon_android="bedtime" label="Sleep" value="7h" valueColor={TEXT_PRIMARY} />
-            <MicroPill icon_ios="flame.fill" icon_android="local-fire-department" label="Streak" value={`🔥${STREAK}`} valueColor="#f59e0b" />
+          {/* Slim completion bar */}
+          <View style={s.completionBarRow}>
+            <View style={s.completionBarLeft}>
+              <Text style={s.flameEmoji}>🔥</Text>
+              <Text style={s.streakCount}>{streakStr}</Text>
+            </View>
+            <View style={s.completionBarTrackWrap}>
+              <AnimatedProgressBar fraction={completionFraction} />
+            </View>
+            <Text style={s.completionPercent}>{completionPercentStr}</Text>
+            <Text style={s.completionLabel}> complete</Text>
           </View>
         </View>
 
@@ -528,20 +715,34 @@ export default function MomentumScreen() {
           <Text style={s.sectionHeader}>TODAY'S PRIORITIES</Text>
           {hasPriorities ? (
             <>
-              {sortedPriorities.map((item, index) => (
-                <AnimatedListItem key={item.id} index={index}>
-                  <PriorityCard
+              {/* Hero card — first incomplete */}
+              {heroPriority && (
+                <AnimatedListItem index={0}>
+                  <HeroPriorityCard
+                    item={heroPriority}
+                    onToggle={() => togglePriority(heroPriority.id)}
+                    onPress={() => handlePriorityPress(heroPriority)}
+                  />
+                </AnimatedListItem>
+              )}
+
+              {/* Secondary incomplete cards */}
+              {secondaryPriorities.map((item, index) => (
+                <AnimatedListItem key={item.id} index={index + 1}>
+                  <SecondaryPriorityCard
                     item={item}
                     onToggle={() => togglePriority(item.id)}
                     onPress={() => handlePriorityPress(item)}
                   />
                 </AnimatedListItem>
               ))}
-              <View style={s.priorityFooter}>
-                <Text style={s.priorityFooterText}>
-                  {completedCount === totalCount ? 'All priorities complete — outstanding execution.' : `${completedCount} of ${totalCount} completed`}
-                </Text>
-              </View>
+
+              {/* Completed cards */}
+              {completedPriorities.map((item, index) => (
+                <AnimatedListItem key={item.id} index={incompletePriorities.length + index}>
+                  <CompletedPriorityCard item={item} />
+                </AnimatedListItem>
+              ))}
             </>
           ) : (
             <MomentumEmptyState
@@ -553,10 +754,10 @@ export default function MomentumScreen() {
           )}
         </View>
 
-        {/* ── Section 3: Focus Session ── */}
+        {/* ── Section 3: Execution Timer ── */}
         <View style={s.section}>
           <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionHeader}>FOCUS SESSION</Text>
+            <Text style={s.sectionHeader}>EXECUTION TIMER</Text>
             <AnimatedPressable
               style={s.changeBtn}
               onPress={() => { console.log('[Momentum] User opened timer presets modal'); setShowPresetsModal(true); }}
@@ -565,63 +766,89 @@ export default function MomentumScreen() {
               <Text style={s.changeBtnText}>Change</Text>
             </AnimatedPressable>
           </View>
-          <ActiveTimerCard
-            preset={selectedPreset}
-            secondsLeft={secondsLeft}
-            totalSeconds={totalSeconds}
-            isRunning={isRunning}
-            sessionCount={sessionCount}
-            onBegin={handleBeginSession}
-            onHold={handleHold}
-            onEnd={handleEndSession}
-          />
+
+          {isRunning || secondsLeft < (selectedPreset.minutes ?? 25) * 60 ? (
+            <ActiveTimerCard
+              preset={selectedPreset}
+              secondsLeft={secondsLeft}
+              totalSeconds={totalSeconds}
+              isRunning={isRunning}
+              sessionCount={sessionCount}
+              onBegin={handleBeginSession}
+              onHold={handleHold}
+              onEnd={handleEndSession}
+            />
+          ) : (
+            <View style={s.focusPromptCard}>
+              <View style={s.focusPromptAccent} />
+              <View style={s.focusPromptInner}>
+                <Text style={s.focusPromptTitle}>Ready to execute?</Text>
+                <Text style={[s.focusPromptSubtitle, !allComplete && { color: TEAL }]} numberOfLines={2}>
+                  {focusPromptSubtitle}
+                </Text>
+                <AnimatedPressable
+                  style={s.focusBeginBtn}
+                  onPress={() => { console.log('[Momentum] User pressed Begin Session from prompt card'); handleBeginSession(); }}
+                >
+                  <IconSymbol ios_icon_name="play.fill" android_material_icon_name="play-arrow" size={15} color="#fff" />
+                  <Text style={s.focusBeginBtnText}>Begin Session</Text>
+                </AnimatedPressable>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* ── Section 4: Consistency Layer ── */}
+        {/* ── Section 4: Weekly Consistency ── */}
         <View style={s.section}>
           <Text style={s.sectionHeader}>THIS WEEK</Text>
 
-          {/* 7-day streak row */}
+          {/* 7-day dot row */}
           <View style={s.weekRow}>
             {WEEK_DAYS.map((day, i) => (
               <WeekDayDot key={i} day={day} />
             ))}
           </View>
 
-          {/* Stat cards */}
-          <View style={s.weekStatRow}>
-            <View style={s.weekStatCard}>
-              <Text style={s.weekStatValue}>{weeklyAdherenceStr}</Text>
-              <Text style={s.weekStatLabel}>of your plan completed</Text>
-            </View>
-            <View style={s.weekStatCard}>
-              <Text style={s.weekStatValue}>{streakStr}</Text>
-              <Text style={s.weekStatLabel}>consecutive days</Text>
-            </View>
+          {/* Single summary line */}
+          <View style={s.weekSummaryRow}>
+            <Text style={s.weekSummaryText}>
+              <Text style={s.weekSummaryHighlight}>{weeklyCompletedStr}</Text>
+              <Text style={s.weekSummaryText}> of </Text>
+              <Text style={s.weekSummaryHighlight}>{weeklyGoalStr}</Text>
+              <Text style={s.weekSummaryText}> days complete · 🔥 </Text>
+              <Text style={s.weekSummaryHighlight}>{streakStr}</Text>
+              <Text style={s.weekSummaryText}>-day streak</Text>
+            </Text>
           </View>
 
-          {/* Weekly progress bar */}
-          <View style={s.progressBarContainer}>
-            <View style={s.progressBarHeader}>
-              <Text style={s.progressBarLabel}>Weekly goal</Text>
-              <Text style={s.progressBarValue}>{COMPLETED_DAYS}/{WEEKLY_GOAL_DAYS} days · {progressPercentStr}</Text>
-            </View>
-            <View style={s.progressBarTrack}>
-              <View style={[s.progressBarFill, { width: progressPercentStr }]} />
-            </View>
-          </View>
+          {/* Slim weekly progress bar */}
+          <AnimatedProgressBar fraction={weeklyProgressFraction} />
         </View>
 
-        {/* ── Section 5: Daily Habits ── */}
+        {/* ── Section 5: Right Now (Habits) ── */}
         <View style={s.section}>
-          <Text style={s.sectionHeader}>DAILY HABITS</Text>
-          <View style={s.habitsCard}>
-            {habits.map((habit, index) => (
-              <AnimatedListItem key={habit.id} index={index}>
-                <HabitRow habit={habit} onToggle={() => toggleHabit(habit.id)} isLast={index === habits.length - 1} />
-              </AnimatedListItem>
-            ))}
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionHeader}>RIGHT NOW</Text>
+            <Text style={s.todLabel}>{todLabel}</Text>
           </View>
+
+          {allHabitsDone ? (
+            <View style={s.habitsAllDone}>
+              <Text style={s.habitsAllDoneText}>All set for now. Check back later.</Text>
+            </View>
+          ) : (
+            <View style={s.habitsCard}>
+              {filteredHabits.map((habit, index) => (
+                <AnimatedListItem key={habit.id} index={index}>
+                  <HabitRow
+                    habit={habit}
+                    onToggle={() => toggleHabit(habit.id)}
+                    isLast={index === filteredHabits.length - 1}
+                  />
+                </AnimatedListItem>
+              ))}
+            </View>
+          )}
         </View>
 
       </ScrollView>
@@ -637,68 +864,6 @@ export default function MomentumScreen() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function MicroPill({ icon_ios, icon_android, label, value, valueColor }: {
-  icon_ios: string;
-  icon_android: string;
-  label: string;
-  value: string;
-  valueColor: string;
-}) {
-  return (
-    <View style={pillStyles.pill}>
-      <IconSymbol ios_icon_name={icon_ios} android_material_icon_name={icon_android} size={13} color={TEAL} />
-      <Text style={pillStyles.label}>{label}</Text>
-      <Text style={[pillStyles.value, { color: valueColor }]}>{value}</Text>
-    </View>
-  );
-}
-
-const pillStyles = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: CARD_BG, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: CARD_BORDER },
-  label: { fontSize: 11, color: TEXT_SECONDARY, fontWeight: '500' },
-  value: { fontSize: 12, fontWeight: '700' },
-});
-
-function PriorityCard({ item, onToggle, onPress }: { item: PriorityItem; onToggle: () => void; onPress: () => void }) {
-  const dotColor = CATEGORY_DOTS[item.category];
-  const isCompleted = item.completed;
-
-  return (
-    <View style={[pcStyles.card, isCompleted && pcStyles.cardDone]}>
-      {/* Category dot */}
-      <View style={[pcStyles.categoryDot, { backgroundColor: dotColor }]} />
-
-      {/* Content */}
-      <AnimatedPressable style={pcStyles.content} onPress={onPress}>
-        <Text style={[pcStyles.title, isCompleted && pcStyles.titleDone]} numberOfLines={1}>{item.title}</Text>
-        <Text style={[pcStyles.subtitle, isCompleted && pcStyles.subtitleDone]} numberOfLines={1}>{item.subtitle}</Text>
-      </AnimatedPressable>
-
-      {/* Checkbox */}
-      <AnimatedPressable onPress={onToggle} style={pcStyles.checkHit} accessibilityLabel={isCompleted ? 'Mark incomplete' : 'Mark complete'}>
-        <IconSymbol
-          ios_icon_name={isCompleted ? 'checkmark.circle.fill' : 'circle'}
-          android_material_icon_name={isCompleted ? 'check-circle' : 'radio-button-unchecked'}
-          size={22}
-          color={isCompleted ? TEAL : 'rgba(255,255,255,0.25)'}
-        />
-      </AnimatedPressable>
-    </View>
-  );
-}
-
-const pcStyles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
-  cardDone: { opacity: 0.45 },
-  categoryDot: { width: 4, height: 36, borderRadius: 2 },
-  content: { flex: 1, gap: 4 },
-  title: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
-  titleDone: { textDecorationLine: 'line-through', color: TEXT_SECONDARY },
-  subtitle: { fontSize: 13, color: TEXT_SECONDARY },
-  subtitleDone: { color: TEXT_MUTED },
-  checkHit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-});
 
 function WeekDayDot({ day }: { day: WeekDay }) {
   const isFull = day.status === 'full';
@@ -725,18 +890,21 @@ const wdStyles = StyleSheet.create({
 
 function HabitRow({ habit, onToggle, isLast }: { habit: HabitItem; onToggle: () => void; isLast: boolean }) {
   return (
-    <AnimatedPressable
-      style={[hrStyles.row, !isLast && hrStyles.rowBorder]}
-      onPress={() => { console.log('[Momentum] User tapped habit row:', habit.name); onToggle(); }}
-    >
+    <View style={[hrStyles.row, !isLast && hrStyles.rowBorder]}>
       <View style={hrStyles.iconWrap}>
         <IconSymbol ios_icon_name={habit.icon_ios} android_material_icon_name={habit.icon_android} size={18} color={habit.completed ? TEAL : TEXT_SECONDARY} />
       </View>
       <Text style={[hrStyles.name, habit.completed && hrStyles.nameDone]}>{habit.name}</Text>
-      <View style={[hrStyles.check, habit.completed && hrStyles.checkDone]}>
-        {habit.completed && <IconSymbol ios_icon_name="checkmark" android_material_icon_name="check" size={13} color="#fff" />}
-      </View>
-    </AnimatedPressable>
+      <AnimatedPressable
+        onPress={() => { console.log('[Momentum] User tapped habit:', habit.name); onToggle(); }}
+        style={hrStyles.checkHit}
+        accessibilityLabel={habit.completed ? 'Mark incomplete' : 'Mark complete'}
+      >
+        <View style={[hrStyles.check, habit.completed && hrStyles.checkDone]}>
+          {habit.completed && <IconSymbol ios_icon_name="checkmark" android_material_icon_name="check" size={13} color="#fff" />}
+        </View>
+      </AnimatedPressable>
+    </View>
   );
 }
 
@@ -746,6 +914,7 @@ const hrStyles = StyleSheet.create({
   iconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 15, fontWeight: '500', color: TEXT_PRIMARY },
   nameDone: { color: TEXT_SECONDARY, textDecorationLine: 'line-through' },
+  checkHit: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   check: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   checkDone: { backgroundColor: TEAL, borderColor: TEAL },
 });
@@ -759,10 +928,17 @@ const s = StyleSheet.create({
 
   // Header
   header: { marginBottom: 32 },
-  greeting: { fontSize: 30, fontWeight: '800', color: TEXT_PRIMARY, letterSpacing: -0.5, marginBottom: 4 },
-  dateText: { fontSize: 14, color: TEXT_SECONDARY, marginBottom: 2 },
-  contextText: { fontSize: 14, color: TEXT_SECONDARY, marginBottom: 16 },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  headerHeadline: { fontSize: 30, fontWeight: '800', color: TEXT_PRIMARY, letterSpacing: -0.5, marginBottom: 6 },
+  headerContext: { fontSize: 14, color: TEAL, marginBottom: 20 },
+
+  // Completion bar
+  completionBarRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  completionBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  flameEmoji: { fontSize: 14 },
+  streakCount: { fontSize: 13, fontWeight: '700', color: '#f59e0b' },
+  completionBarTrackWrap: { flex: 1 },
+  completionPercent: { fontSize: 12, fontWeight: '700', color: TEAL },
+  completionLabel: { fontSize: 12, color: TEXT_SECONDARY },
 
   // Section
   section: { marginBottom: 32 },
@@ -771,27 +947,26 @@ const s = StyleSheet.create({
   changeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: TEAL_DIM, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: TEAL_BORDER },
   changeBtnText: { fontSize: 12, fontWeight: '600', color: TEAL },
 
-  // Priority footer
-  priorityFooter: { paddingTop: 4, paddingBottom: 4 },
-  priorityFooterText: { fontSize: 13, color: TEXT_MUTED, textAlign: 'center' },
+  // Focus prompt card
+  focusPromptCard: { flexDirection: 'row', backgroundColor: CARD_BG, borderRadius: 18, borderWidth: 1, borderColor: CARD_BORDER, overflow: 'hidden' },
+  focusPromptAccent: { width: 3, backgroundColor: TEAL },
+  focusPromptInner: { flex: 1, padding: 20, gap: 8 },
+  focusPromptTitle: { fontSize: 17, fontWeight: '700', color: TEXT_PRIMARY, letterSpacing: -0.2 },
+  focusPromptSubtitle: { fontSize: 14, color: TEXT_SECONDARY, lineHeight: 20 },
+  focusBeginBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TEAL, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, alignSelf: 'flex-start', marginTop: 4 },
+  focusBeginBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   // Week row
   weekRow: { flexDirection: 'row', backgroundColor: CARD_BG, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: CARD_BORDER, marginBottom: 12 },
 
-  // Week stat cards
-  weekStatRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  weekStatCard: { flex: 1, backgroundColor: CARD_BG, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: CARD_BORDER, alignItems: 'center' },
-  weekStatValue: { fontSize: 28, fontWeight: '800', color: TEAL, letterSpacing: -0.5, marginBottom: 4 },
-  weekStatLabel: { fontSize: 12, color: TEXT_SECONDARY, textAlign: 'center' },
+  // Week summary
+  weekSummaryRow: { marginBottom: 10 },
+  weekSummaryText: { fontSize: 13, color: TEXT_SECONDARY },
+  weekSummaryHighlight: { fontSize: 13, color: TEAL, fontWeight: '700' },
 
-  // Progress bar
-  progressBarContainer: { backgroundColor: CARD_BG, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: CARD_BORDER },
-  progressBarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  progressBarLabel: { fontSize: 13, fontWeight: '600', color: TEXT_PRIMARY },
-  progressBarValue: { fontSize: 13, color: TEXT_SECONDARY },
-  progressBarTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: 6, backgroundColor: TEAL, borderRadius: 3 },
-
-  // Habits card
+  // Habits
+  todLabel: { fontSize: 11, fontWeight: '600', color: TEXT_SECONDARY, letterSpacing: 0.5 },
   habitsCard: { backgroundColor: CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: CARD_BORDER, overflow: 'hidden' },
+  habitsAllDone: { paddingVertical: 28, alignItems: 'center' },
+  habitsAllDoneText: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
 });
