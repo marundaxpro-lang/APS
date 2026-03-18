@@ -18,8 +18,9 @@ import { FitnessProfile } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
-import { authenticatedPost } from '@/utils/api';
+import { authenticatedPost, authenticatedPut } from '@/utils/api';
 import { resetHabitsForProfile } from '@/utils/habitStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 const { height } = Dimensions.get('window');
 
@@ -111,6 +112,7 @@ const calculateCaloricGoal = (
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { setOnboardingCompleted } = useAuth();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<Partial<FitnessProfile & { 
     selectedDays?: number[]; 
@@ -268,6 +270,42 @@ export default function OnboardingScreen() {
       } catch (caloricError) {
         console.error('[Onboarding] Error calculating caloric goal on backend:', caloricError);
       }
+
+      // ── Call PUT /api/user/onboarding to mark onboarding complete ──
+      try {
+        console.log('[Onboarding] Calling PUT /api/user/onboarding to mark onboarding complete');
+        const onboardingPayload = {
+          name: finalProfile.name || null,
+          age,
+          gender,
+          weight,
+          height,
+          goal: backendGoal,
+          experienceLevel: profile.trainingExperience || 'beginner',
+          trainingFrequency: trainingDaysCount,
+          activityLevel,
+          equipmentType: finalProfile.equipmentType || 'gym',
+          focusAreas: finalProfile.focusAreas || [],
+          sessionLength: profile.sessionLength || '45-60',
+          nutritionPreference: profile.nutritionPreference || 'balanced',
+          motivation: profile.motivation || '',
+          motivationChips: profile.selectedMotivationChips || [],
+          trainingDays: profile.selectedDays || [],
+          caloricGoal: nutritionGoals.caloricGoal,
+          protein: nutritionGoals.protein,
+          carbs: nutritionGoals.carbs,
+          fat: nutritionGoals.fat,
+        };
+        console.log('[Onboarding] PUT /api/user/onboarding payload:', onboardingPayload);
+        await authenticatedPut('/api/user/onboarding', onboardingPayload);
+        console.log('[Onboarding] Onboarding marked complete on backend');
+        // Update AuthContext so navigation guard knows onboarding is done
+        setOnboardingCompleted(true);
+      } catch (onboardingErr) {
+        console.warn('[Onboarding] Could not call PUT /api/user/onboarding:', onboardingErr);
+        // Still mark locally so the app can proceed
+        setOnboardingCompleted(true);
+      }
       
       console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
       
@@ -278,6 +316,7 @@ export default function OnboardingScreen() {
       }, 2000);
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
+      setOnboardingCompleted(true);
       router.replace('/(tabs)/(home)');
     }
   };

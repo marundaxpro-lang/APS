@@ -5,18 +5,19 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   Pressable,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
   Home, Plane, BookOpen, Dumbbell, TrendingUp, Moon, Activity, Star,
-  Lock, ChevronRight, Zap,
+  ChevronRight, Zap, Clock, Users,
 } from 'lucide-react-native';
 import { PROGRAM_PACKS, ProgramPack, PackCategory } from '@/data/programPacks';
-import { PackCard } from '@/components/PackCard';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const BG = '#0A0D1A';
 const SURFACE = '#12162A';
@@ -48,7 +49,7 @@ const FILTER_TABS: { key: FilterCategory; label: string }[] = [
   { key: 'recovery', label: 'Recovery' },
 ];
 
-function AnimatedGridItem({ index, children }: { index: number; children: React.ReactNode }) {
+function AnimatedListItem({ index, children }: { index: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -66,12 +67,12 @@ function AnimatedGridItem({ index, children }: { index: number; children: React.
   );
 }
 
-function FeaturedPackCard({ pack }: { pack: ProgramPack }) {
+function FullWidthPackCard({ pack }: { pack: ProgramPack }) {
   const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
 
   const animateIn = useCallback(() => {
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+    Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   }, [scale]);
 
   const animateOut = useCallback(() => {
@@ -79,11 +80,13 @@ function FeaturedPackCard({ pack }: { pack: ProgramPack }) {
   }, [scale]);
 
   const handlePress = useCallback(() => {
-    console.log('[ProgramPacks] User tapped featured pack:', pack.id);
+    console.log('[ProgramPacks] User tapped pack card:', pack.id, pack.title);
     router.push(`/pack-detail/${pack.id}` as any);
   }, [pack.id, router]);
 
   const difficultyLabel = pack.difficulty.charAt(0).toUpperCase() + pack.difficulty.slice(1);
+  const workoutsText = pack.workoutsPerWeek + 'x / week';
+  const minutesText = pack.avgWorkoutMinutes + ' min';
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -91,95 +94,62 @@ function FeaturedPackCard({ pack }: { pack: ProgramPack }) {
         onPressIn={animateIn}
         onPressOut={animateOut}
         onPress={handlePress}
-        style={styles.featuredCard}
+        style={styles.fullCard}
       >
-        <View style={[styles.featuredGradientBase, { backgroundColor: pack.gradientColors[1] }]} />
-        <View style={[styles.featuredGradientOverlay, { backgroundColor: pack.gradientColors[0] }]} />
-        <View style={styles.featuredNoise} />
+        {/* Gradient background */}
+        <View style={[styles.fullCardGradientBase, { backgroundColor: pack.gradientColors[1] }]} />
+        <View style={[styles.fullCardGradientOverlay, { backgroundColor: pack.gradientColors[0] }]} />
+        <View style={styles.fullCardNoise} />
 
-        <View style={styles.featuredContent}>
-          <View style={styles.featuredLeft}>
-            <View style={styles.featuredBadgeRow}>
+        {/* Content */}
+        <View style={styles.fullCardContent}>
+          {/* Top row */}
+          <View style={styles.fullCardTopRow}>
+            <View style={styles.fullCardIconCircle}>
+              <PackIcon name={pack.iconName} size={26} color="#fff" />
+            </View>
+            <View style={styles.fullCardBadgeRow}>
               {pack.isNew && (
-                <View style={styles.featuredNewBadge}>
-                  <Text style={styles.featuredNewBadgeText}>NEW</Text>
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>NEW</Text>
                 </View>
               )}
-              <View style={styles.featuredDiffBadge}>
-                <Text style={styles.featuredDiffBadgeText}>{difficultyLabel}</Text>
+              {pack.isPremium && (
+                <View style={styles.premiumBadge}>
+                  <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+                </View>
+              )}
+              <View style={styles.diffBadge}>
+                <Text style={styles.diffBadgeText}>{difficultyLabel}</Text>
               </View>
             </View>
-            <Text style={styles.featuredTitle}>{pack.title}</Text>
-            <Text style={styles.featuredSubtitle}>{pack.subtitle}</Text>
-            <View style={styles.featuredMeta}>
-              <Text style={styles.featuredMetaText}>{pack.durationLabel}</Text>
-              <Text style={styles.featuredMetaDot}>·</Text>
-              <Text style={styles.featuredMetaText}>{pack.workoutsPerWeek}x per week</Text>
-              <Text style={styles.featuredMetaDot}>·</Text>
-              <Text style={styles.featuredMetaText}>{pack.avgWorkoutMinutes} min</Text>
+          </View>
+
+          {/* Title & subtitle */}
+          <Text style={styles.fullCardTitle}>{pack.title}</Text>
+          <Text style={styles.fullCardSubtitle} numberOfLines={2}>{pack.subtitle}</Text>
+
+          {/* Stats row */}
+          <View style={styles.fullCardStatsRow}>
+            <View style={styles.fullCardStat}>
+              <Clock size={12} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+              <Text style={styles.fullCardStatText}>{minutesText}</Text>
+            </View>
+            <View style={styles.fullCardStatDot} />
+            <View style={styles.fullCardStat}>
+              <Users size={12} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+              <Text style={styles.fullCardStatText}>{workoutsText}</Text>
+            </View>
+            <View style={styles.fullCardStatDot} />
+            <View style={styles.fullCardStat}>
+              <Text style={styles.fullCardStatText}>{pack.durationLabel}</Text>
             </View>
           </View>
-          <View style={styles.featuredRight}>
-            <View style={styles.featuredIconCircle}>
-              <PackIcon name={pack.iconName} size={32} color="#fff" />
-            </View>
-            <View style={styles.featuredStartBtn}>
-              <Text style={styles.featuredStartBtnText}>Start</Text>
-              <ChevronRight size={14} color="#fff" />
-            </View>
-          </View>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
 
-function GridPackCard({ pack }: { pack: ProgramPack }) {
-  const router = useRouter();
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateIn = useCallback(() => {
-    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  }, [scale]);
-
-  const animateOut = useCallback(() => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  }, [scale]);
-
-  const handlePress = useCallback(() => {
-    console.log('[ProgramPacks] User tapped grid pack:', pack.id);
-    router.push(`/pack-detail/${pack.id}` as any);
-  }, [pack.id, router]);
-
-  const difficultyLabel = pack.difficulty.charAt(0).toUpperCase() + pack.difficulty.slice(1);
-
-  return (
-    <Animated.View style={[styles.gridCardWrapper, { transform: [{ scale }] }]}>
-      <Pressable
-        onPressIn={animateIn}
-        onPressOut={animateOut}
-        onPress={handlePress}
-        style={styles.gridCard}
-      >
-        <View style={[styles.gridGradientBase, { backgroundColor: pack.gradientColors[1] }]} />
-        <View style={[styles.gridGradientOverlay, { backgroundColor: pack.gradientColors[0] }]} />
-        <View style={styles.gridNoise} />
-
-        <View style={styles.gridContent}>
-          <View style={styles.gridTop}>
-            <View style={styles.gridIconCircle}>
-              <PackIcon name={pack.iconName} size={20} color="#fff" />
-            </View>
-            {pack.isPremium && (
-              <View style={styles.gridPremiumBadge}>
-                <Lock size={8} color="#fff" />
-              </View>
-            )}
-          </View>
-          <Text style={styles.gridTitle} numberOfLines={2}>{pack.title}</Text>
-          <Text style={styles.gridDuration}>{pack.durationLabel}</Text>
-          <View style={styles.gridDiffBadge}>
-            <Text style={styles.gridDiffText}>{difficultyLabel}</Text>
+          {/* CTA */}
+          <View style={styles.fullCardCTA}>
+            <Text style={styles.fullCardCTAText}>View Program</Text>
+            <ChevronRight size={14} color="#fff" strokeWidth={2.5} />
           </View>
         </View>
       </Pressable>
@@ -195,16 +165,13 @@ export default function ProgramPacksScreen() {
     ? PROGRAM_PACKS
     : PROGRAM_PACKS.filter(p => p.category === activeFilter);
 
-  const featuredPack = PROGRAM_PACKS.find(p => p.isPremium) ?? PROGRAM_PACKS[0];
-  const displayGrid = activeFilter === 'all' ? filteredPacks.filter(p => p.id !== featuredPack.id) : filteredPacks;
-
   const handleFilterPress = (key: FilterCategory) => {
     console.log('[ProgramPacks] User tapped filter tab:', key);
     setActiveFilter(key);
   };
 
   const gridSectionLabel = activeFilter === 'all'
-    ? 'ALL PACKS'
+    ? 'ALL PROGRAMS'
     : (FILTER_TABS.find(t => t.key === activeFilter)?.label.toUpperCase() ?? '');
 
   return (
@@ -227,7 +194,7 @@ export default function ProgramPacksScreen() {
         {/* ── Hero ── */}
         <View style={styles.hero}>
           <Text style={styles.heroHeading}>Find your program</Text>
-          <Text style={styles.heroSubtitle}>8 specialized packs built for real life</Text>
+          <Text style={styles.heroSubtitle}>{PROGRAM_PACKS.length} specialized packs built for real life</Text>
         </View>
 
         {/* ── Category Filter Tabs ── */}
@@ -254,22 +221,14 @@ export default function ProgramPacksScreen() {
           })}
         </ScrollView>
 
-        {/* ── Featured Pack ── */}
-        {activeFilter === 'all' && (
-          <View style={styles.featuredSection}>
-            <Text style={styles.sectionLabel}>FEATURED</Text>
-            <FeaturedPackCard pack={featuredPack} />
-          </View>
-        )}
-
-        {/* ── Pack Grid ── */}
-        <View style={styles.gridSection}>
+        {/* ── Pack List ── */}
+        <View style={styles.listSection}>
           <Text style={styles.sectionLabel}>{gridSectionLabel}</Text>
-          <View style={styles.grid}>
-            {displayGrid.map((pack, index) => (
-              <AnimatedGridItem key={pack.id} index={index}>
-                <GridPackCard pack={pack} />
-              </AnimatedGridItem>
+          <View style={styles.list}>
+            {filteredPacks.map((pack, index) => (
+              <AnimatedListItem key={pack.id} index={index}>
+                <FullWidthPackCard pack={pack} />
+              </AnimatedListItem>
             ))}
           </View>
         </View>
@@ -289,7 +248,6 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 48,
   },
-  // Hero
   hero: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -307,7 +265,6 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     fontWeight: '400',
   },
-  // Filter tabs
   filterScroll: {
     marginBottom: 24,
   },
@@ -335,10 +292,8 @@ const styles = StyleSheet.create({
   filterTabTextActive: {
     color: '#fff',
   },
-  // Featured
-  featuredSection: {
+  listSection: {
     paddingHorizontal: 20,
-    marginBottom: 28,
   },
   sectionLabel: {
     fontSize: 11,
@@ -346,197 +301,142 @@ const styles = StyleSheet.create({
     color: TEXT_TERTIARY,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  featuredCard: {
-    height: 180,
+  list: {
+    gap: 16,
+  },
+  // Full-width card
+  fullCard: {
+    width: '100%',
+    height: 200,
     borderRadius: 20,
     overflow: 'hidden',
     position: 'relative',
   },
-  featuredGradientBase: {
+  fullCardGradientBase: {
     ...StyleSheet.absoluteFillObject,
   },
-  featuredGradientOverlay: {
+  fullCardGradientOverlay: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
+    opacity: 0.65,
   },
-  featuredNoise: {
+  fullCardNoise: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  featuredContent: {
+  fullCardContent: {
     flex: 1,
-    flexDirection: 'row',
     padding: 20,
-    alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
-  featuredLeft: {
-    flex: 1,
-    paddingRight: 12,
+  fullCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
-  featuredBadgeRow: {
+  fullCardIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullCardBadgeRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    flex: 1,
+    paddingLeft: 12,
   },
-  featuredNewBadge: {
+  newBadge: {
     backgroundColor: '#fff',
     borderRadius: 5,
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  featuredNewBadgeText: {
+  newBadgeText: {
     fontSize: 9,
     fontWeight: '800',
     color: '#000',
     letterSpacing: 0.8,
   },
-  featuredDiffBadge: {
+  premiumBadge: {
+    backgroundColor: 'rgba(255,215,0,0.25)',
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,215,0,0.4)',
+  },
+  premiumBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFD700',
+    letterSpacing: 0.5,
+  },
+  diffBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 5,
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  featuredDiffBadgeText: {
+  diffBadgeText: {
     fontSize: 9,
     fontWeight: '700',
     color: '#fff',
     letterSpacing: 0.5,
   },
-  featuredTitle: {
+  fullCardTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#fff',
     letterSpacing: -0.4,
-    marginBottom: 4,
+    lineHeight: 30,
   },
-  featuredSubtitle: {
+  fullCardSubtitle: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.75)',
-    marginBottom: 10,
+    lineHeight: 18,
+    flex: 1,
   },
-  featuredMeta: {
+  fullCardStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 8,
   },
-  featuredMetaText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.65)',
+  fullCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  fullCardStatText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
-  featuredMetaDot: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+  fullCardStatDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
-  featuredRight: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  featuredIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featuredStartBtn: {
+  fullCardCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  featuredStartBtnText: {
+  fullCardCTAText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#fff',
-  },
-  // Grid
-  gridSection: {
-    paddingHorizontal: 20,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridCardWrapper: {
-    width: '47.5%',
-  },
-  gridCard: {
-    height: 160,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  gridGradientBase: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gridGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.65,
-  },
-  gridNoise: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.22)',
-  },
-  gridContent: {
-    flex: 1,
-    padding: 14,
-    justifyContent: 'space-between',
-  },
-  gridTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  gridIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridPremiumBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.2,
-    lineHeight: 19,
-    flex: 1,
-  },
-  gridDuration: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.65)',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  gridDiffBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  gridDiffText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.4,
   },
 });
