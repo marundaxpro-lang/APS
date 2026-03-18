@@ -448,7 +448,7 @@ export default function HomeScreen() {
               }}
               style={styles.quickLinkBtn}
             >
-              <Layers size={22} color={C.teal} strokeWidth={2} />
+              <Layers size={38} color={C.teal} strokeWidth={2} />
               <Text style={styles.quickLinkLabel}>Programs</Text>
             </AnimatedPressable>
 
@@ -460,7 +460,7 @@ export default function HomeScreen() {
               }}
               style={styles.quickLinkBtn}
             >
-              <Apple size={22} color={C.teal} strokeWidth={2} />
+              <Apple size={38} color={C.teal} strokeWidth={2} />
               <Text style={styles.quickLinkLabel}>Nutrition</Text>
             </AnimatedPressable>
 
@@ -472,7 +472,7 @@ export default function HomeScreen() {
               }}
               style={styles.quickLinkBtn}
             >
-              <Sparkles size={22} color={C.teal} strokeWidth={2} />
+              <Sparkles size={38} color={C.teal} strokeWidth={2} />
               <Text style={styles.quickLinkLabel}>AI Coach</Text>
             </AnimatedPressable>
 
@@ -484,7 +484,7 @@ export default function HomeScreen() {
               }}
               style={styles.quickLinkBtn}
             >
-              <CheckSquare size={22} color={C.teal} strokeWidth={2} />
+              <CheckSquare size={38} color={C.teal} strokeWidth={2} />
               <Text style={styles.quickLinkLabel}>Habits</Text>
             </AnimatedPressable>
           </View>
@@ -795,6 +795,7 @@ const styles = StyleSheet.create({
   quickLinksRow: {
     flexDirection: 'row',
     gap: 10,
+    width: '100%',
   },
   quickLinkBtn: {
     flex: 1,
