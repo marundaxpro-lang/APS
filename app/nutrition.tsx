@@ -5,22 +5,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   Animated,
   LayoutAnimation,
   UIManager,
   Platform,
-  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
-import {
-  AlertTriangle,
-  AlertCircle,
-  Brain,
-} from 'lucide-react-native';
 import {
   FoodItem,
   MealTemplate,
@@ -34,13 +27,10 @@ import {
   logFoodItem,
   logFoodItems,
   getFrequentTemplates,
-  searchTemplates,
   getNutritionFeedback,
   MEAL_TYPE_LABELS,
   ProteinStatus,
-  getNutritionRescue,
   getMealIdeas,
-  NutritionRescue,
   MealIdea,
   MealContext,
 } from '@/utils/nutritionEngine';
@@ -49,22 +39,23 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Theme ────────────────────────────────────────────────────────────────────
 
 const TEAL = '#00D4AA';
 const TEAL_DIM = 'rgba(0,212,170,0.10)';
-const TEAL_BORDER = 'rgba(0,212,170,0.25)';
+const TEAL_BORDER = 'rgba(0,212,170,0.22)';
 const ORANGE = '#FF8C42';
-const ORANGE_DIM = 'rgba(255,140,66,0.10)';
 const BLUE = '#60A5FA';
 const YELLOW = '#F59E0B';
 const RED = '#EF4444';
 const CARD_BG = '#161616';
 const CARD_BORDER = 'rgba(255,255,255,0.06)';
 const SCREEN_BG = '#0A0A0A';
-const TEXT_PRIMARY = '#F5F5F5';
+const TEXT_PRIMARY = '#F0F0F0';
 const TEXT_SECONDARY = '#888';
-const TEXT_MUTED = 'rgba(255,255,255,0.3)';
+const TEXT_MUTED = 'rgba(255,255,255,0.28)';
+const DIVIDER = 'rgba(255,255,255,0.05)';
+const INSET_BG = 'rgba(255,255,255,0.03)';
 
 const STORAGE_KEYS = {
   MEAL_LOGS: 'apex_meal_logs',
@@ -76,23 +67,12 @@ const DEFAULT_TARGETS = { calories: 2200, protein: 175, carbs: 220, fat: 70 };
 
 type MealType = MealLog['mealType'];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const FOUR_MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'pm' : 'am';
-  const h12 = h % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];
-}
-
-function todayDisplay(): string {
-  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 function statusColor(status: ProteinStatus['status']): string {
@@ -101,423 +81,283 @@ function statusColor(status: ProteinStatus['status']): string {
   return RED;
 }
 
-function statusLabel(status: ProteinStatus['status']): string {
-  if (status === 'achieved') return 'Achieved';
-  if (status === 'on_track') return 'On Track';
-  if (status === 'behind') return 'Behind';
-  return 'Critical';
-}
-
-function mealTypeColor(type: MealType): string {
-  const map: Record<MealType, string> = {
-    breakfast: TEAL,
-    lunch: BLUE,
-    dinner: '#A78BFA',
-    snack: ORANGE,
-    pre_workout: YELLOW,
-    post_workout: TEAL,
-  };
-  return map[type];
+function currentMealType(): MealType {
+  const h = new Date().getHours();
+  if (h < 10) return 'breakfast';
+  if (h < 14) return 'lunch';
+  if (h < 19) return 'dinner';
+  return 'snack';
 }
 
 // ─── Animated Progress Bar ────────────────────────────────────────────────────
 
-function AnimatedBar({ fraction, color, height = 8 }: { fraction: number; color: string; height?: number }) {
+function SlimBar({ fraction, color }: { fraction: number; color: string }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(anim, { toValue: Math.min(1, Math.max(0, fraction)), duration: 700, useNativeDriver: false }).start();
-  }, [fraction, anim]);
+    Animated.timing(anim, {
+      toValue: Math.min(1, Math.max(0, fraction)),
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+  }, [fraction]);
   return (
-    <View style={[barStyles.track, { height }]}>
-      <Animated.View style={[barStyles.fill, { height, backgroundColor: color, width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+    <View style={barS.track}>
+      <Animated.View
+        style={[
+          barS.fill,
+          {
+            backgroundColor: color,
+            width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+          },
+        ]}
+      />
     </View>
   );
 }
 
-const barStyles = StyleSheet.create({
-  track: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden' },
-  fill: { borderRadius: 99 },
+const barS = StyleSheet.create({
+  track: { height: 3, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 99, overflow: 'hidden' },
+  fill: { height: 3, borderRadius: 99 },
 });
 
-// ─── Animated List Item ───────────────────────────────────────────────────────
+// ─── Staggered List Item ──────────────────────────────────────────────────────
 
 function AnimatedItem({ index, children }: { index: number; children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 320, delay: index * 45, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 320, delay: index * 45, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, delay: index * 50, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 300, delay: index * 50, useNativeDriver: true }),
     ]).start();
-  }, [index, opacity, translateY]);
+  }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
 
-// ─── Macro Mini Card ──────────────────────────────────────────────────────────
+// ─── Macro Pill ───────────────────────────────────────────────────────────────
 
-function MacroCard({ label, logged, target, color }: { label: string; logged: number; target: number; color: string }) {
-  const fraction = target > 0 ? logged / target : 0;
-  const loggedStr = String(Math.round(logged));
-  const targetStr = String(Math.round(target));
-  return (
-    <View style={macroStyles.card}>
-      <Text style={[macroStyles.label, { color }]}>{label}</Text>
-      <View style={macroStyles.row}>
-        <Text style={macroStyles.logged}>{loggedStr}</Text>
-        <Text style={macroStyles.sep}>/</Text>
-        <Text style={macroStyles.target}>{targetStr}</Text>
-        <Text style={macroStyles.unit}>g</Text>
-      </View>
-      <AnimatedBar fraction={fraction} color={color} height={4} />
-    </View>
-  );
-}
-
-const macroStyles = StyleSheet.create({
-  card: { flex: 1, backgroundColor: CARD_BG, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: CARD_BORDER, gap: 8 },
-  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  logged: { fontSize: 20, fontWeight: '700', color: TEXT_PRIMARY },
-  sep: { fontSize: 14, color: TEXT_MUTED, marginBottom: 2 },
-  target: { fontSize: 13, color: TEXT_SECONDARY, marginBottom: 1 },
-  unit: { fontSize: 11, color: TEXT_MUTED, marginBottom: 2 },
-});
-
-// ─── Template Card ────────────────────────────────────────────────────────────
-
-function TemplateCard({
-  template,
-  onLog,
-  onFavorite,
-  horizontal = false,
+function MacroPill({
+  label,
+  logged,
+  goal,
+  color,
 }: {
-  template: MealTemplate;
-  onLog: () => void;
-  onFavorite: () => void;
-  horizontal?: boolean;
+  label: string;
+  logged: number;
+  goal: number;
+  color: string;
 }) {
-  const typeColor = mealTypeColor(template.mealType);
-  const typeLabel = MEAL_TYPE_LABELS[template.mealType];
-  const calStr = String(template.totalCalories);
-  const proteinStr = String(Math.round(template.totalProtein));
-  const heartColor = template.isFavorite ? ORANGE : TEXT_MUTED;
+  const fraction = goal > 0 ? logged / goal : 0;
+  const loggedRounded = Math.round(logged);
+  const goalRounded = Math.round(goal);
+  const loggedStr = String(loggedRounded);
+  const goalStr = String(goalRounded);
 
-  if (horizontal) {
-    return (
-      <View style={tplStyles.hCard}>
-        <View style={tplStyles.hTop}>
-          <View style={[tplStyles.typeBadge, { backgroundColor: typeColor + '20', borderColor: typeColor + '40' }]}>
-            <Text style={[tplStyles.typeBadgeText, { color: typeColor }]}>{typeLabel}</Text>
+  return (
+    <View style={pillS.pill}>
+      <Text style={[pillS.label, { color }]}>{label}</Text>
+      <View style={pillS.nums}>
+        <Text style={pillS.logged}>{loggedStr}</Text>
+        <Text style={pillS.sep}>/</Text>
+        <Text style={pillS.goal}>{goalStr}g</Text>
+      </View>
+      <SlimBar fraction={fraction} color={color} />
+    </View>
+  );
+}
+
+const pillS = StyleSheet.create({
+  pill: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  label: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  nums: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  logged: { fontSize: 15, fontWeight: '700', color: TEXT_PRIMARY },
+  sep: { fontSize: 11, color: TEXT_MUTED },
+  goal: { fontSize: 11, color: TEXT_SECONDARY },
+});
+
+// ─── Meal Row ─────────────────────────────────────────────────────────────────
+
+function MealRow({
+  mealType,
+  logs,
+  isEaten,
+  onMarkEaten,
+  onSwap,
+  onAdd,
+}: {
+  mealType: MealType;
+  logs: MealLog[];
+  isEaten: boolean;
+  onMarkEaten: () => void;
+  onSwap: () => void;
+  onAdd: () => void;
+}) {
+  const label = MEAL_TYPE_LABELS[mealType];
+  const hasContent = logs.length > 0;
+  const totalCal = logs.reduce((s, l) => s + l.totalCalories, 0);
+  const firstItemName = hasContent ? logs[0].items[0]?.name ?? 'Logged meal' : '';
+  const calStr = String(Math.round(totalCal));
+
+  return (
+    <View style={mealRowS.row}>
+      <View style={mealRowS.left}>
+        <Text style={[mealRowS.mealLabel, isEaten && mealRowS.mealLabelEaten]}>{label}</Text>
+        {hasContent ? (
+          <View style={mealRowS.contentLine}>
+            <Text style={mealRowS.foodName} numberOfLines={1}>{firstItemName}</Text>
+            <Text style={mealRowS.dot}> · </Text>
+            <Text style={mealRowS.cal}>{calStr} kcal</Text>
           </View>
-          <TouchableOpacity onPress={() => { console.log('[Nutrition] User toggled favorite:', template.name); onFavorite(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontSize: 16, color: heartColor }}>♥</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={tplStyles.hName} numberOfLines={2}>{template.name}</Text>
-        <View style={tplStyles.hMacros}>
-          <Text style={tplStyles.hCal}>{calStr}</Text>
-          <Text style={tplStyles.hCalLabel}> kcal</Text>
-          <Text style={tplStyles.hDot}> · </Text>
-          <Text style={tplStyles.hProtein}>{proteinStr}g</Text>
-          <Text style={tplStyles.hProteinLabel}> protein</Text>
-        </View>
-        <AnimatedPressable style={tplStyles.hLogBtn} onPress={() => { console.log('[Nutrition] User tapped Log template (horizontal):', template.name); onLog(); }}>
-          <Text style={tplStyles.hLogBtnText}>Log</Text>
-        </AnimatedPressable>
+        ) : (
+          <Text style={mealRowS.empty}>—</Text>
+        )}
       </View>
-    );
-  }
-
-  return (
-    <View style={tplStyles.vCard}>
-      <View style={tplStyles.vLeft}>
-        <View style={[tplStyles.typeBadge, { backgroundColor: typeColor + '20', borderColor: typeColor + '40' }]}>
-          <Text style={[tplStyles.typeBadgeText, { color: typeColor }]}>{typeLabel}</Text>
-        </View>
-        <Text style={tplStyles.vName}>{template.name}</Text>
-        <View style={tplStyles.vMacros}>
-          <Text style={tplStyles.vCal}>{calStr} kcal</Text>
-          <Text style={tplStyles.vDot}> · </Text>
-          <Text style={tplStyles.vProtein}>{proteinStr}g protein</Text>
-        </View>
-      </View>
-      <View style={tplStyles.vRight}>
-        <TouchableOpacity onPress={() => { console.log('[Nutrition] User toggled favorite:', template.name); onFavorite(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={{ fontSize: 18, color: heartColor }}>♥</Text>
-        </TouchableOpacity>
-        <AnimatedPressable style={tplStyles.vLogBtn} onPress={() => { console.log('[Nutrition] User tapped Log template:', template.name); onLog(); }}>
-          <Text style={tplStyles.vLogBtnText}>Log</Text>
-        </AnimatedPressable>
+      <View style={mealRowS.actions}>
+        {hasContent ? (
+          <>
+            <AnimatedPressable
+              style={[mealRowS.pill, isEaten && mealRowS.pillEaten]}
+              onPress={() => {
+                console.log('[Nutrition] User marked meal as eaten:', label);
+                onMarkEaten();
+              }}
+            >
+              <Text style={[mealRowS.pillText, isEaten && mealRowS.pillTextEaten]}>
+                {isEaten ? '✓' : '✓ Eaten'}
+              </Text>
+            </AnimatedPressable>
+            {!isEaten && (
+              <AnimatedPressable
+                style={mealRowS.pillGhost}
+                onPress={() => {
+                  console.log('[Nutrition] User tapped Swap for meal:', label);
+                  onSwap();
+                }}
+              >
+                <Text style={mealRowS.pillGhostText}>↕ Swap</Text>
+              </AnimatedPressable>
+            )}
+          </>
+        ) : (
+          <AnimatedPressable
+            style={mealRowS.addBtn}
+            onPress={() => {
+              console.log('[Nutrition] User tapped Add for meal:', label);
+              onAdd();
+            }}
+          >
+            <Text style={mealRowS.addBtnText}>+ Add</Text>
+          </AnimatedPressable>
+        )}
       </View>
     </View>
   );
 }
 
-const tplStyles = StyleSheet.create({
-  // Horizontal
-  hCard: { width: 180, backgroundColor: CARD_BG, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: CARD_BORDER, gap: 8, marginRight: 10 },
-  hTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hName: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY, lineHeight: 20 },
-  hMacros: { flexDirection: 'row', alignItems: 'baseline' },
-  hCal: { fontSize: 16, fontWeight: '700', color: TEXT_PRIMARY },
-  hCalLabel: { fontSize: 11, color: TEXT_SECONDARY },
-  hDot: { fontSize: 11, color: TEXT_MUTED },
-  hProtein: { fontSize: 14, fontWeight: '600', color: TEAL },
-  hProteinLabel: { fontSize: 11, color: TEXT_SECONDARY },
-  hLogBtn: { backgroundColor: TEAL, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  hLogBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
-  // Vertical
-  vCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: CARD_BORDER, marginBottom: 8, gap: 12 },
-  vLeft: { flex: 1, gap: 5 },
-  vName: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
-  vMacros: { flexDirection: 'row', alignItems: 'center' },
-  vCal: { fontSize: 12, color: TEXT_SECONDARY },
-  vDot: { fontSize: 12, color: TEXT_MUTED },
-  vProtein: { fontSize: 12, color: TEAL, fontWeight: '600' },
-  vRight: { alignItems: 'center', gap: 10 },
-  vLogBtn: { backgroundColor: TEAL, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14 },
-  vLogBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
-  // Shared
-  typeBadge: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1 },
-  typeBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-});
-
-// ─── Food Chip ────────────────────────────────────────────────────────────────
-
-function FoodChip({ food, onLog }: { food: FoodItem; onLog: () => void }) {
-  const proteinStr = String(food.protein);
-  const calStr = String(food.calories);
-  return (
-    <AnimatedPressable style={chipStyles.chip} onPress={() => { console.log('[Nutrition] User tapped quick-fix food chip:', food.name); onLog(); }}>
-      <Text style={chipStyles.name} numberOfLines={1}>{food.name}</Text>
-      <Text style={chipStyles.protein}>{proteinStr}g</Text>
-      <Text style={chipStyles.cal}>{calStr} kcal</Text>
-    </AnimatedPressable>
-  );
-}
-
-const chipStyles = StyleSheet.create({
-  chip: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3, minWidth: 90, borderWidth: 1, borderColor: CARD_BORDER },
-  name: { fontSize: 11, fontWeight: '600', color: TEXT_PRIMARY, textAlign: 'center' },
-  protein: { fontSize: 16, fontWeight: '800', color: TEAL },
-  cal: { fontSize: 10, color: TEXT_SECONDARY },
-});
-
-// ─── Food Grid Card ───────────────────────────────────────────────────────────
-
-function FoodGridCard({ food, onLog }: { food: FoodItem; onLog: () => void }) {
-  const proteinStr = String(food.protein);
-  const calStr = String(food.calories);
-  return (
-    <AnimatedPressable style={gridStyles.card} onPress={() => { console.log('[Nutrition] User tapped food grid card:', food.name); onLog(); }}>
-      <Text style={gridStyles.name} numberOfLines={2}>{food.name}</Text>
-      <Text style={gridStyles.serving}>{food.servingSize}</Text>
-      <Text style={gridStyles.protein}>{proteinStr}g</Text>
-      <Text style={gridStyles.proteinLabel}>protein</Text>
-      <Text style={gridStyles.cal}>{calStr} kcal</Text>
-    </AnimatedPressable>
-  );
-}
-
-const gridStyles = StyleSheet.create({
-  card: { flex: 1, backgroundColor: CARD_BG, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: CARD_BORDER, gap: 3, minWidth: 0 },
-  name: { fontSize: 13, fontWeight: '600', color: TEXT_PRIMARY, lineHeight: 18 },
-  serving: { fontSize: 11, color: TEXT_MUTED },
-  protein: { fontSize: 22, fontWeight: '800', color: TEAL, marginTop: 6 },
-  proteinLabel: { fontSize: 10, color: TEXT_SECONDARY, letterSpacing: 0.5 },
-  cal: { fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 },
-});
-
-// ─── Logged Meal Card ─────────────────────────────────────────────────────────
-
-function LoggedMealCard({ log, onDelete }: { log: MealLog; onDelete: () => void }) {
-  const typeColor = mealTypeColor(log.mealType);
-  const calStr = String(Math.round(log.totalCalories));
-  const proteinStr = String(Math.round(log.totalProtein));
-  const carbsStr = String(Math.round(log.totalCarbs));
-  const fatStr = String(Math.round(log.totalFat));
-  const timeStr = formatTime(log.loggedAt);
-  const templateName = log.items.length > 0 ? log.items.map(i => i.name).join(', ') : 'Custom meal';
-
-  return (
-    <View style={logStyles.card}>
-      <View style={[logStyles.accent, { backgroundColor: typeColor }]} />
-      <View style={logStyles.inner}>
-        <View style={logStyles.topRow}>
-          <Text style={logStyles.name} numberOfLines={1}>{templateName}</Text>
-          <Text style={logStyles.time}>{timeStr}</Text>
-        </View>
-        <View style={logStyles.macroRow}>
-          <Text style={logStyles.cal}>{calStr} kcal</Text>
-          <Text style={logStyles.dot}> · </Text>
-          <Text style={logStyles.protein}>{proteinStr}g P</Text>
-          <Text style={logStyles.dot}> · </Text>
-          <Text style={logStyles.carbs}>{carbsStr}g C</Text>
-          <Text style={logStyles.dot}> · </Text>
-          <Text style={logStyles.fat}>{fatStr}g F</Text>
-        </View>
-      </View>
-      <TouchableOpacity onPress={() => { console.log('[Nutrition] User deleted meal log:', log.id); onDelete(); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={logStyles.deleteBtn}>
-        <Text style={logStyles.deleteText}>✕</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const logStyles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 12, borderWidth: 1, borderColor: CARD_BORDER, overflow: 'hidden', marginBottom: 8 },
-  accent: { width: 3, alignSelf: 'stretch' },
-  inner: { flex: 1, padding: 12, gap: 5 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  name: { fontSize: 14, fontWeight: '600', color: TEXT_PRIMARY, flex: 1, marginRight: 8 },
-  time: { fontSize: 11, color: TEXT_MUTED },
-  macroRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  cal: { fontSize: 12, color: TEXT_SECONDARY, fontWeight: '600' },
+const mealRowS = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  left: { flex: 1, gap: 3 },
+  mealLabel: { fontSize: 14, fontWeight: '600', color: TEXT_PRIMARY },
+  mealLabelEaten: { color: TEXT_SECONDARY },
+  contentLine: { flexDirection: 'row', alignItems: 'center' },
+  foodName: { fontSize: 12, color: TEXT_SECONDARY, flexShrink: 1 },
   dot: { fontSize: 11, color: TEXT_MUTED },
-  protein: { fontSize: 12, color: TEAL, fontWeight: '600' },
-  carbs: { fontSize: 12, color: BLUE, fontWeight: '600' },
-  fat: { fontSize: 12, color: YELLOW, fontWeight: '600' },
-  deleteBtn: { padding: 14 },
-  deleteText: { fontSize: 13, color: TEXT_MUTED },
+  cal: { fontSize: 12, color: TEXT_SECONDARY },
+  empty: { fontSize: 13, color: TEXT_MUTED },
+  actions: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  pill: {
+    backgroundColor: TEAL_DIM,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: TEAL_BORDER,
+  },
+  pillEaten: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  pillText: { fontSize: 11, fontWeight: '600', color: TEAL },
+  pillTextEaten: { color: TEXT_MUTED },
+  pillGhost: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  pillGhostText: { fontSize: 11, fontWeight: '500', color: TEXT_SECONDARY },
+  addBtn: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  addBtnText: { fontSize: 11, fontWeight: '500', color: TEXT_SECONDARY },
 });
 
-// ─── Nutrition Rescue Card ────────────────────────────────────────────────────
+// ─── Next-Up Suggestion Row ───────────────────────────────────────────────────
 
-function NutritionRescueCard({
-  rescue,
-  onLogSuggestion,
-  onDismiss,
+function SuggestionRow({
+  idea,
+  onLog,
 }: {
-  rescue: NutritionRescue;
-  onLogSuggestion: (foods: FoodItem[]) => void;
-  onDismiss: () => void;
+  idea: MealIdea;
+  onLog: () => void;
 }) {
-  const isCritical = rescue.severity === 'critical';
-  const accentColor = isCritical ? RED : ORANGE;
-  const effortColor = (effort: 'instant' | 'quick' | 'moderate') => {
-    if (effort === 'instant') return TEAL;
-    if (effort === 'quick') return BLUE;
-    return ORANGE;
-  };
-
-  return (
-    <View style={rescueStyles.card}>
-      <View style={rescueStyles.headerRow}>
-        {isCritical
-          ? <AlertCircle size={16} color={accentColor} />
-          : <AlertTriangle size={16} color={accentColor} />
-        }
-        <Text style={[rescueStyles.label, { color: TEAL }]}>NUTRITION RESCUE</Text>
-      </View>
-      <Text style={rescueStyles.headline}>{rescue.headline}</Text>
-      <Text style={rescueStyles.explanation}>{rescue.explanation}</Text>
-
-      {rescue.suggestions.map(sug => {
-        const eColor = effortColor(sug.effort);
-        const proteinStr = sug.proteinImpact > 0 ? `+${sug.proteinImpact}g` : '';
-        return (
-          <View key={sug.id} style={rescueStyles.suggestionCard}>
-            <View style={rescueStyles.sugLeft}>
-              <Text style={rescueStyles.sugTitle}>{sug.title}</Text>
-              <Text style={rescueStyles.sugSubtitle}>{sug.subtitle}</Text>
-            </View>
-            <View style={rescueStyles.sugRight}>
-              <View style={[rescueStyles.effortBadge, { backgroundColor: eColor + '20', borderColor: eColor + '40' }]}>
-                <Text style={[rescueStyles.effortText, { color: eColor }]}>{sug.effort}</Text>
-              </View>
-              {proteinStr !== '' && <Text style={rescueStyles.proteinImpact}>{proteinStr}</Text>}
-              {sug.foodItems.length > 0 && (
-                <AnimatedPressable
-                  style={rescueStyles.logBtn}
-                  onPress={() => {
-                    console.log('[Nutrition] User tapped Log it for rescue suggestion:', sug.title);
-                    onLogSuggestion(sug.foodItems);
-                  }}
-                >
-                  <Text style={rescueStyles.logBtnText}>Log it</Text>
-                </AnimatedPressable>
-              )}
-            </View>
-          </View>
-        );
-      })}
-
-      <TouchableOpacity onPress={onDismiss} style={rescueStyles.dismissBtn}>
-        <Text style={rescueStyles.dismissText}>Dismiss for 2 hours</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const rescueStyles = StyleSheet.create({
-  card: { backgroundColor: CARD_BG, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-  headline: { fontSize: 18, fontWeight: '700', color: TEXT_PRIMARY },
-  explanation: { fontSize: 13, color: TEXT_SECONDARY, lineHeight: 18 },
-  suggestionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: CARD_BORDER, gap: 10 },
-  sugLeft: { flex: 1, gap: 3 },
-  sugTitle: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
-  sugSubtitle: { fontSize: 12, color: TEXT_SECONDARY },
-  sugRight: { alignItems: 'flex-end', gap: 6 },
-  effortBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
-  effortText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  proteinImpact: { fontSize: 13, fontWeight: '700', color: TEAL },
-  logBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: TEAL_BORDER, backgroundColor: TEAL_DIM },
-  logBtnText: { fontSize: 12, fontWeight: '600', color: TEAL },
-  dismissBtn: { alignItems: 'center', paddingTop: 4 },
-  dismissText: { fontSize: 12, color: TEXT_MUTED },
-});
-
-// ─── Meal Idea Card ───────────────────────────────────────────────────────────
-
-function MealIdeaCard({ idea, onLog }: { idea: MealIdea; onLog: () => void }) {
   const calStr = String(idea.calories);
-  const proteinStr = String(idea.protein);
-  const prepStr = String(idea.prepTime);
-
   return (
-    <View style={ideaStyles.card}>
-      <Text style={ideaStyles.name}>{idea.name}</Text>
-      <Text style={ideaStyles.reason}>{idea.matchReason}</Text>
-      <View style={ideaStyles.macroRow}>
-        <Text style={ideaStyles.protein}>{proteinStr}g P</Text>
-        <Text style={ideaStyles.dot}> · </Text>
-        <Text style={ideaStyles.cal}>{calStr} kcal</Text>
-        <Text style={ideaStyles.dot}> · </Text>
-        <Text style={ideaStyles.prep}>{prepStr} min</Text>
+    <View style={sugS.row}>
+      <View style={sugS.left}>
+        <Text style={sugS.name} numberOfLines={1}>{idea.name}</Text>
+        <Text style={sugS.cal}>{calStr} kcal</Text>
       </View>
-      <View style={ideaStyles.tagsRow}>
-        {idea.tags.slice(0, 3).map(tag => (
-          <View key={tag} style={ideaStyles.tag}>
-            <Text style={ideaStyles.tagText}>{tag}</Text>
-          </View>
-        ))}
-      </View>
-      <AnimatedPressable style={ideaStyles.logBtn} onPress={() => {
-        console.log('[Nutrition] User tapped Log This Meal for idea:', idea.name);
-        onLog();
-      }}>
-        <Text style={ideaStyles.logBtnText}>Log This Meal</Text>
+      <AnimatedPressable
+        style={sugS.logBtn}
+        onPress={() => {
+          console.log('[Nutrition] User tapped + Log suggestion:', idea.name);
+          onLog();
+        }}
+      >
+        <Text style={sugS.logBtnText}>+ Log</Text>
       </AnimatedPressable>
     </View>
   );
 }
 
-const ideaStyles = StyleSheet.create({
-  card: { width: 220, backgroundColor: CARD_BG, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: CARD_BORDER, gap: 8, marginRight: 12 },
-  name: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
-  reason: { fontSize: 12, fontStyle: 'italic', color: TEAL, lineHeight: 16 },
-  macroRow: { flexDirection: 'row', alignItems: 'center' },
-  protein: { fontSize: 12, fontWeight: '700', color: TEAL },
-  dot: { fontSize: 11, color: TEXT_MUTED },
-  cal: { fontSize: 12, color: TEXT_SECONDARY },
-  prep: { fontSize: 12, color: TEXT_SECONDARY },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  tag: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: CARD_BORDER },
-  tagText: { fontSize: 10, color: TEXT_SECONDARY, fontWeight: '500' },
-  logBtn: { backgroundColor: TEAL, borderRadius: 10, paddingVertical: 9, alignItems: 'center', marginTop: 2 },
-  logBtnText: { fontSize: 13, fontWeight: '700', color: '#000' },
+const sugS = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  left: { flex: 1, gap: 2 },
+  name: { fontSize: 13, fontWeight: '500', color: TEXT_PRIMARY },
+  cal: { fontSize: 11, color: TEXT_MUTED },
+  logBtn: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  logBtnText: { fontSize: 11, fontWeight: '600', color: TEXT_SECONDARY },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -529,14 +369,15 @@ export default function NutritionScreen() {
   const [allLogs, setAllLogs] = useState<Record<string, MealLog[]>>({});
   const [templates, setTemplates] = useState<MealTemplate[]>([]);
   const [targets, setTargets] = useState(DEFAULT_TARGETS);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [eatenMeals, setEatenMeals] = useState<Set<MealType>>(new Set());
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   const today = todayStr();
   const hour = new Date().getHours();
   const todayLogs: MealLog[] = useMemo(() => allLogs[today] ?? [], [allLogs, today]);
 
-  // ── Load from AsyncStorage ──
+  // ── Load ──
   useEffect(() => {
     async function load() {
       console.log('[Nutrition] Loading data from AsyncStorage');
@@ -550,18 +391,15 @@ export default function NutritionScreen() {
         const savedLogs: Record<string, MealLog[]> = logsRaw ? JSON.parse(logsRaw) : {};
         setAllLogs(savedLogs);
 
-        // Merge saved templates with defaults (by id)
         const savedTpls: MealTemplate[] = tplRaw ? JSON.parse(tplRaw) : [];
-        const savedIds = new Set(savedTpls.map(t => t.id));
+        const savedIds = new Set(savedTpls.map((t) => t.id));
         const merged = [
           ...savedTpls,
-          ...DEFAULT_MEAL_TEMPLATES.filter(t => !savedIds.has(t.id)),
+          ...DEFAULT_MEAL_TEMPLATES.filter((t) => !savedIds.has(t.id)),
         ];
         setTemplates(merged);
 
-        if (targetsRaw) {
-          setTargets(JSON.parse(targetsRaw));
-        }
+        if (targetsRaw) setTargets(JSON.parse(targetsRaw));
 
         console.log('[Nutrition] Loaded', Object.keys(savedLogs).length, 'log days,', merged.length, 'templates');
       } catch (e) {
@@ -573,7 +411,7 @@ export default function NutritionScreen() {
     load();
   }, []);
 
-  // ── Derived state ──
+  // ── Derived ──
   const daily: DailyNutrition = useMemo(
     () => getDailyNutrition(todayLogs, targets),
     [todayLogs, targets]
@@ -584,80 +422,6 @@ export default function NutritionScreen() {
     [daily.totalProtein, targets.protein, hour]
   );
 
-  const feedbackText = useMemo(() => getNutritionFeedback(daily, hour), [daily, hour]);
-
-  const frequentTemplates = useMemo(() => getFrequentTemplates(templates), [templates]);
-
-  const filteredTemplates = useMemo(
-    () => searchTemplates(templates, searchQuery),
-    [templates, searchQuery]
-  );
-
-  const proteinFoods = useMemo(
-    () => QUICK_FOODS.filter(f => f.category === 'protein'),
-    []
-  );
-
-  // ── Rescue & Meal Ideas ──
-  const hadWorkout = false; // placeholder — no workout state in this screen
-  const rescue: NutritionRescue = useMemo(
-    () => getNutritionRescue(daily, hour, hadWorkout),
-    [daily, hour, hadWorkout]
-  );
-
-  const [rescueDismissedUntil, setRescueDismissedUntil] = useState<number>(0);
-  const showRescue = rescue.severity !== 'none' && Date.now() > rescueDismissedUntil;
-
-  const mealContext: MealContext = useMemo(() => ({
-    hour,
-    proteinRemaining: Math.max(0, targets.protein - daily.totalProtein),
-    caloriesRemaining: Math.max(0, targets.calories - daily.totalCalories),
-    carbsRemaining: Math.max(0, targets.carbs - daily.totalCarbs),
-    fatRemaining: Math.max(0, targets.fat - daily.totalFat),
-    hadWorkoutToday: hadWorkout,
-    workoutWasThisMorning: false,
-  }), [hour, targets, daily, hadWorkout]);
-
-  const mealIdeas: MealIdea[] = useMemo(
-    () => getMealIdeas(mealContext, templates),
-    [mealContext, templates]
-  );
-
-  const handleDismissRescue = useCallback(async () => {
-    console.log('[Nutrition] User dismissed rescue card');
-    const until = Date.now() + 2 * 60 * 60 * 1000; // 2 hours
-    setRescueDismissedUntil(until);
-    try {
-      await AsyncStorage.setItem('apex_rescue_dismissed_until', String(until));
-    } catch (_) {}
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem('apex_rescue_dismissed_until').then(raw => {
-      if (raw) setRescueDismissedUntil(Number(raw));
-    }).catch(() => {});
-  }, []);
-
-  const logRescueSuggestion = useCallback(async (foods: FoodItem[]) => {
-    if (foods.length === 0) return;
-    console.log('[Nutrition] User logged rescue suggestion:', foods.map(f => f.name).join(', '));
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    const newLog = logFoodItems(foods, today, 'snack');
-    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
-    setAllLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-  }, [allLogs, today, saveLogs]);
-
-  const logMealIdea = useCallback(async (idea: MealIdea) => {
-    console.log('[Nutrition] User logged meal idea:', idea.name);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    const newLog = logFoodItems(idea.items, today, idea.mealType === 'post_workout' ? 'post_workout' : idea.mealType);
-    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
-    setAllLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-  }, [allLogs, today, saveLogs]);
-
-  // Group today's logs by meal type
   const logsByMealType = useMemo(() => {
     const map: Partial<Record<MealType, MealLog[]>> = {};
     for (const log of todayLogs) {
@@ -667,10 +431,40 @@ export default function NutritionScreen() {
     return map;
   }, [todayLogs]);
 
-  const mealTypeOrder: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'pre_workout', 'post_workout'];
-  const activeMealTypes = mealTypeOrder.filter(t => (logsByMealType[t]?.length ?? 0) > 0);
+  const mealContext: MealContext = useMemo(
+    () => ({
+      hour,
+      proteinRemaining: Math.max(0, targets.protein - daily.totalProtein),
+      caloriesRemaining: Math.max(0, targets.calories - daily.totalCalories),
+      carbsRemaining: Math.max(0, targets.carbs - daily.totalCarbs),
+      fatRemaining: Math.max(0, targets.fat - daily.totalFat),
+      hadWorkoutToday: false,
+      workoutWasThisMorning: false,
+    }),
+    [hour, targets, daily]
+  );
 
-  // ── Persist helpers ──
+  const mealIdeas: MealIdea[] = useMemo(
+    () => getMealIdeas(mealContext, templates),
+    [mealContext, templates]
+  );
+
+  const visibleSuggestions = useMemo(
+    () => mealIdeas.filter((i) => !dismissedSuggestions.has(i.id)).slice(0, 3),
+    [mealIdeas, dismissedSuggestions]
+  );
+
+  // ── Next uncompleted meal ──
+  const nextMeal = useMemo((): MealType => {
+    const current = currentMealType();
+    const idx = FOUR_MEALS.indexOf(current);
+    for (let i = idx; i < FOUR_MEALS.length; i++) {
+      if (!eatenMeals.has(FOUR_MEALS[i])) return FOUR_MEALS[i];
+    }
+    return FOUR_MEALS[FOUR_MEALS.length - 1];
+  }, [eatenMeals]);
+
+  // ── Persist ──
   const saveLogs = useCallback(async (newLogs: Record<string, MealLog[]>) => {
     await AsyncStorage.setItem(STORAGE_KEYS.MEAL_LOGS, JSON.stringify(newLogs));
   }, []);
@@ -679,75 +473,101 @@ export default function NutritionScreen() {
     await AsyncStorage.setItem(STORAGE_KEYS.MEAL_TEMPLATES, JSON.stringify(newTpls));
   }, []);
 
-  // ── Log meal from template ──
-  const logMeal = useCallback(async (template: MealTemplate) => {
-    console.log('[Nutrition] User logged meal from template:', template.name, template.mealType);
+  // ── Actions ──
+  const logFood = useCallback(
+    async (food: FoodItem, mealType: MealType = 'snack') => {
+      console.log('[Nutrition] Logging food item:', food.name, 'for meal:', mealType);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const newLog = logFoodItem(food, today, mealType);
+      const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
+      setAllLogs(updatedLogs);
+      await saveLogs(updatedLogs);
+    },
+    [allLogs, today, saveLogs]
+  );
+
+  const logMealIdea = useCallback(
+    async (idea: MealIdea) => {
+      console.log('[Nutrition] Logging meal idea:', idea.name);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const newLog = logFoodItems(idea.items, today, idea.mealType === 'post_workout' ? 'post_workout' : idea.mealType);
+      const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
+      setAllLogs(updatedLogs);
+      await saveLogs(updatedLogs);
+      setDismissedSuggestions((prev) => new Set([...prev, idea.id]));
+    },
+    [allLogs, today, saveLogs]
+  );
+
+  const logTemplate = useCallback(
+    async (template: MealTemplate) => {
+      console.log('[Nutrition] Logging template:', template.name);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const newLog = logMealFromTemplate(template, today);
+      const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
+      setAllLogs(updatedLogs);
+      await saveLogs(updatedLogs);
+      const updatedTpls = templates.map((t) =>
+        t.id === template.id ? { ...t, useCount: t.useCount + 1, lastUsed: today } : t
+      );
+      setTemplates(updatedTpls);
+      await saveTemplates(updatedTpls);
+    },
+    [allLogs, templates, today, saveLogs, saveTemplates]
+  );
+
+  const markEaten = useCallback((mealType: MealType) => {
+    console.log('[Nutrition] User marked meal eaten:', mealType);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setEatenMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(mealType)) {
+        next.delete(mealType);
+      } else {
+        next.add(mealType);
+      }
+      return next;
+    });
+  }, []);
 
-    const newLog = logMealFromTemplate(template, today);
-    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
-    setAllLogs(updatedLogs);
-    await saveLogs(updatedLogs);
+  const handleSwap = useCallback(
+    (mealType: MealType) => {
+      console.log('[Nutrition] User tapped Swap for meal:', mealType);
+      const swapTemplate = templates.find((t) => t.mealType === mealType);
+      if (swapTemplate) logTemplate(swapTemplate);
+    },
+    [templates, logTemplate]
+  );
 
-    // Update template useCount + lastUsed
-    const updatedTpls = templates.map(t =>
-      t.id === template.id
-        ? { ...t, useCount: t.useCount + 1, lastUsed: today }
-        : t
-    );
-    setTemplates(updatedTpls);
-    await saveTemplates(updatedTpls);
-  }, [allLogs, templates, today, saveLogs, saveTemplates]);
+  const handleAdd = useCallback(
+    (mealType: MealType) => {
+      console.log('[Nutrition] User tapped Add for meal:', mealType);
+      const addTemplate = templates.find((t) => t.mealType === mealType);
+      if (addTemplate) logTemplate(addTemplate);
+    },
+    [templates, logTemplate]
+  );
 
-  // ── Log food item directly ──
-  const logFood = useCallback(async (food: FoodItem) => {
-    console.log('[Nutrition] User logged food item:', food.name, food.protein + 'g protein');
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    const newLog = logFoodItem(food, today);
-    const updatedLogs = { ...allLogs, [today]: [...(allLogs[today] ?? []), newLog] };
-    setAllLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-  }, [allLogs, today, saveLogs]);
-
-  // ── Delete meal log ──
-  const deleteMeal = useCallback(async (logId: string) => {
-    console.log('[Nutrition] User deleted meal log:', logId);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    const updatedToday = (allLogs[today] ?? []).filter(l => l.id !== logId);
-    const updatedLogs = { ...allLogs, [today]: updatedToday };
-    setAllLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-  }, [allLogs, today, saveLogs]);
-
-  // ── Toggle favorite ──
-  const toggleFavorite = useCallback(async (templateId: string) => {
-    console.log('[Nutrition] User toggled favorite template:', templateId);
-    const updatedTpls = templates.map(t =>
-      t.id === templateId ? { ...t, isFavorite: !t.isFavorite } : t
-    );
-    setTemplates(updatedTpls);
-    await saveTemplates(updatedTpls);
-  }, [templates, saveTemplates]);
-
-  // ── Derived display values ──
-  const proteinLoggedStr = String(Math.round(daily.totalProtein));
-  const proteinTargetStr = String(Math.round(targets.protein));
-  const proteinPct = String(proteinStatus.percentage);
-  const calLoggedStr = String(Math.round(daily.totalCalories));
-  const calTargetStr = String(Math.round(targets.calories));
-  const calFraction = targets.calories > 0 ? daily.totalCalories / targets.calories : 0;
-  const proteinFraction = targets.protein > 0 ? daily.totalProtein / targets.protein : 0;
+  // ── Display values ──
+  const caloriesEaten = Math.round(daily.totalCalories);
+  const caloriesGoal = targets.calories;
+  const caloriesRemaining = Math.max(0, caloriesGoal - caloriesEaten);
+  const calFraction = caloriesGoal > 0 ? caloriesEaten / caloriesGoal : 0;
   const pColor = statusColor(proteinStatus.status);
-  const pLabel = statusLabel(proteinStatus.status);
-  const showQuickFixes = proteinStatus.status === 'critical' || proteinStatus.status === 'behind';
+
+  const caloriesRemainingStr = caloriesRemaining.toLocaleString();
+  const caloriesEatenStr = caloriesEaten.toLocaleString();
+  const caloriesGoalStr = caloriesGoal.toLocaleString();
+
+  const nextMealLabel = MEAL_TYPE_LABELS[nextMeal];
+
+  const frequentTemplates = useMemo(() => getFrequentTemplates(templates), [templates]);
 
   if (!loaded) {
     return (
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.loadingState}>
-          <Text style={s.loadingText}>Loading nutrition...</Text>
+          <Text style={s.loadingText}>Loading...</Text>
         </View>
       </View>
     );
@@ -757,237 +577,153 @@ export default function NutritionScreen() {
     <View style={s.container}>
       <ScrollView
         style={s.scroll}
-        contentContainerStyle={[s.scrollContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[
+          s.scrollContent,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+        ]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-
         {/* ── Header ── */}
         <View style={s.header}>
-          <View style={s.headerRow}>
-            <AnimatedPressable onPress={() => { console.log('[Nutrition] User pressed back button'); router.back(); }} style={s.backBtn}>
-              <Text style={s.backArrow}>‹</Text>
-            </AnimatedPressable>
-            <View style={s.headerCenter}>
-              <Text style={s.headerTitle}>Nutrition</Text>
-              <Text style={s.headerDate}>{todayDisplay()}</Text>
-            </View>
-            <View style={s.headerRight} />
-          </View>
-          <Text style={s.feedbackText}>{feedbackText}</Text>
+          <AnimatedPressable
+            onPress={() => {
+              console.log('[Nutrition] User pressed back');
+              router.back();
+            }}
+            style={s.backBtn}
+          >
+            <Text style={s.backArrow}>‹</Text>
+          </AnimatedPressable>
+          <Text style={s.headerTitle}>Nutrition</Text>
+          <View style={s.headerRight} />
         </View>
 
-        {/* ── Protein Hero Card ── */}
-        <View style={s.section}>
-          <View style={s.proteinCard}>
-            <Text style={s.proteinLabel}>PROTEIN</Text>
-            <View style={s.proteinAmountRow}>
-              <Text style={s.proteinLogged}>{proteinLoggedStr}</Text>
-              <Text style={s.proteinSep}>g</Text>
-              <Text style={s.proteinSlash}> / </Text>
-              <Text style={s.proteinTarget}>{proteinTargetStr}g</Text>
-            </View>
-            <AnimatedBar fraction={proteinFraction} color={pColor} height={8} />
-            <View style={s.proteinStatusRow}>
-              <View style={[s.statusBadge, { backgroundColor: pColor + '20', borderColor: pColor + '50' }]}>
-                <Text style={[s.statusBadgeText, { color: pColor }]}>{pLabel}</Text>
+        {/* ── Hero Card ── */}
+        <AnimatedItem index={0}>
+          <View style={s.heroCard}>
+            {/* Calories remaining */}
+            <View style={s.heroTop}>
+              <View style={s.heroCalBlock}>
+                <Text style={s.heroNumber}>{caloriesRemainingStr}</Text>
+                <Text style={s.heroLabel}>Calories remaining</Text>
+                <Text style={s.heroSub}>
+                  {caloriesEatenStr} eaten · {caloriesGoalStr} goal
+                </Text>
               </View>
-              <Text style={s.proteinPct}>{proteinPct}%</Text>
-            </View>
-            <Text style={s.proteinMessage}>{proteinStatus.message}</Text>
-            <Text style={s.proteinTraining}>{proteinStatus.trainingConnection}</Text>
-
-            {showQuickFixes && (
-              <View style={s.quickFixSection}>
-                <Text style={s.quickFixLabel}>Quick fixes</Text>
-                <View style={s.quickFixRow}>
-                  {proteinStatus.quickFixes.map(food => (
-                    <FoodChip key={food.id} food={food} onLog={() => logFood(food)} />
-                  ))}
-                </View>
+              {/* Diet chip placeholder — shown if a preference exists */}
+              <View style={s.dietChip}>
+                <Text style={s.dietChipText}>🥩 High Protein</Text>
               </View>
-            )}
-          </View>
-        </View>
+            </View>
 
-        {/* ── Macro Summary Row ── */}
-        <View style={s.section}>
-          <View style={s.macroRow}>
-            <MacroCard
-              label="Calories"
-              logged={daily.totalCalories}
-              target={targets.calories}
-              color={TEAL}
-            />
-            <MacroCard
-              label="Carbs"
-              logged={daily.totalCarbs}
-              target={targets.carbs}
-              color={BLUE}
-            />
-            <MacroCard
-              label="Fat"
-              logged={daily.totalFat}
-              target={targets.fat}
-              color={YELLOW}
-            />
-          </View>
-        </View>
+            {/* Calorie bar */}
+            <View style={s.calBarWrap}>
+              <SlimBar fraction={calFraction} color={TEAL} />
+            </View>
 
-        {/* ── Nutrition Rescue ── */}
-        {showRescue && (
-          <View style={s.section}>
-            <NutritionRescueCard
-              rescue={rescue}
-              onLogSuggestion={logRescueSuggestion}
-              onDismiss={handleDismissRescue}
-            />
+            {/* Macro pills */}
+            <View style={s.macroPills}>
+              <MacroPill
+                label="Protein"
+                logged={daily.totalProtein}
+                goal={targets.protein}
+                color={pColor}
+              />
+              <MacroPill
+                label="Carbs"
+                logged={daily.totalCarbs}
+                goal={targets.carbs}
+                color={BLUE}
+              />
+              <MacroPill
+                label="Fat"
+                logged={daily.totalFat}
+                goal={targets.fat}
+                color={YELLOW}
+              />
+            </View>
           </View>
-        )}
+        </AnimatedItem>
 
         {/* ── Today's Meals ── */}
         <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionHeader}>TODAY'S MEALS</Text>
-            <AnimatedPressable
-              style={s.logMealBtn}
-              onPress={() => { console.log('[Nutrition] User tapped Log Meal button'); }}
-            >
-              <Text style={s.logMealBtnText}>+ Log Meal</Text>
-            </AnimatedPressable>
-          </View>
+          <Text style={s.sectionTitle}>Today</Text>
 
-          {todayLogs.length === 0 ? (
-            <View style={s.emptyMeals}>
-              <Text style={s.emptyMealsIcon}>🍴</Text>
-              <Text style={s.emptyMealsTitle}>No meals logged yet</Text>
-              <Text style={s.emptyMealsSubtitle}>Tap a template below to log instantly</Text>
-            </View>
-          ) : (
-            activeMealTypes.map((mealType, sectionIdx) => {
-              const sectionLogs = logsByMealType[mealType] ?? [];
-              const sectionCal = sectionLogs.reduce((s, l) => s + l.totalCalories, 0);
-              const sectionProtein = sectionLogs.reduce((s, l) => s + l.totalProtein, 0);
-              const sectionCalStr = String(Math.round(sectionCal));
-              const sectionProteinStr = String(Math.round(sectionProtein));
-              const typeColor = mealTypeColor(mealType);
+          <View style={s.mealsCard}>
+            {FOUR_MEALS.map((mealType, idx) => {
+              const logs = logsByMealType[mealType] ?? [];
+              const isEaten = eatenMeals.has(mealType);
+              const isNextUp = mealType === nextMeal && !isEaten;
+
               return (
-                <AnimatedItem key={mealType} index={sectionIdx}>
-                  <View style={s.mealSection}>
-                    <View style={s.mealSectionHeader}>
-                      <Text style={[s.mealSectionTitle, { color: typeColor }]}>{MEAL_TYPE_LABELS[mealType]}</Text>
-                      <View style={s.mealSectionStats}>
-                        <Text style={s.mealSectionCal}>{sectionCalStr} kcal</Text>
-                        <Text style={s.mealSectionDot}> · </Text>
-                        <Text style={s.mealSectionProtein}>{sectionProteinStr}g P</Text>
+                <AnimatedItem key={mealType} index={idx + 1}>
+                  <View>
+                    {idx > 0 && <View style={s.divider} />}
+                    <MealRow
+                      mealType={mealType}
+                      logs={logs}
+                      isEaten={isEaten}
+                      onMarkEaten={() => markEaten(mealType)}
+                      onSwap={() => handleSwap(mealType)}
+                      onAdd={() => handleAdd(mealType)}
+                    />
+
+                    {/* Next-Up inline block */}
+                    {isNextUp && visibleSuggestions.length > 0 && (
+                      <View style={s.nextUpBlock}>
+                        <Text style={s.nextUpHeader}>
+                          Next up · {nextMealLabel}
+                        </Text>
+                        {visibleSuggestions.map((idea) => (
+                          <SuggestionRow
+                            key={idea.id}
+                            idea={idea}
+                            onLog={() => logMealIdea(idea)}
+                          />
+                        ))}
                       </View>
-                    </View>
-                    {sectionLogs.map(log => (
-                      <LoggedMealCard key={log.id} log={log} onDelete={() => deleteMeal(log.id)} />
-                    ))}
+                    )}
                   </View>
                 </AnimatedItem>
               );
-            })
-          )}
+            })}
+          </View>
         </View>
 
-        {/* ── Quick Log ── */}
-        <View style={s.section}>
-          <Text style={s.sectionHeader}>QUICK LOG</Text>
-          <Text style={s.sectionSubtitle}>Tap to log in one tap</Text>
-
-          {frequentTemplates.length > 0 && (
-            <View style={s.subsection}>
-              <Text style={s.subsectionTitle}>Your Frequent Meals</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hScroll}>
-                {frequentTemplates.map((tpl, i) => (
-                  <AnimatedItem key={tpl.id} index={i}>
-                    <TemplateCard
-                      template={tpl}
-                      onLog={() => logMeal(tpl)}
-                      onFavorite={() => toggleFavorite(tpl.id)}
-                      horizontal
-                    />
-                  </AnimatedItem>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          <View style={s.subsection}>
-            <Text style={s.subsectionTitle}>All Templates</Text>
-            <View style={s.searchBar}>
-              <Text style={s.searchIcon}>🔍</Text>
-              <TextInput
-                style={s.searchInput}
-                placeholder="Search meals..."
-                placeholderTextColor={TEXT_MUTED}
-                value={searchQuery}
-                onChangeText={text => { console.log('[Nutrition] User searching templates:', text); setSearchQuery(text); }}
-                returnKeyType="search"
-              />
-            </View>
-            {filteredTemplates.map((tpl, i) => (
-              <AnimatedItem key={tpl.id} index={i}>
-                <TemplateCard
-                  template={tpl}
-                  onLog={() => logMeal(tpl)}
-                  onFavorite={() => toggleFavorite(tpl.id)}
-                />
-              </AnimatedItem>
-            ))}
-            {filteredTemplates.length === 0 && (
-              <View style={s.noResults}>
-                <Text style={s.noResultsText}>No templates match "{searchQuery}"</Text>
+        {/* ── Quick Log (frequent templates) ── */}
+        {frequentTemplates.length > 0 && (
+          <AnimatedItem index={6}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Quick log</Text>
+              <View style={s.mealsCard}>
+                {frequentTemplates.slice(0, 4).map((tpl, idx) => {
+                  const calStr = String(tpl.totalCalories);
+                  const proteinStr = String(Math.round(tpl.totalProtein));
+                  return (
+                    <View key={tpl.id}>
+                      {idx > 0 && <View style={s.divider} />}
+                      <View style={s.quickRow}>
+                        <View style={s.quickLeft}>
+                          <Text style={s.quickName} numberOfLines={1}>{tpl.name}</Text>
+                          <Text style={s.quickMeta}>{calStr} kcal · {proteinStr}g protein</Text>
+                        </View>
+                        <AnimatedPressable
+                          style={s.quickLogBtn}
+                          onPress={() => {
+                            console.log('[Nutrition] User tapped quick log template:', tpl.name);
+                            logTemplate(tpl);
+                          }}
+                        >
+                          <Text style={s.quickLogBtnText}>Log</Text>
+                        </AnimatedPressable>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
-            )}
-          </View>
-        </View>
-
-        {/* ── High-Protein Foods Grid ── */}
-        <View style={s.section}>
-          <Text style={s.sectionHeader}>HIGH-PROTEIN FOODS</Text>
-          <Text style={s.sectionSubtitle}>Tap to log instantly</Text>
-          <View style={s.foodGrid}>
-            {proteinFoods.map((food, i) => (
-              <AnimatedItem key={food.id} index={i}>
-                <FoodGridCard food={food} onLog={() => logFood(food)} />
-              </AnimatedItem>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Meal Ideas ── */}
-        <View style={s.section}>
-          <View style={s.sectionHeaderRow}>
-            <View>
-              <Text style={s.sectionHeader}>MEAL IDEAS FOR YOU</Text>
-              <Text style={s.sectionSubtitle}>
-                {mealContext.proteinRemaining > 30
-                  ? `Based on your remaining ${Math.round(mealContext.proteinRemaining)}g protein`
-                  : mealContext.caloriesRemaining > 200
-                  ? `${Math.round(mealContext.caloriesRemaining)} calories remaining`
-                  : 'Personalised for your goals'}
-              </Text>
             </View>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.ideasScroll}>
-            {mealIdeas.map((idea, i) => (
-              <AnimatedItem key={idea.id} index={i}>
-                <MealIdeaCard idea={idea} onLog={() => logMealIdea(idea)} />
-              </AnimatedItem>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ── Daily Insight ── */}
-        <View style={s.section}>
-          <View style={s.insightCard}>
-            <Text style={s.insightIcon}>💡</Text>
-            <Text style={s.insightText}>{feedbackText}</Text>
-          </View>
-        </View>
+          </AnimatedItem>
+        )}
 
       </ScrollView>
     </View>
@@ -1002,86 +738,132 @@ const s = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20 },
 
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { fontSize: 15, color: TEXT_MUTED },
+  loadingText: { fontSize: 14, color: TEXT_MUTED },
 
   // Header
-  header: { marginBottom: 24 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: CARD_BG, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: CARD_BORDER },
-  backArrow: { fontSize: 26, color: TEXT_PRIMARY, lineHeight: 30, marginTop: -2 },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: TEXT_PRIMARY, letterSpacing: -0.3 },
-  headerDate: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
-  headerRight: { width: 40 },
-  feedbackText: { fontSize: 13, color: TEAL, fontStyle: 'italic', textAlign: 'center', lineHeight: 18 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: CARD_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  backArrow: { fontSize: 24, color: TEXT_PRIMARY, lineHeight: 28, marginTop: -2 },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '600',
+    color: TEXT_PRIMARY,
+    letterSpacing: -0.2,
+  },
+  headerRight: { width: 36 },
+
+  // Hero card
+  heroCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    gap: 16,
+    marginBottom: 24,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  heroCalBlock: { gap: 4 },
+  heroNumber: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: TEXT_PRIMARY,
+    letterSpacing: -1.5,
+    lineHeight: 48,
+  },
+  heroLabel: { fontSize: 12, color: TEXT_SECONDARY, fontWeight: '500' },
+  heroSub: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
+  dietChip: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    marginTop: 4,
+  },
+  dietChipText: { fontSize: 11, color: TEXT_SECONDARY, fontWeight: '500' },
+  calBarWrap: { marginTop: -4 },
+  macroPills: { flexDirection: 'row', gap: 8 },
 
   // Section
-  section: { marginBottom: 28 },
-  sectionHeader: { fontSize: 11, fontWeight: '600', color: TEAL, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 },
-  sectionSubtitle: { fontSize: 12, color: TEXT_MUTED, marginBottom: 14 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  section: { marginBottom: 24 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+    letterSpacing: -0.3,
+    marginBottom: 12,
+  },
 
-  // Protein card
-  proteinCard: { backgroundColor: CARD_BG, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: CARD_BORDER, gap: 12 },
-  proteinLabel: { fontSize: 11, fontWeight: '600', color: TEAL, letterSpacing: 1.5, textTransform: 'uppercase' },
-  proteinAmountRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  proteinLogged: { fontSize: 40, fontWeight: '800', color: TEXT_PRIMARY, letterSpacing: -1, lineHeight: 44 },
-  proteinSep: { fontSize: 22, fontWeight: '700', color: TEXT_SECONDARY, marginBottom: 4 },
-  proteinSlash: { fontSize: 18, color: TEXT_MUTED, marginBottom: 6 },
-  proteinTarget: { fontSize: 20, fontWeight: '500', color: TEXT_SECONDARY, marginBottom: 4 },
-  proteinStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statusBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
-  statusBadgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
-  proteinPct: { fontSize: 13, fontWeight: '700', color: TEXT_SECONDARY },
-  proteinMessage: { fontSize: 13, color: TEXT_SECONDARY, lineHeight: 18 },
-  proteinTraining: { fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic', lineHeight: 18 },
-  quickFixSection: { gap: 10 },
-  quickFixLabel: { fontSize: 11, fontWeight: '600', color: TEXT_MUTED, letterSpacing: 0.8, textTransform: 'uppercase' },
-  quickFixRow: { flexDirection: 'row', gap: 8 },
+  // Meals card
+  mealsCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: DIVIDER,
+  },
 
-  // Macro row
-  macroRow: { flexDirection: 'row', gap: 10 },
+  // Next-up block
+  nextUpBlock: {
+    backgroundColor: INSET_BG,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  nextUpHeader: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: TEAL,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
 
-  // Log meal button
-  logMealBtn: { backgroundColor: TEAL_DIM, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: TEAL_BORDER },
-  logMealBtnText: { fontSize: 13, fontWeight: '600', color: TEAL },
-
-  // Empty meals
-  emptyMeals: { alignItems: 'center', paddingVertical: 32, gap: 8 },
-  emptyMealsIcon: { fontSize: 36 },
-  emptyMealsTitle: { fontSize: 16, fontWeight: '600', color: TEXT_SECONDARY },
-  emptyMealsSubtitle: { fontSize: 13, color: TEXT_MUTED },
-
-  // Meal sections
-  mealSection: { marginBottom: 16 },
-  mealSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  mealSectionTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
-  mealSectionStats: { flexDirection: 'row', alignItems: 'center' },
-  mealSectionCal: { fontSize: 12, color: TEXT_SECONDARY },
-  mealSectionDot: { fontSize: 11, color: TEXT_MUTED },
-  mealSectionProtein: { fontSize: 12, color: TEAL, fontWeight: '600' },
-
-  // Subsections
-  subsection: { marginBottom: 20 },
-  subsectionTitle: { fontSize: 14, fontWeight: '600', color: TEXT_PRIMARY, marginBottom: 12 },
-  hScroll: { paddingBottom: 4 },
-
-  // Search
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD_BG, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: CARD_BORDER, marginBottom: 14, gap: 10 },
-  searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, fontSize: 14, color: TEXT_PRIMARY },
-
-  noResults: { paddingVertical: 20, alignItems: 'center' },
-  noResultsText: { fontSize: 13, color: TEXT_MUTED },
-
-  // Food grid
-  foodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-
-  // Ideas scroll
-  ideasScroll: { paddingBottom: 4 },
-
-  // Insight card
-  insightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, backgroundColor: 'rgba(0,212,170,0.06)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(0,212,170,0.15)' },
-  insightIcon: { fontSize: 20 },
-  insightText: { flex: 1, fontSize: 14, color: TEXT_PRIMARY, lineHeight: 21 },
+  // Quick log
+  quickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  quickLeft: { flex: 1, gap: 3 },
+  quickName: { fontSize: 14, fontWeight: '500', color: TEXT_PRIMARY },
+  quickMeta: { fontSize: 11, color: TEXT_MUTED },
+  quickLogBtn: {
+    backgroundColor: TEAL_DIM,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: TEAL_BORDER,
+  },
+  quickLogBtnText: { fontSize: 12, fontWeight: '600', color: TEAL },
 });
