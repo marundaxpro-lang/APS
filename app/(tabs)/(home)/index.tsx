@@ -25,6 +25,9 @@ import {
   Sparkles,
   Droplets,
   Footprints,
+  Layers,
+  Apple,
+  CheckSquare,
 } from 'lucide-react-native';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -432,6 +435,60 @@ export default function HomeScreen() {
             <Text style={styles.insightLink}>See full analysis →</Text>
           </AnimatedPressable>
         </FadeSection>
+
+        {/* ── 7. Quick Links ── */}
+        <FadeSection index={6}>
+          <SectionHeader title="Quick Links" />
+          <View style={styles.quickLinksRow}>
+            <AnimatedPressable
+              scaleValue={0.94}
+              onPress={() => {
+                console.log('[Home] User tapped Quick Link: Programs → navigating to /program-packs');
+                router.push('/program-packs');
+              }}
+              style={styles.quickLinkBtn}
+            >
+              <Layers size={22} color={C.teal} strokeWidth={2} />
+              <Text style={styles.quickLinkLabel}>Programs</Text>
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              scaleValue={0.94}
+              onPress={() => {
+                console.log('[Home] User tapped Quick Link: Nutrition → navigating to /nutrition');
+                router.push('/nutrition');
+              }}
+              style={styles.quickLinkBtn}
+            >
+              <Apple size={22} color={C.teal} strokeWidth={2} />
+              <Text style={styles.quickLinkLabel}>Nutrition</Text>
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              scaleValue={0.94}
+              onPress={() => {
+                console.log('[Home] User tapped Quick Link: AI Coach → navigating to /ai-coach');
+                router.push('/ai-coach');
+              }}
+              style={styles.quickLinkBtn}
+            >
+              <Sparkles size={22} color={C.teal} strokeWidth={2} />
+              <Text style={styles.quickLinkLabel}>AI Coach</Text>
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              scaleValue={0.94}
+              onPress={() => {
+                console.log('[Home] User tapped Quick Link: Habits → navigating to /habits');
+                router.push('/habits');
+              }}
+              style={styles.quickLinkBtn}
+            >
+              <CheckSquare size={22} color={C.teal} strokeWidth={2} />
+              <Text style={styles.quickLinkLabel}>Habits</Text>
+            </AnimatedPressable>
+          </View>
+        </FadeSection>
       </ScrollView>
     </View>
   );
@@ -732,6 +789,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: C.textSecondary,
+  },
+
+  // Quick links
+  quickLinksRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickLinkBtn: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderColor: C.tealBorder,
+  },
+  quickLinkLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.textSecondary,
+    textAlign: 'center',
   },
 
   // Coach insight

@@ -14,7 +14,7 @@ import { Stack, useRouter } from 'expo-router';
 import {
   Droplets, Egg, ChefHat, Zap, Activity, Circle, Moon,
   Flame, ClipboardList, CheckSquare, BarChart2, Camera,
-  Footprints, Lock, Plus, Check,
+  Footprints, Lock, Check, SlidersHorizontal,
 } from 'lucide-react-native';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { HabitStreakBadge } from '@/components/HabitStreakBadge';
@@ -46,6 +46,19 @@ const CATEGORY_COLORS: Record<HabitCategory, string> = {
   consistency: '#F59E0B',
 };
 
+const CATEGORY_ORDER: HabitCategory[] = [
+  'hydration', 'nutrition', 'recovery', 'sleep', 'training', 'consistency',
+];
+
+const CATEGORY_LABELS: Record<HabitCategory, string> = {
+  hydration: 'Hydration',
+  nutrition: 'Nutrition',
+  recovery: 'Recovery',
+  sleep: 'Sleep',
+  training: 'Training',
+  consistency: 'Consistency',
+};
+
 // Circular progress ring
 function ProgressRing({ progress, size = 80 }: { progress: number; size?: number }) {
   const radius = (size - 10) / 2;
@@ -72,7 +85,6 @@ function ProgressRing({ progress, size = 80 }: { progress: number; size?: number
           borderWidth: 5,
           borderColor: '#34D399',
           position: 'absolute',
-          // Approximate arc using border trick
           borderTopColor: progress > 0.25 ? '#34D399' : 'transparent',
           borderRightColor: progress > 0.5 ? '#34D399' : 'transparent',
           borderBottomColor: progress > 0.75 ? '#34D399' : 'transparent',
@@ -162,12 +174,52 @@ function HabitRow({ habit, onToggle, onComplete, index }: HabitRowProps) {
   );
 }
 
+// A compact row used in the Customize panel (grouped by category)
+interface CustomizeRowProps {
+  habit: Habit;
+  onToggle: (id: string, active: boolean) => void;
+}
+
+function CustomizeRow({ habit, onToggle }: CustomizeRowProps) {
+  const IconComponent = ICON_MAP[habit.icon] || Flame;
+  const categoryColor = CATEGORY_COLORS[habit.category];
+
+  return (
+    <View style={styles.customizeRow}>
+      <View style={[styles.customizeRowIcon, { backgroundColor: `${categoryColor}18` }]}>
+        <IconComponent size={16} color={categoryColor} strokeWidth={2} />
+      </View>
+      <View style={styles.customizeRowText}>
+        <Text style={styles.customizeRowTitle} numberOfLines={1}>{habit.title}</Text>
+        <Text style={styles.customizeRowDesc} numberOfLines={1}>{habit.description}</Text>
+      </View>
+      {habit.isPremium && (
+        <View style={styles.premiumBadge}>
+          <Lock size={9} color="#F59E0B" strokeWidth={2} />
+          <Text style={styles.premiumBadgeText}>Pro</Text>
+        </View>
+      )}
+      <Switch
+        value={habit.isActive}
+        onValueChange={(val) => {
+          console.log('[Habits] Customize panel toggled habit:', habit.id, 'active:', val);
+          onToggle(habit.id, val);
+        }}
+        trackColor={{ false: 'rgba(255,255,255,0.1)', true: `${categoryColor}60` }}
+        thumbColor={habit.isActive ? categoryColor : '#4A5580'}
+        ios_backgroundColor="rgba(255,255,255,0.1)"
+      />
+    </View>
+  );
+}
+
 export default function HabitsScreen() {
   const router = useRouter();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'all' | HabitCategory>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showCustomize, setShowCustomize] = useState(false);
 
   const loadHabits = useCallback(async () => {
     try {
@@ -225,6 +277,19 @@ export default function HabitsScreen() {
   const activeCountText = `${totalActiveCount} habit${totalActiveCount === 1 ? '' : 's'} active`;
   const xpText = `+${totalXpToday} XP today`;
 
+  // Group all habits by category for the customize panel
+  const habitsByCategory: Record<HabitCategory, Habit[]> = {
+    hydration: [],
+    nutrition: [],
+    recovery: [],
+    sleep: [],
+    training: [],
+    consistency: [],
+  };
+  for (const h of habits) {
+    habitsByCategory[h.category].push(h);
+  }
+
   return (
     <>
       <Stack.Screen
@@ -234,6 +299,21 @@ export default function HabitsScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           headerBackTitle: 'Back',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => {
+                console.log('[Habits] User tapped Customize Habits button, showCustomize:', !showCustomize);
+                setShowCustomize(v => !v);
+              }}
+              style={styles.headerCustomizeBtn}
+              activeOpacity={0.7}
+            >
+              <SlidersHorizontal size={18} color={showCustomize ? colors.primary : colors.grey} strokeWidth={2} />
+              <Text style={[styles.headerCustomizeBtnText, showCustomize && { color: colors.primary }]}>
+                Customize
+              </Text>
+            </TouchableOpacity>
+          ),
         }}
       />
       <View style={styles.container}>
@@ -263,6 +343,37 @@ export default function HabitsScreen() {
             </View>
             <ProgressRing progress={progressRatio} size={80} />
           </View>
+
+          {/* ── Customize Habits panel ── */}
+          {showCustomize && (
+            <View style={styles.customizePanel}>
+              <View style={styles.customizePanelHeader}>
+                <SlidersHorizontal size={16} color={colors.primary} strokeWidth={2} />
+                <Text style={styles.customizePanelTitle}>Customize Habits</Text>
+              </View>
+              <Text style={styles.customizePanelSubtitle}>
+                Toggle any habit on or off. Active habits appear in your daily list.
+              </Text>
+
+              {CATEGORY_ORDER.map(cat => {
+                const catHabits = habitsByCategory[cat];
+                if (catHabits.length === 0) return null;
+                const catColor = CATEGORY_COLORS[cat];
+                return (
+                  <View key={cat} style={styles.customizeCategoryBlock}>
+                    <View style={[styles.customizeCategoryHeader, { borderLeftColor: catColor }]}>
+                      <Text style={[styles.customizeCategoryLabel, { color: catColor }]}>
+                        {CATEGORY_LABELS[cat].toUpperCase()}
+                      </Text>
+                    </View>
+                    {catHabits.map(h => (
+                      <CustomizeRow key={h.id} habit={h} onToggle={handleToggle} />
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* Category tabs */}
           <ScrollView
@@ -360,6 +471,22 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
     gap: 24,
   },
+
+  // Header customize button
+  headerCustomizeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  headerCustomizeBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.grey,
+  },
+
+  // Summary card
   summaryCard: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 20,
@@ -404,6 +531,81 @@ const styles = StyleSheet.create({
     color: colors.grey,
     fontWeight: '500',
   },
+
+  // Customize panel
+  customizePanel: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    gap: 12,
+  },
+  customizePanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customizePanelTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  customizePanelSubtitle: {
+    fontSize: 13,
+    color: colors.grey,
+    lineHeight: 18,
+    marginTop: -4,
+  },
+  customizeCategoryBlock: {
+    gap: 6,
+  },
+  customizeCategoryHeader: {
+    borderLeftWidth: 3,
+    paddingLeft: 8,
+    marginBottom: 2,
+  },
+  customizeCategoryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  customizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  customizeRowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  customizeRowText: {
+    flex: 1,
+    gap: 2,
+  },
+  customizeRowTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    letterSpacing: -0.1,
+  },
+  customizeRowDesc: {
+    fontSize: 11,
+    color: colors.grey,
+  },
+
+  // Category tabs
   tabs: {
     marginHorizontal: -20,
   },
@@ -424,6 +626,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.grey,
   },
+
+  // Sections
   section: {
     gap: 10,
   },
@@ -515,6 +719,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Empty state
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,

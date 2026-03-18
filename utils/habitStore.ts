@@ -12,6 +12,13 @@ const DEFAULT_ACTIVE_IDS = [
   'daily_checkin',
 ];
 
+export interface FitnessProfileForHabits {
+  primaryGoal?: string;
+  nutritionPreference?: string;
+  activityLevelOutsideTraining?: string;
+  goal?: string;
+}
+
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
@@ -28,6 +35,50 @@ function buildHabitFromLibrary(
     isActive: DEFAULT_ACTIVE_IDS.includes(libItem.id),
     ...overrides,
   };
+}
+
+/**
+ * Derive a prioritized list of habit IDs based on the user's fitness profile.
+ * Always returns at least 4 IDs.
+ */
+function getActiveIdsForProfile(profile: FitnessProfileForHabits): string[] {
+  const goal = profile.primaryGoal || profile.goal || '';
+  const nutrition = profile.nutritionPreference || '';
+  const activity = profile.activityLevelOutsideTraining || '';
+
+  let prioritized: string[] = [];
+
+  if (goal === 'lose-fat' || goal === 'lose_weight' || goal === 'body_recomposition') {
+    prioritized = ['daily_checkin', 'protein_breakfast', 'morning_water', 'sleep_routine', 'post_workout_shake'];
+  } else if (goal === 'build-muscle' || goal === 'build_muscle' || goal === 'get-stronger' || goal === 'strength') {
+    prioritized = ['protein_breakfast', 'post_workout_shake', 'morning_water', 'sleep_routine', 'morning_stretch'];
+  } else if (goal === 'improve-endurance' || goal === 'improve_endurance' || goal === 'general-fitness' || goal === 'general_fitness') {
+    prioritized = ['morning_water', 'morning_stretch', 'sleep_routine', 'daily_checkin', 'protein_breakfast'];
+  } else {
+    // Default fallback
+    prioritized = [...DEFAULT_ACTIVE_IDS];
+  }
+
+  // Nutrition preference overrides: always include hydration + consistency
+  if (nutrition === 'vegan' || nutrition === 'vegetarian') {
+    if (!prioritized.includes('morning_water')) prioritized.unshift('morning_water');
+    if (!prioritized.includes('daily_checkin')) prioritized.push('daily_checkin');
+  }
+
+  // Sedentary users benefit from mobility
+  if (activity === 'sedentary' || activity === 'lightly-active' || activity === 'lightly_active') {
+    if (!prioritized.includes('morning_stretch')) prioritized.push('morning_stretch');
+  }
+
+  // Ensure at least 4 active habits
+  const fallbacks = ['morning_water', 'protein_breakfast', 'sleep_routine', 'daily_checkin', 'morning_stretch'];
+  for (const id of fallbacks) {
+    if (prioritized.length >= 4) break;
+    if (!prioritized.includes(id)) prioritized.push(id);
+  }
+
+  console.log('[HabitStore] Active habit IDs for profile:', prioritized);
+  return prioritized;
 }
 
 export async function getHabits(): Promise<Habit[]> {
@@ -55,14 +106,30 @@ export async function saveHabits(habits: Habit[]): Promise<void> {
   }
 }
 
-export async function initializeHabits(): Promise<Habit[]> {
+export async function initializeHabits(fitnessProfile?: FitnessProfileForHabits): Promise<Habit[]> {
   const existing = await getHabits();
   if (existing.length > 0) return existing;
 
-  console.log('[HabitStore] First-time init — creating default habits');
-  const habits: Habit[] = HABIT_LIBRARY.map(lib => buildHabitFromLibrary(lib));
+  const activeIds = fitnessProfile
+    ? getActiveIdsForProfile(fitnessProfile)
+    : DEFAULT_ACTIVE_IDS;
+
+  console.log('[HabitStore] First-time init — creating habits for profile, active IDs:', activeIds);
+  const habits: Habit[] = HABIT_LIBRARY.map(lib =>
+    buildHabitFromLibrary(lib, { isActive: activeIds.includes(lib.id) })
+  );
   await saveHabits(habits);
   return habits;
+}
+
+/**
+ * Clear existing habits and re-initialize based on the given fitness profile.
+ * Called after onboarding completes so habits are immediately personalized.
+ */
+export async function resetHabitsForProfile(fitnessProfile: FitnessProfileForHabits): Promise<Habit[]> {
+  console.log('[HabitStore] resetHabitsForProfile called with goal:', fitnessProfile.primaryGoal || fitnessProfile.goal);
+  await AsyncStorage.removeItem(HABITS_KEY);
+  return initializeHabits(fitnessProfile);
 }
 
 export async function completeHabit(

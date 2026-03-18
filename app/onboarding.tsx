@@ -19,6 +19,7 @@ import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { authenticatedPost } from '@/utils/api';
+import { resetHabitsForProfile } from '@/utils/habitStore';
 
 const { height } = Dimensions.get('window');
 
@@ -176,6 +177,14 @@ export default function OnboardingScreen() {
     
     console.log('[Onboarding] Final profile before saving:', finalProfile);
     await AsyncStorage.setItem('fitnessProfile', JSON.stringify(finalProfile));
+
+    // Personalize habits based on onboarding profile
+    console.log('[Onboarding] Resetting habits for profile goal:', finalProfile.goal);
+    await resetHabitsForProfile({
+      primaryGoal: finalProfile.goal,
+      nutritionPreference: profile.nutritionPreference,
+      activityLevelOutsideTraining: profile.activityLevelOutsideTraining,
+    });
     
     // Save motivation separately for later use
     if (profile.motivation || profile.selectedMotivationChips) {
