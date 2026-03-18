@@ -25,13 +25,13 @@ import { useAuth } from '@/contexts/AuthContext';
 const { height } = Dimensions.get('window');
 
 const DAYS_OF_WEEK = [
-  { id: 0, short: 'Sun', full: 'Sunday' },
   { id: 1, short: 'Mon', full: 'Monday' },
   { id: 2, short: 'Tue', full: 'Tuesday' },
   { id: 3, short: 'Wed', full: 'Wednesday' },
   { id: 4, short: 'Thu', full: 'Thursday' },
   { id: 5, short: 'Fri', full: 'Friday' },
   { id: 6, short: 'Sat', full: 'Saturday' },
+  { id: 0, short: 'Sun', full: 'Sunday' },
 ];
 
 // Mifflin-St Jeor Equation for BMR calculation
@@ -200,8 +200,12 @@ export default function OnboardingScreen() {
     }
     
     try {
-      const activityLevel = trainingDaysCount >= 5 ? 'active' : 
-                           trainingDaysCount >= 3 ? 'moderate' : 'light';
+      const activityLevelMap: Record<string, string> = {
+        'regular': 'light',
+        'moderate': 'moderate',
+        'very-active': 'active',
+      };
+      const activityLevel = activityLevelMap[profile.activityLevelOutsideTraining || 'moderate'] || 'moderate';
       
       console.log('[Onboarding] Saving complete fitness profile to backend...');
       const profilePayload = {
@@ -551,13 +555,6 @@ export default function OnboardingScreen() {
         description: 'Strength and power',
         iosIcon: 'bolt.fill', 
         androidIcon: 'flash-on' 
-      },
-      { 
-        id: 'general-fitness', 
-        label: 'General Fitness', 
-        description: 'Overall health and energy',
-        iosIcon: 'heart.fill', 
-        androidIcon: 'favorite' 
       },
     ];
 
@@ -1169,11 +1166,9 @@ export default function OnboardingScreen() {
     ];
 
     const activityLevelOptions = [
-      { id: 'sedentary', label: 'Sedentary', description: 'Mostly sitting, little to no exercise' },
-      { id: 'lightly-active', label: 'Lightly Active', description: 'Light movement, 1–3 days per week' },
-      { id: 'moderately-active', label: 'Moderately Active', description: 'Regular exercise, 3–5 days per week' },
-      { id: 'very-active', label: 'Very Active', description: 'Intense training, 6–7 days per week' },
-      { id: 'extremely-active', label: 'Extremely Active', description: 'Physical job or twice-daily training' },
+      { id: 'regular', label: 'Regular', description: 'Light daily movement, mostly desk-based' },
+      { id: 'moderate', label: 'Moderate', description: 'Active lifestyle, on your feet often' },
+      { id: 'very-active', label: 'Very Active', description: 'Physical job or very active daily life' },
     ];
 
     return (
