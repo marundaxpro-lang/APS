@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,8 +33,7 @@ import {
   CheckSquare,
 } from 'lucide-react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 40; // full width minus paddingHorizontal*2
+
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -177,12 +176,14 @@ function UpcomingCard({
 function ProgramCarouselCard({
   program,
   onPress,
+  cardWidth,
 }: {
   program: (typeof homeData.programs)[0];
   onPress: () => void;
+  cardWidth: number;
 }) {
   return (
-    <AnimatedPressable scaleValue={0.98} onPress={onPress} style={styles.programCard}>
+    <AnimatedPressable scaleValue={0.98} onPress={onPress} style={[styles.programCard, { width: cardWidth }]}>
       <View style={styles.programGlow} pointerEvents="none" />
       <View style={styles.programTopRow}>
         <View style={styles.programIconCircle}>
@@ -212,6 +213,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const CARD_WIDTH = SCREEN_WIDTH - 40;
   const [showTour, setShowTour] = useState(false);
 
   const now = new Date();
@@ -358,6 +361,7 @@ export default function HomeScreen() {
               <ProgramCarouselCard
                 key={program.id}
                 program={program}
+                cardWidth={CARD_WIDTH}
                 onPress={() => {
                   console.log('[Home] User tapped program card:', program.title, '→ navigating to /program-packs');
                   router.push('/program-packs');
@@ -803,7 +807,6 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   programCard: {
-    width: CARD_WIDTH,
     backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
@@ -1028,7 +1031,7 @@ const styles = StyleSheet.create({
     borderColor: C.tealBorder,
   },
   quickLinkLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: C.textSecondary,
     textAlign: 'center',

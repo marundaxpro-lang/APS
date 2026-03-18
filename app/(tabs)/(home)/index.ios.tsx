@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,9 +32,6 @@ import {
   Apple,
   CheckSquare,
 } from 'lucide-react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 40;
 
 const C = {
   bg: '#0A0A0F',
@@ -152,9 +149,9 @@ function UpcomingCard({ day, onPress }: { day: (typeof homeData.upcomingDays)[0]
   );
 }
 
-function ProgramCarouselCard({ program, onPress }: { program: (typeof homeData.programs)[0]; onPress: () => void }) {
+function ProgramCarouselCard({ program, onPress, cardWidth }: { program: (typeof homeData.programs)[0]; onPress: () => void; cardWidth: number }) {
   return (
-    <AnimatedPressable scaleValue={0.98} onPress={onPress} style={styles.programCard}>
+    <AnimatedPressable scaleValue={0.98} onPress={onPress} style={[styles.programCard, { width: cardWidth }]}>
       <View style={styles.programGlow} pointerEvents="none" />
       <View style={styles.programTopRow}>
         <View style={styles.programIconCircle}>
@@ -183,6 +180,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const CARD_WIDTH = SCREEN_WIDTH - 40;
   const [showTour, setShowTour] = useState(false);
 
   const now = new Date();
@@ -267,7 +266,7 @@ export default function HomeScreen() {
           <SectionHeader title="Programs" onSeeAll={() => { console.log('[Home] User tapped See all programs → navigating to /program-packs'); router.push('/program-packs'); }} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled snapToInterval={CARD_WIDTH + 12} decelerationRate="fast" contentContainerStyle={styles.programsScroll}>
             {homeData.programs.map((program) => (
-              <ProgramCarouselCard key={program.id} program={program} onPress={() => { console.log('[Home] User tapped program card:', program.title); router.push('/program-packs'); }} />
+              <ProgramCarouselCard key={program.id} program={program} cardWidth={CARD_WIDTH} onPress={() => { console.log('[Home] User tapped program card:', program.title); router.push('/program-packs'); }} />
             ))}
           </ScrollView>
         </FadeSection>

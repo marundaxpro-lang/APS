@@ -6,15 +6,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { Href } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import React from 'react';
-import { IconSymbol } from '@/components/IconSymbol';
 import { useTheme } from '@react-navigation/native';
 import { useRouter, usePathname } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
+import {
+  Home,
+  Dumbbell,
+  Utensils,
+  Zap,
+  BarChart2,
+  User,
+  LucideIcon,
+} from 'lucide-react-native';
 
 export interface TabBarItem {
   name: string;
@@ -30,6 +37,19 @@ interface FloatingTabBarProps {
   bottomMargin?: number;
 }
 
+// Map route name → lucide icon component
+// Keys must match the exact `name` values passed from _layout.tsx
+const ROUTE_ICONS: Record<string, LucideIcon> = {
+  '(home)': Home,
+  home: Home,
+  training: Dumbbell,
+  train: Dumbbell,
+  nutrition: Utensils,
+  momentum: Zap,
+  progress: BarChart2,
+  profile: User,
+};
+
 export default function FloatingTabBar({
   tabs,
   containerWidth = 380,
@@ -40,23 +60,20 @@ export default function FloatingTabBar({
   const router = useRouter();
   const theme = useTheme();
 
-  const handleTabPress = (route: Href) => {
-    router.push(route);
+  const handleTabPress = (tab: TabBarItem) => {
+    console.log('[FloatingTabBar] User tapped tab:', tab.label, '→', tab.route);
+    router.push(tab.route);
   };
 
   const isActive = (route: string) => {
-    return pathname.includes(route.replace('/(tabs)/', '').replace('/', ''));
+    const routeName = (route as string).replace('/(tabs)/', '').replace('/', '');
+    return pathname.includes(routeName);
   };
 
   return (
     <SafeAreaView
       edges={['bottom']}
-      style={[
-        styles.safeArea,
-        {
-          marginBottom: bottomMargin,
-        },
-      ]}
+      style={[styles.safeArea, { marginBottom: bottomMargin }]}
     >
       <BlurView
         intensity={80}
@@ -72,37 +89,25 @@ export default function FloatingTabBar({
           },
         ]}
       >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {tabs.map((tab) => {
-            const active = isActive(tab.route as string);
-            return (
-              <TouchableOpacity
-                key={tab.name}
-                onPress={() => handleTabPress(tab.route)}
-                style={[styles.tab, active && styles.tabActive]}
-              >
-                <IconSymbol
-                  ios_icon_name={tab.icon}
-                  android_material_icon_name={tab.icon}
-                  size={22}
-                  color={active ? colors.primary : colors.text}
-                />
-                <Text
-                  style={[
-                    styles.label,
-                    { color: active ? colors.primary : colors.text },
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {tabs.map((tab) => {
+          const active = isActive(tab.route as string);
+          const iconColor = active ? colors.primary : colors.text;
+          const tabName = tab.name.toLowerCase();
+          const IconComponent: LucideIcon = ROUTE_ICONS[tabName] ?? ROUTE_ICONS[tab.route as string] ?? Home;
+
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              onPress={() => handleTabPress(tab)}
+              style={[styles.tab, active && styles.tabActive]}
+            >
+              <IconComponent size={22} color={iconColor} strokeWidth={2} />
+              <Text style={[styles.label, { color: iconColor }]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </BlurView>
     </SafeAreaView>
   );
@@ -127,10 +132,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-  },
-  scrollContent: {
-    alignItems: 'center',
-    gap: 4,
   },
   tab: {
     alignItems: 'center',

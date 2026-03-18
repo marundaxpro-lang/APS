@@ -5,18 +5,17 @@ import {
   Text,
   StyleSheet,
   Animated,
-  Dimensions,
   TouchableOpacity,
   Modal,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TOUR_KEY = 'apex_tour_completed';
 
 const C = {
-  bg: 'rgba(0,0,0,0.75)',
   surface: '#13131A',
   surface2: '#1C1C26',
   teal: '#00D4AA',
@@ -25,39 +24,66 @@ const C = {
   text: '#F0F0F5',
   textSecondary: '#8A8A9A',
   border: 'rgba(255,255,255,0.08)',
+  overlay: 'rgba(0,0,0,0.82)',
 };
 
 interface TourStep {
   title: string;
   description: string;
-  isIntro?: boolean;
+  /** If true, no spotlight — show centered modal card */
+  fullScreen?: boolean;
+  /** Y position of spotlight top edge (relative to screen) */
+  spotlightY?: number;
+  /** Height of spotlight cutout */
+  spotlightHeight?: number;
+  /** Primary button label */
+  buttonLabel?: string;
 }
 
+// Spotlight positions use fixed pixel values (set at render time using screenHeight).
+// spotlightY and spotlightHeight are fractions of SCREEN_HEIGHT for responsiveness.
+// Layout order matches the actual home screen scroll order:
+//   Header (~44px status bar + 20px padding + ~80px header = ~144px top)
+//   Hero workout card: starts ~160px, height ~180px
+//   Programs carousel: starts ~380px, height ~220px
+//   Tab bar: bottom ~90px, height ~80px
+// Quick Links is near the bottom of the scroll so we spotlight the tab bar instead.
 const TOUR_STEPS: TourStep[] = [
   {
     title: 'Welcome to Apex Fitness 👋',
-    description: 'Your AI-powered personal trainer. Let\'s show you around.',
-    isIntro: true,
+    description: "Your AI-powered personal trainer. Let's show you around in just a few seconds.",
+    fullScreen: true,
+    buttonLabel: "Let's Go!",
   },
   {
     title: "Today's Workout",
-    description: 'Your daily workout is right here. Tap to start your session.',
-  },
-  {
-    title: 'AI Coach',
-    description: 'Your personal AI coach gives you real-time insights and adapts your plan.',
+    description: 'Your daily workout is right here. Tap it to start your training session.',
+    spotlightY: 160,
+    spotlightHeight: 180,
   },
   {
     title: 'Programs',
     description: 'Browse and activate training programs tailored to your goals.',
+    spotlightY: 380,
+    spotlightHeight: 220,
   },
   {
-    title: 'Nutrition',
-    description: 'Track your meals and macros to fuel your performance.',
+    title: 'Quick Links',
+    description: 'Jump to Programs, Nutrition, AI Coach, and Habits from here.',
+    spotlightY: 630,
+    spotlightHeight: 100,
   },
   {
-    title: 'Profile & Progress',
-    description: 'View your streaks, achievements, and progress over time.',
+    title: 'Navigation',
+    description: 'Switch between Home, Train, Nutrition, Momentum, and Progress tabs.',
+    spotlightY: -1, // computed at render using screenHeight
+    spotlightHeight: 80,
+  },
+  {
+    title: "You're all set! 💪",
+    description: "Your AI coach is ready. Let's crush your goals.",
+    fullScreen: true,
+    buttonLabel: 'Start Training',
   },
 ];
 
@@ -67,53 +93,56 @@ interface Props {
 }
 
 export function AppTour({ visible, onComplete }: Props) {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  const cardSlide = useRef(new Animated.Value(50)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const spotlightOpacity = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const glowLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const totalSteps = TOUR_STEPS.length;
   const step = TOUR_STEPS[currentStep];
   const isLastStep = currentStep === totalSteps - 1;
-  const stepLabel = `${currentStep + 1} of ${totalSteps}`;
-  const nextButtonLabel = isLastStep ? 'Get Started!' : 'Next';
+  const buttonLabel = step.buttonLabel ?? (isLastStep ? 'Start Training' : 'Next');
 
   useEffect(() => {
     if (visible) {
       animateIn();
       startGlowPulse();
     }
+    return () => {
+      glowLoop.current?.stop();
+    };
   }, [visible, currentStep]);
 
   function animateIn() {
-    slideAnim.setValue(60);
-    opacityAnim.setValue(0);
+    cardSlide.setValue(50);
+    cardOpacity.setValue(0);
+    spotlightOpacity.setValue(0);
     Animated.parallel([
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 10,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
+      Animated.spring(cardSlide, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
+      Animated.timing(cardOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.timing(spotlightOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
   }
 
   function startGlowPulse() {
-    Animated.loop(
+    glowLoop.current?.stop();
+    glowAnim.setValue(0);
+    glowLoop.current = Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 1000, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1100, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    glowLoop.current.start();
   }
 
   const handleNext = async () => {
-    console.log('[AppTour] User tapped Next on step:', currentStep + 1, '/', totalSteps);
+    console.log('[AppTour] User tapped next on step:', currentStep + 1, '/', totalSteps, '-', step.title);
     if (isLastStep) {
       await completeTour();
     } else {
@@ -121,87 +150,141 @@ export function AppTour({ visible, onComplete }: Props) {
     }
   };
 
-  const handleSkip = async () => {
-    console.log('[AppTour] User tapped Skip on step:', currentStep + 1);
-    await completeTour();
-  };
-
   const completeTour = async () => {
-    console.log('[AppTour] Tour completed, saving to AsyncStorage');
+    console.log('[AppTour] Tour completed — saving apex_tour_completed to AsyncStorage');
     await AsyncStorage.setItem(TOUR_KEY, 'true');
     onComplete();
   };
 
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.4, 1],
-  });
+  const glowBorderOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const glowShadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.9] });
 
   if (!visible) return null;
 
+  // Compute spotlight pixel values
+  // spotlightY === -1 is a sentinel meaning "near the bottom" (tab bar)
+  const rawSpotlightY = step.spotlightY === -1 ? SCREEN_HEIGHT - 90 : (step.spotlightY ?? 0);
+  const spotlightTop = rawSpotlightY;
+  const spotlightH = step.spotlightHeight ?? 0;
+  const spotlightBottom = spotlightTop + spotlightH;
+  const PADDING = 16;
+
+  // Decide tooltip position: below spotlight if room, else above
+  const tooltipBelow = spotlightBottom < SCREEN_HEIGHT * 0.72;
+  const tooltipTop = tooltipBelow ? spotlightBottom + 16 : undefined;
+  const tooltipBottom = !tooltipBelow ? SCREEN_HEIGHT - spotlightTop + 16 : undefined;
+
   return (
     <Modal transparent animationType="fade" visible={visible} statusBarTranslucent>
-      <View style={styles.overlay}>
-        {/* Spotlight glow for non-intro steps */}
-        {!step.isIntro && (
-          <Animated.View
-            style={[
-              styles.spotlight,
-              { opacity: glowOpacity },
-            ]}
-          />
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+
+        {step.fullScreen ? (
+          /* ── Full-screen intro/outro card ── */
+          <View style={[styles.fullScreenOverlay, { backgroundColor: C.overlay }]}>
+            <Animated.View
+              style={[
+                styles.fullScreenCard,
+                { opacity: cardOpacity, transform: [{ translateY: cardSlide }] },
+              ]}
+            >
+              <View style={styles.logoCircle}>
+                <Text style={styles.logoEmoji}>⚡</Text>
+              </View>
+              <Text style={styles.fullScreenTitle}>{step.title}</Text>
+              <Text style={styles.fullScreenDesc}>{step.description}</Text>
+              <TouchableOpacity style={styles.primaryBtn} onPress={handleNext} activeOpacity={0.85}>
+                <Text style={styles.primaryBtnText}>{buttonLabel}</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        ) : (
+          /* ── Spotlight overlay (4-rectangle cutout) ── */
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: spotlightOpacity }]} pointerEvents="none">
+            {/* Top rectangle */}
+            <View
+              style={[
+                styles.overlayRect,
+                { top: 0, left: 0, right: 0, height: spotlightTop },
+              ]}
+            />
+            {/* Bottom rectangle */}
+            <View
+              style={[
+                styles.overlayRect,
+                { top: spotlightBottom, left: 0, right: 0, bottom: 0 },
+              ]}
+            />
+            {/* Left rectangle */}
+            <View
+              style={[
+                styles.overlayRect,
+                { top: spotlightTop, left: 0, width: PADDING, height: spotlightH },
+              ]}
+            />
+            {/* Right rectangle */}
+            <View
+              style={[
+                styles.overlayRect,
+                { top: spotlightTop, right: 0, width: PADDING, height: spotlightH },
+              ]}
+            />
+
+            {/* Spotlight border glow */}
+            <Animated.View
+              style={[
+                styles.spotlightBorder,
+                {
+                  top: spotlightTop,
+                  left: PADDING,
+                  right: PADDING,
+                  height: spotlightH,
+                  opacity: glowBorderOpacity,
+                  shadowOpacity: glowShadowOpacity as unknown as number,
+                },
+              ]}
+            />
+          </Animated.View>
         )}
 
-        {/* Tooltip card */}
-        <Animated.View
-          style={[
-            styles.tooltipContainer,
-            {
-              opacity: opacityAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          {/* Step indicator */}
-          <View style={styles.stepRow}>
-            <View style={styles.stepDots}>
-              {TOUR_STEPS.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.stepDot,
-                    i === currentStep && styles.stepDotActive,
-                  ]}
-                />
-              ))}
+        {/* ── Tooltip card (for spotlight steps) ── */}
+        {!step.fullScreen && (
+          <Animated.View
+            style={[
+              styles.tooltipCard,
+              {
+                opacity: cardOpacity,
+                transform: [{ translateY: cardSlide }],
+                marginHorizontal: 16,
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                ...(tooltipTop != null ? { top: tooltipTop } : {}),
+                ...(tooltipBottom != null ? { bottom: tooltipBottom } : {}),
+              },
+            ]}
+            pointerEvents="box-none"
+          >
+            {/* Step dots */}
+            <View style={styles.stepRow}>
+              <View style={styles.stepDots}>
+                {TOUR_STEPS.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.stepDot, i === currentStep && styles.stepDotActive]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.stepLabel}>{currentStep + 1} of {totalSteps}</Text>
             </View>
-            <Text style={styles.stepLabel}>{stepLabel}</Text>
-          </View>
 
-          {/* Content */}
-          <Text style={styles.title}>{step.title}</Text>
-          <Text style={styles.description}>{step.description}</Text>
+            <Text style={styles.tooltipTitle}>{step.title}</Text>
+            <Text style={styles.tooltipDesc}>{step.description}</Text>
 
-          {/* Buttons */}
-          <View style={styles.buttonRow}>
-            {!isLastStep && (
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkip}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.skipButtonText}>Skip</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.nextButton, isLastStep && styles.nextButtonFull]}
-              onPress={handleNext}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.nextButtonText}>{nextButtonLabel}</Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleNext} activeOpacity={0.85}>
+              <Text style={styles.primaryBtnText}>{buttonLabel}</Text>
             </TouchableOpacity>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        )}
       </View>
     </Modal>
   );
@@ -213,36 +296,82 @@ export async function shouldShowTour(): Promise<boolean> {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: C.bg,
-    justifyContent: 'flex-end',
-  },
-  spotlight: {
+  overlayRect: {
     position: 'absolute',
-    top: SCREEN_HEIGHT * 0.25,
-    left: 20,
-    right: 20,
-    height: 180,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: C.teal,
-    shadowColor: C.teal,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
+    backgroundColor: 'rgba(0,0,0,0.82)',
   },
-  tooltipContainer: {
-    backgroundColor: C.surface,
-    borderRadius: 24,
-    padding: 24,
-    marginHorizontal: 16,
-    marginBottom: 48,
+  spotlightBorder: {
+    position: 'absolute',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#00D4AA',
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 18,
+    elevation: 12,
+  },
+
+  // Full-screen card
+  fullScreenOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  fullScreenCard: {
+    backgroundColor: '#13131A',
+    borderRadius: 28,
+    padding: 32,
+    width: '100%',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: C.tealBorder,
-    shadowColor: C.teal,
-    shadowOffset: { width: 0, height: -4 },
+    borderColor: 'rgba(0,212,170,0.3)',
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0,212,170,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,212,170,0.3)',
+  },
+  logoEmoji: {
+    fontSize: 32,
+  },
+  fullScreenTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#F0F0F5',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 32,
+  },
+  fullScreenDesc: {
+    fontSize: 15,
+    color: '#8A8A9A',
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+
+  // Tooltip card
+  tooltipCard: {
+    backgroundColor: '#13131A',
+    borderRadius: 22,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+    shadowColor: '#00D4AA',
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 20,
@@ -251,7 +380,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   stepDots: {
     flexDirection: 'row',
@@ -264,60 +393,40 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   stepDotActive: {
-    backgroundColor: C.teal,
+    backgroundColor: '#00D4AA',
     width: 18,
   },
   stepLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: C.textSecondary,
+    color: '#8A8A9A',
     letterSpacing: 0.5,
   },
-  title: {
-    fontSize: 22,
+  tooltipTitle: {
+    fontSize: 20,
     fontWeight: '800',
-    color: C.text,
+    color: '#F0F0F5',
     letterSpacing: -0.4,
-    marginBottom: 10,
-    lineHeight: 28,
+    marginBottom: 8,
+    lineHeight: 26,
   },
-  description: {
-    fontSize: 15,
-    color: C.textSecondary,
-    lineHeight: 22,
-    marginBottom: 24,
+  tooltipDesc: {
+    fontSize: 14,
+    color: '#8A8A9A',
+    lineHeight: 21,
+    marginBottom: 20,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  skipButton: {
-    flex: 1,
-    height: 48,
+
+  // Shared button
+  primaryBtn: {
+    backgroundColor: '#00D4AA',
     borderRadius: 12,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.surface2,
-    borderWidth: 1,
-    borderColor: C.border,
+    width: '100%',
   },
-  skipButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: C.textSecondary,
-  },
-  nextButton: {
-    flex: 2,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.teal,
-  },
-  nextButtonFull: {
-    flex: 1,
-  },
-  nextButtonText: {
+  primaryBtnText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#000000',
