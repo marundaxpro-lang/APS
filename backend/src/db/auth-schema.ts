@@ -8,6 +8,15 @@ export const user = pgTable(
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
+    onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+    fitnessGoal: text("fitness_goal"),
+    fitnessLevel: text("fitness_level"),
+    age: text("age"),
+    weight: text("weight"),
+    height: text("height"),
+    workoutDaysPerWeek: text("workout_days_per_week"),
+    preferredWorkoutType: text("preferred_workout_type"),
+    dietaryPreference: text("dietary_preference"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

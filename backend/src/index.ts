@@ -4,6 +4,7 @@ import * as authSchema from './db/auth-schema.js';
 
 // Import route registration functions
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerUserRoutes } from './routes/user.js';
 import { registerProgressPhotoRoutes } from './routes/progress-photos.js';
 import { registerMeasurementRoutes } from './routes/measurements.js';
 import { registerAchievementRoutes } from './routes/achievements.js';
@@ -210,6 +211,7 @@ app.withStorage();
 
 // Register all route modules
 registerAuthRoutes(app);
+registerUserRoutes(app);
 registerProgressPhotoRoutes(app);
 registerMeasurementRoutes(app);
 registerAchievementRoutes(app);
