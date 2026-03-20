@@ -114,6 +114,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { setOnboardingCompleted } = useAuth();
   const [step, setStep] = useState(1);
+  const [nameSkipped, setNameSkipped] = useState(false);
   const [profile, setProfile] = useState<Partial<FitnessProfile & { 
     selectedDays?: number[]; 
     motivation?: string; 
@@ -134,9 +135,24 @@ export default function OnboardingScreen() {
   const [heightIn, setHeightIn] = useState('');
 
   useEffect(() => {
-    AsyncStorage.getItem('fitnessProfile').then((data) => {
-      if (data) router.replace('/(tabs)/(home)');
-    });
+    const init = async () => {
+      const existingProfile = await AsyncStorage.getItem('fitnessProfile');
+      if (existingProfile) {
+        router.replace('/(tabs)/(home)');
+        return;
+      }
+      // If user provided a name during sign-up, skip the name step
+      const signupName = await AsyncStorage.getItem('signupName');
+      if (signupName) {
+        console.log('[Onboarding] Name provided during sign-up, skipping name step:', signupName);
+        setProfile((prev) => ({ ...prev, name: signupName }));
+        setNameSkipped(true);
+        setStep(2);
+        // Clear so it doesn't persist across sessions
+        await AsyncStorage.removeItem('signupName');
+      }
+    };
+    init();
   }, [router]);
 
   const saveProfile = async () => {
@@ -1364,7 +1380,7 @@ export default function OnboardingScreen() {
             {step === 11 && renderStep11()}
 
             <View style={styles.navigation}>
-              {step > 1 && (
+              {step > 1 && !(nameSkipped && step === 2) && (
                 <TouchableOpacity
                   style={styles.backButton}
                   onPress={() => {

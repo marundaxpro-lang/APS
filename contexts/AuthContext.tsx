@@ -232,20 +232,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPremium(false);
       setOnboardingCompletedState(null);
 
-      const { apiPost } = await import('@/utils/api');
-      const result = await apiPost('/api/auth/signup/email-with-welcome', {
-        email,
-        password,
-        name,
-      });
-      console.log("[AuthContext] Signup successful with welcome email, result:", result);
+      // Use the standard Better Auth sign-up endpoint
+      console.log("[AuthContext] Calling authClient.signUp.email");
+      const result = await authClient.signUp.email({ email, password, name: name || "" });
+      console.log("[AuthContext] authClient.signUp.email result:", result?.data ? "success" : "no data", result?.error || "");
 
-      if (result.token) {
-        if (Platform.OS === "web") {
-          localStorage.setItem("apex-fitness_bearer_token", result.token);
-        } else {
-          await SecureStore.setItemAsync("apex-fitness_bearer_token", result.token);
-        }
+      if (result?.error) {
+        throw new Error(result.error.message || "Sign up failed");
+      }
+
+      // Store the name so onboarding can skip the name step
+      if (name && name.trim()) {
+        await AsyncStorage.setItem("signupName", name.trim());
+        console.log("[AuthContext] Stored signup name for onboarding:", name.trim());
+      }
+
+      // Fire-and-forget: attempt welcome email via custom endpoint (non-blocking)
+      try {
+        const { apiPost } = await import('@/utils/api');
+        apiPost('/api/auth/signup/email-with-welcome', { email, password, name }).catch(() => {
+          console.log("[AuthContext] Welcome email endpoint unavailable, skipping");
+        });
+      } catch {
+        // Ignore — welcome email is optional
       }
 
       await fetchUser();
