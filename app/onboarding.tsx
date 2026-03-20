@@ -314,13 +314,15 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
       
       setShowSuccessModal(true);
-      setTimeout(() => {
+      setTimeout(async () => {
         setShowSuccessModal(false);
+        await AsyncStorage.setItem('onboardingJustCompleted', 'true');
         router.replace('/(tabs)/(home)');
       }, 2000);
     } catch (error) {
       console.error('[Onboarding] Error saving profile to backend:', error);
       setOnboardingCompleted(true);
+      await AsyncStorage.setItem('onboardingJustCompleted', 'true');
       router.replace('/(tabs)/(home)');
     }
   };

@@ -10,6 +10,7 @@ import {
   Animated,
   Modal,
   Pressable,
+  TextInput,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,8 @@ import {
   Flame,
   Moon,
   Brain,
+  Plus,
+  X,
 } from 'lucide-react-native';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
@@ -40,6 +43,14 @@ const C = {
   textSecondary: 'rgba(255,255,255,0.5)',
   border: 'rgba(255,255,255,0.08)',
   surface2: '#1A1A24',
+};
+
+// ─── Storage keys ──────────────────────────────────────────────────────────────
+const STORAGE_KEYS = {
+  fitnessProfile: 'fitnessProfile',
+  appTourSeen: 'appTourSeen',
+  onboardingJustCompleted: 'onboardingJustCompleted',
+  userTasks: 'userTasks',
 };
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -69,6 +80,13 @@ interface WeekDay {
   isToday: boolean;
   isTraining: boolean;
   isPast: boolean;
+}
+
+interface Task {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
 }
 
 // ─── Workout generation ────────────────────────────────────────────────────────
@@ -111,12 +129,10 @@ function getTodayWorkout(profile: FitnessProfile): WorkoutInfo | null {
 function getWeekSchedule(profile: FitnessProfile): WeekDay[] {
   const today = new Date().getDay();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  // Mon–Sun order: indices 1,2,3,4,5,6,0
   const orderedIds = [1, 2, 3, 4, 5, 6, 0];
 
   return orderedIds.map((dayId) => {
     const isToday = dayId === today;
-    // "past" means the day has already passed in the current week (Mon=1 start)
     const todayMon = today === 0 ? 6 : today - 1;
     const thisMon = dayId === 0 ? 6 : dayId - 1;
     const isPast = thisMon < todayMon;
@@ -230,18 +246,21 @@ function SectionLabel({ title }: { title: string }) {
 const TOUR_STEPS = [
   {
     title: "Your workout, personalised",
-    body: "This workout is built from your onboarding answers — goal, equipment, and experience level.",
-    cta: "Got it →",
+    body: "Every session is tailored to your goals, equipment, and experience level. Tap Start Workout to begin.",
+    cta: "See Training →",
+    route: "/(tabs)/training",
   },
   {
-    title: "Your training week",
-    body: "These are your scheduled training days. Rest days are automatically included.",
-    cta: "Got it →",
+    title: "Track your momentum",
+    body: "Your streaks, habits, and weekly progress all live in Momentum. Stay consistent and watch it grow.",
+    cta: "See Momentum →",
+    route: "/(tabs)/momentum",
   },
   {
     title: "Quick actions",
-    body: "Tap here to jump straight into your session, coaching, nutrition, or habits.",
+    body: "Jump to AI Coach, Nutrition, or Habits from your home screen anytime.",
     cta: "Let's go →",
+    route: null,
   },
 ];
 
@@ -249,13 +268,25 @@ function TourOverlay({
   step,
   onNext,
   onSkip,
+  router,
 }: {
   step: number;
   onNext: () => void;
   onSkip: () => void;
+  router: ReturnType<typeof useRouter>;
 }) {
   const tourStep = TOUR_STEPS[step - 1];
   if (!tourStep) return null;
+
+  const isLast = step >= TOUR_STEPS.length;
+
+  const handleCta = () => {
+    console.log('[Home] Tour CTA tapped on step', step, '— route:', tourStep.route);
+    if (!isLast && tourStep.route) {
+      router.push(tourStep.route as any);
+    }
+    onNext();
+  };
 
   return (
     <Modal transparent animationType="fade" visible statusBarTranslucent>
@@ -275,13 +306,58 @@ function TourOverlay({
             <TouchableOpacity onPress={onSkip} style={styles.tourSkipBtn}>
               <Text style={styles.tourSkipText}>Skip</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onNext} style={styles.tourNextBtn}>
+            <TouchableOpacity onPress={handleCta} style={styles.tourNextBtn}>
               <Text style={styles.tourNextText}>{tourStep.cta}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Pressable>
     </Modal>
+  );
+}
+
+// ─── Task row ──────────────────────────────────────────────────────────────────
+function TaskRow({
+  task,
+  onToggle,
+  onDelete,
+}: {
+  task: Task;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <View style={styles.taskRow}>
+      <TouchableOpacity
+        onPress={() => {
+          console.log('[Home] Task toggled:', task.id, 'done:', !task.done);
+          onToggle(task.id);
+        }}
+        style={[styles.taskCheckbox, task.done && styles.taskCheckboxDone]}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        {task.done ? <Text style={styles.taskCheckmark}>✓</Text> : null}
+      </TouchableOpacity>
+      <Text
+        style={[
+          styles.taskText,
+          task.done && styles.taskTextDone,
+        ]}
+        numberOfLines={2}
+      >
+        {task.text}
+      </Text>
+      <TouchableOpacity
+        onPress={() => {
+          console.log('[Home] Task deleted:', task.id);
+          onDelete(task.id);
+        }}
+        style={styles.taskDeleteBtn}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <X size={14} color={C.textSecondary} strokeWidth={2} />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -295,15 +371,22 @@ export default function HomeScreen() {
   const [profile, setProfile] = useState<FitnessProfile>({});
   const [tourStep, setTourStep] = useState(0); // 0=not started, 1-3=active, 4=done
 
+  // Tasks state
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskInput, setTaskInput] = useState('');
+
   const now = new Date();
   const hour = now.getHours();
 
-  // Load profile from AsyncStorage
+  // Load profile and tasks from AsyncStorage
   useEffect(() => {
     const load = async () => {
-      console.log('[Home] Loading fitnessProfile from AsyncStorage');
+      console.log('[Home] Loading fitnessProfile and userTasks from AsyncStorage');
       try {
-        const raw = await AsyncStorage.getItem('fitnessProfile');
+        const [raw, rawTasks] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.fitnessProfile),
+          AsyncStorage.getItem(STORAGE_KEYS.userTasks),
+        ]);
         if (raw) {
           const parsed: FitnessProfile = JSON.parse(raw);
           console.log('[Home] fitnessProfile loaded:', JSON.stringify(parsed));
@@ -311,8 +394,13 @@ export default function HomeScreen() {
         } else {
           console.log('[Home] No fitnessProfile found in AsyncStorage');
         }
+        if (rawTasks) {
+          const parsedTasks: Task[] = JSON.parse(rawTasks);
+          console.log('[Home] userTasks loaded:', parsedTasks.length, 'tasks');
+          setTasks(parsedTasks);
+        }
       } catch (e) {
-        console.log('[Home] Error loading fitnessProfile:', e);
+        console.log('[Home] Error loading data:', e);
       } finally {
         setLoading(false);
       }
@@ -320,14 +408,20 @@ export default function HomeScreen() {
     load();
   }, []);
 
-  // Check if tour should be shown
+  // Check if tour should be shown — only after onboarding
   useEffect(() => {
     if (loading) return;
     const checkTour = async () => {
-      const seen = await AsyncStorage.getItem('appTourSeen');
-      if (!seen) {
-        console.log('[Home] First time user — starting app tour');
+      const [seen, justCompleted] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.appTourSeen),
+        AsyncStorage.getItem(STORAGE_KEYS.onboardingJustCompleted),
+      ]);
+      if (!seen && justCompleted === 'true') {
+        console.log('[Home] First time after onboarding — starting app tour');
+        await AsyncStorage.removeItem(STORAGE_KEYS.onboardingJustCompleted);
         setTourStep(1);
+      } else {
+        console.log('[Home] Tour skipped — seen:', seen, 'justCompleted:', justCompleted);
       }
     };
     checkTour();
@@ -336,7 +430,7 @@ export default function HomeScreen() {
   const handleTourNext = async () => {
     console.log('[Home] Tour step advanced from', tourStep);
     if (tourStep >= TOUR_STEPS.length) {
-      await AsyncStorage.setItem('appTourSeen', 'true');
+      await AsyncStorage.setItem(STORAGE_KEYS.appTourSeen, 'true');
       setTourStep(4);
     } else {
       setTourStep(tourStep + 1);
@@ -345,8 +439,47 @@ export default function HomeScreen() {
 
   const handleTourSkip = async () => {
     console.log('[Home] Tour skipped at step', tourStep);
-    await AsyncStorage.setItem('appTourSeen', 'true');
+    await AsyncStorage.setItem(STORAGE_KEYS.appTourSeen, 'true');
     setTourStep(4);
+  };
+
+  // ─── Task handlers ────────────────────────────────────────────────────────────
+  const saveTasks = async (updated: Task[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.userTasks, JSON.stringify(updated));
+    } catch (e) {
+      console.log('[Home] Error saving tasks:', e);
+    }
+  };
+
+  const handleAddTask = async () => {
+    const trimmed = taskInput.trim();
+    if (!trimmed) return;
+    console.log('[Home] User added task:', trimmed);
+    const newTask: Task = {
+      id: Date.now().toString(),
+      text: trimmed,
+      done: false,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...tasks, newTask];
+    setTasks(updated);
+    setTaskInput('');
+    await saveTasks(updated);
+  };
+
+  const handleToggleTask = async (id: string) => {
+    const updated = tasks.map((t) =>
+      t.id === id ? { ...t, done: !t.done } : t
+    );
+    setTasks(updated);
+    await saveTasks(updated);
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    const updated = tasks.filter((t) => t.id !== id);
+    setTasks(updated);
+    await saveTasks(updated);
   };
 
   // Derived values
@@ -590,8 +723,58 @@ export default function HomeScreen() {
             </View>
           </FadeSection>
 
-          {/* ── 5. Your Goal ── */}
+          {/* ── 5. Today's Tasks ── */}
           <FadeSection index={4}>
+            <SectionLabel title="TODAY'S TASKS" />
+            <View style={[styles.card, styles.tasksCard]}>
+              {tasks.length === 0 ? (
+                <View style={styles.tasksEmpty}>
+                  <Text style={styles.tasksEmptyText}>No tasks yet — add one below</Text>
+                </View>
+              ) : (
+                <View style={styles.tasksList}>
+                  {tasks.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      onToggle={handleToggleTask}
+                      onDelete={handleDeleteTask}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Add task row */}
+              <View style={styles.taskAddRow}>
+                <TextInput
+                  style={styles.taskInput}
+                  placeholder="Add a task..."
+                  placeholderTextColor={C.textSecondary}
+                  value={taskInput}
+                  onChangeText={setTaskInput}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddTask}
+                  blurOnSubmit={false}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    console.log('[Home] User tapped add task button');
+                    handleAddTask();
+                  }}
+                  style={[
+                    styles.taskAddBtn,
+                    !taskInput.trim() && styles.taskAddBtnDisabled,
+                  ]}
+                  disabled={!taskInput.trim()}
+                >
+                  <Plus size={18} color={taskInput.trim() ? '#000' : C.textSecondary} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </FadeSection>
+
+          {/* ── 6. Your Goal ── */}
+          <FadeSection index={5}>
             <SectionLabel title="YOUR GOAL" />
             <View style={[styles.card, styles.goalCard]}>
               <View style={styles.goalTopRow}>
@@ -629,7 +812,12 @@ export default function HomeScreen() {
 
       {/* Tour overlay */}
       {tourStep >= 1 && tourStep <= 3 ? (
-        <TourOverlay step={tourStep} onNext={handleTourNext} onSkip={handleTourSkip} />
+        <TourOverlay
+          step={tourStep}
+          onNext={handleTourNext}
+          onSkip={handleTourSkip}
+          router={router}
+        />
       ) : null}
     </View>
   );
@@ -901,6 +1089,98 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 14,
     right: 14,
+  },
+
+  // Tasks
+  tasksCard: {
+    gap: 0,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  tasksEmpty: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 14,
+    alignItems: 'center',
+  },
+  tasksEmptyText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: C.textSecondary,
+    textAlign: 'center',
+  },
+  tasksList: {
+    paddingTop: 6,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  taskCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: C.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  taskCheckboxDone: {
+    backgroundColor: C.teal,
+    borderColor: C.teal,
+  },
+  taskCheckmark: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#000',
+    lineHeight: 14,
+  },
+  taskText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: C.text,
+    lineHeight: 20,
+  },
+  taskTextDone: {
+    textDecorationLine: 'line-through',
+    opacity: 0.5,
+  },
+  taskDeleteBtn: {
+    padding: 2,
+    flexShrink: 0,
+  },
+  taskAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  taskInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '400',
+    color: C.text,
+    paddingVertical: 8,
+  },
+  taskAddBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: C.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  taskAddBtnDisabled: {
+    backgroundColor: C.surface2,
   },
 
   // Goal card
