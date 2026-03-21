@@ -22,19 +22,19 @@ export default function AuthCallbackScreen() {
       if (error) {
         setStatus("error");
         setMessage(`Authentication failed: ${error}`);
-        window.opener?.postMessage({ type: "oauth-error", error }, "*");
+        window.opener?.postMessage({ type: "oauth-error", error }, window.location.origin);
         return;
       }
 
       if (token) {
         setStatus("success");
         setMessage("Authentication successful! Closing...");
-        window.opener?.postMessage({ type: "oauth-success", token }, "*");
+        window.opener?.postMessage({ type: "oauth-success", token }, window.location.origin);
         setTimeout(() => window.close(), 1000);
       } else {
         setStatus("error");
         setMessage("No authentication token received");
-        window.opener?.postMessage({ type: "oauth-error", error: "No token" }, "*");
+        window.opener?.postMessage({ type: "oauth-error", error: "No token" }, window.location.origin);
       }
     } catch (err) {
       setStatus("error");

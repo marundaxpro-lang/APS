@@ -34,7 +34,25 @@ export default function TrainingScreen() {
         const token = await getBearerToken();
         if (!token) {
           console.log('[Training] No auth token, skipping backend profile fetch');
-          throw new Error('no_token');
+          // Not an error — unauthenticated users fall through to local storage
+          setLoading(false);
+          const storedProfile = await AsyncStorage.getItem('fitnessProfile');
+          if (!storedProfile) {
+            router.replace('/onboarding');
+            return;
+          }
+          const profileData: FitnessProfile = JSON.parse(storedProfile);
+          setProfile(profileData);
+          setWeeklyWorkouts(generateWorkoutSplit(profileData));
+          const workout = getTodaysWorkout(profileData);
+          if (workout) {
+            setTodaysWorkout(workout);
+            setIsRestDay(false);
+          } else {
+            setTodaysWorkout(null);
+            setIsRestDay(true);
+          }
+          return;
         }
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         

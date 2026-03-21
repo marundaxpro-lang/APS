@@ -1,9 +1,8 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
-import { authClient, storeWebBearerToken } from "@/lib/auth";
-import * as SecureStore from "expo-secure-store";
+import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authClient, setBearerToken, clearAuthTokens } from "@/lib/auth";
 
 interface User {
   id: string;
@@ -17,11 +16,11 @@ interface AuthContextType {
   loading: boolean;
   authLoading: boolean;
   isPremium: boolean;
-  onboardingCompleted: boolean | null; // null = not yet checked
+  onboardingCompleted: boolean | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signInWithGitHub: () => Promise<void>;
   signOut: () => Promise<void>;
   fetchUser: () => Promise<void>;
@@ -49,8 +48,6 @@ function openOAuthPopup(provider: string): Promise<string> {
     const left = window.screenX + (window.outerWidth - width) / 2;
     // @ts-expect-error - window is available on web
     const top = window.screenY + (window.outerHeight - height) / 2;
-
-    console.log(`[OAuth] Popup URL: ${popupUrl}`);
 
     // @ts-expect-error - window is available on web
     const popup = window.open(
@@ -99,53 +96,13 @@ function openOAuthPopup(provider: string): Promise<string> {
   });
 }
 
-async function getBearerToken(): Promise<string | null> {
-  try {
-    if (Platform.OS === "web") {
-      return localStorage.getItem("apex-fitness_bearer_token");
-    } else {
-      return await SecureStore.getItemAsync("apex-fitness_bearer_token");
-    }
-  } catch {
-    return null;
-  }
-}
-
 async function checkOnboardingStatus(): Promise<boolean> {
-  console.log("[AuthContext] Checking onboarding status from GET /api/user/profile");
+  console.log("[AuthContext] Checking onboarding status");
   try {
-    const token = await getBearerToken();
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    const response = await fetch(`${BACKEND_URL}/api/user/profile`, {
-      method: "GET",
-      headers,
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn("[AuthContext] Profile check failed:", response.status, text.slice(0, 100));
-      // Fall back to local AsyncStorage check
-      const localProfile = await AsyncStorage.getItem("fitnessProfile");
-      return !!localProfile;
-    }
-
-    const data = await response.json();
-    console.log("[AuthContext] Profile response, onboarding_completed:", data?.onboarding_completed);
-    const completed = data?.onboarding_completed === true;
-
-    // Sync local storage with server state
-    if (completed && !await AsyncStorage.getItem("fitnessProfile")) {
-      await AsyncStorage.setItem("fitnessProfile", JSON.stringify(data));
-    }
-
-    return completed;
-  } catch (err) {
-    console.warn("[AuthContext] Could not check onboarding status from API:", err);
-    // Fall back to local check
     const localProfile = await AsyncStorage.getItem("fitnessProfile");
     return !!localProfile;
+  } catch {
+    return false;
   }
 }
 
@@ -157,6 +114,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchUser();
+
+    const subscription = Linking.addEventListener("url", () => {
+      console.log("[AuthContext] Deep link received, refreshing user session");
+      fetchUser();
+    });
+
+    const intervalId = setInterval(() => {
+      fetchUser();
+    }, 5 * 60 * 1000);
+
+    return () => {
+      subscription.remove();
+      clearInterval(intervalId);
+    };
   }, []);
 
   const setOnboardingCompleted = (value: boolean) => {
@@ -176,19 +147,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         console.log("[AuthContext] User set:", userData.email);
 
-        // Check onboarding status from backend
+        if (session.data.session?.token) {
+          await setBearerToken(session.data.session.token);
+        }
+
         const onboarded = await checkOnboardingStatus();
         setOnboardingCompletedState(onboarded);
         console.log("[AuthContext] Onboarding completed:", onboarded);
 
         // Fetch premium status
         try {
-          const { authenticatedGet } = await import('@/utils/api');
-          const subscriptionStatus = await authenticatedGet<{ isPremium: boolean }>('/api/payments/subscription-status');
+          const { authenticatedGet } = await import("@/utils/api");
+          const subscriptionStatus = await authenticatedGet<{ isPremium: boolean }>(
+            "/api/payments/subscription-status"
+          );
           setIsPremium(subscriptionStatus.isPremium || false);
-          console.log('[AuthContext] Premium status:', subscriptionStatus.isPremium);
-        } catch (error) {
-          console.log('[AuthContext] Could not fetch premium status, defaulting to false');
+          console.log("[AuthContext] Premium status:", subscriptionStatus.isPremium);
+        } catch {
+          console.log("[AuthContext] Could not fetch premium status, defaulting to false");
           setIsPremium(false);
         }
       } else {
@@ -196,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setIsPremium(false);
         setOnboardingCompletedState(null);
+        await clearAuthTokens();
       }
     } catch (error) {
       console.error("[AuthContext] Failed to fetch user:", error);
@@ -210,138 +187,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     console.log("[AuthContext] Starting email sign in for:", email);
-    try {
-      setUser(null);
-      setIsPremium(false);
-      setOnboardingCompletedState(null);
-
-      await authClient.signIn.email({ email, password });
-      console.log("[AuthContext] Email sign in successful, fetching user data");
-      await fetchUser();
-      console.log("[AuthContext] Email sign in complete");
-    } catch (error) {
-      console.error("[AuthContext] Email sign in failed:", error);
-      throw error;
-    }
+    await authClient.signIn.email({ email, password });
+    console.log("[AuthContext] Email sign in successful, fetching user data");
+    await fetchUser();
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     console.log("[AuthContext] Starting email signup for:", email);
-    try {
-      setUser(null);
-      setIsPremium(false);
-      setOnboardingCompletedState(null);
+    const result = await authClient.signUp.email({ email, password, name: name || "" });
+    if (result?.error) {
+      throw new Error(result.error.message || "Sign up failed");
+    }
+    if (name && name.trim()) {
+      await AsyncStorage.setItem("signupName", name.trim());
+      console.log("[AuthContext] Stored signup name for onboarding:", name.trim());
+    }
+    await fetchUser();
+    console.log("[AuthContext] User fetched after signup");
+  };
 
-      // Use the standard Better Auth sign-up endpoint
-      console.log("[AuthContext] Calling authClient.signUp.email");
-      const result = await authClient.signUp.email({ email, password, name: name || "" });
-      console.log("[AuthContext] authClient.signUp.email result:", result?.data ? "success" : "no data", result?.error || "");
-
-      if (result?.error) {
-        throw new Error(result.error.message || "Sign up failed");
-      }
-
-      // Store the name so onboarding can skip the name step
-      if (name && name.trim()) {
-        await AsyncStorage.setItem("signupName", name.trim());
-        console.log("[AuthContext] Stored signup name for onboarding:", name.trim());
-      }
-
-      // Fire-and-forget: attempt welcome email via custom endpoint (non-blocking)
-      try {
-        const { apiPost } = await import('@/utils/api');
-        apiPost('/api/auth/signup/email-with-welcome', { email, password, name }).catch(() => {
-          console.log("[AuthContext] Welcome email endpoint unavailable, skipping");
-        });
-      } catch {
-        // Ignore — welcome email is optional
-      }
-
+  const signInWithSocial = async (provider: "google" | "apple" | "github") => {
+    console.log("[AuthContext] Starting social sign in, provider:", provider, "platform:", Platform.OS);
+    if (Platform.OS === "web") {
+      console.log("[AuthContext] Opening OAuth popup for:", provider);
+      const token = await openOAuthPopup(provider);
+      console.log("[AuthContext] Token received from popup, storing...");
+      await setBearerToken(token);
       await fetchUser();
-      console.log("[AuthContext] User fetched after signup");
-    } catch (error) {
-      console.error("[AuthContext] Email sign up failed:", error);
-      throw error;
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    console.log("[AuthContext] Starting Google sign in, platform:", Platform.OS);
-    try {
-      setUser(null);
-      setIsPremium(false);
-      setOnboardingCompletedState(null);
-
-      if (Platform.OS === "web") {
-        console.log("[AuthContext] Opening Google OAuth popup");
-        const token = await openOAuthPopup("google");
-        console.log("[AuthContext] Received token from popup, storing...");
-        storeWebBearerToken(token);
-        console.log("[AuthContext] Token stored, fetching user...");
-        await fetchUser();
-        console.log("[AuthContext] Google sign in complete");
-      } else {
-        console.log("[AuthContext] Starting native Google OAuth flow");
-        await authClient.signIn.social({ provider: "google", callbackURL: "/profile" });
-        console.log("[AuthContext] Native OAuth initiated, fetching user...");
-        await fetchUser();
-        console.log("[AuthContext] Google sign in complete");
+      console.log("[AuthContext] Social sign in complete");
+    } else {
+      console.log("[AuthContext] Starting native OAuth flow for:", provider);
+      const { error } = await authClient.signIn.social({
+        provider,
+        callbackURL: "aps://auth-callback",
+      });
+      if (error) {
+        throw new Error(error.message || "Social sign in failed");
       }
-    } catch (error) {
-      console.error("[AuthContext] Google sign in failed:", error);
-      throw error;
+      await fetchUser();
+      console.log("[AuthContext] Native social sign in complete");
     }
   };
+
+  const signInWithGoogle = () => signInWithSocial("google");
 
   const signInWithApple = async () => {
     console.log("[AuthContext] Starting Apple sign in, platform:", Platform.OS);
-    try {
-      setUser(null);
-      setIsPremium(false);
-      setOnboardingCompletedState(null);
-
-      if (Platform.OS === "web") {
-        console.log("[AuthContext] Opening Apple OAuth popup");
-        const token = await openOAuthPopup("apple");
-        storeWebBearerToken(token);
-        await fetchUser();
-        console.log("[AuthContext] Apple sign in complete");
-      } else {
-        console.log("[AuthContext] Starting native Apple OAuth flow");
-        await authClient.signIn.social({ provider: "apple", callbackURL: "/profile" });
-        await fetchUser();
-        console.log("[AuthContext] Apple sign in complete");
+    if (Platform.OS === "ios") {
+      // Native Apple Sign In on iOS — shows the system Face ID / password modal
+      const AppleAuthentication = require("expo-apple-authentication");
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        throw new Error("No identity token received from Apple");
       }
-    } catch (error) {
-      console.error("[AuthContext] Apple sign in failed:", error);
-      throw error;
+      const { error } = await authClient.signIn.social({
+        provider: "apple",
+        idToken: credential.identityToken,
+      });
+      if (error) {
+        throw new Error(error.message || "Apple sign in failed");
+      }
+      await fetchUser();
+      console.log("[AuthContext] Apple sign in complete");
+    } else {
+      await signInWithSocial("apple");
     }
   };
 
-  const signInWithGitHub = async () => {
-    console.log("[AuthContext] Starting GitHub sign in, platform:", Platform.OS);
-    try {
-      setUser(null);
-      setIsPremium(false);
-      setOnboardingCompletedState(null);
-
-      if (Platform.OS === "web") {
-        console.log("[AuthContext] Opening GitHub OAuth popup");
-        const token = await openOAuthPopup("github");
-        storeWebBearerToken(token);
-        await fetchUser();
-        console.log("[AuthContext] GitHub sign in complete");
-      } else {
-        console.log("[AuthContext] Starting native GitHub OAuth flow");
-        await authClient.signIn.social({ provider: "github", callbackURL: "/profile" });
-        await fetchUser();
-        console.log("[AuthContext] GitHub sign in complete");
-      }
-    } catch (error) {
-      console.error("[AuthContext] GitHub sign in failed:", error);
-      throw error;
-    }
-  };
+  const signInWithGitHub = () => signInWithSocial("github");
 
   const signOut = async () => {
     console.log("[AuthContext] Starting sign out process");
@@ -355,22 +273,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setIsPremium(false);
       setOnboardingCompletedState(null);
-
-      if (Platform.OS === "web") {
-        localStorage.removeItem("apex-fitness_bearer_token");
-        console.log("[AuthContext] Cleared web bearer token");
-      } else {
-        try {
-          await SecureStore.deleteItemAsync("apex-fitness_bearer_token");
-          console.log("[AuthContext] Cleared native bearer token");
-        } catch (e) {
-          console.error("[AuthContext] Failed to clear secure store:", e);
-        }
-      }
+      await clearAuthTokens();
 
       try {
         const keys = await AsyncStorage.getAllKeys();
-        console.log("[AuthContext] Clearing AsyncStorage keys:", keys);
         await AsyncStorage.multiRemove(keys);
         console.log("[AuthContext] AsyncStorage cleared successfully");
       } catch (e) {
@@ -391,8 +297,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboardingCompleted,
         signInWithEmail,
         signUpWithEmail,
-        signInWithGoogle,
         signInWithApple,
+        signInWithGoogle,
         signInWithGitHub,
         signOut,
         fetchUser,
