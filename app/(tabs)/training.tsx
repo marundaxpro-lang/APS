@@ -30,7 +30,12 @@ export default function TrainingScreen() {
       console.log('[Training] Loading workout data');
       
       try {
-        const { authenticatedGet } = await import('@/utils/api');
+        const { authenticatedGet, getBearerToken } = await import('@/utils/api');
+        const token = await getBearerToken();
+        if (!token) {
+          console.log('[Training] No auth token, skipping backend profile fetch');
+          throw new Error('no_token');
+        }
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         
         if (backendProfile) {

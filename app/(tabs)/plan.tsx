@@ -18,7 +18,7 @@ import { generateWorkoutSplit } from '@/data/workouts';
 import ParticleBackground from '@/components/ParticleBackground';
 import { FitnessProfile, WorkoutDay } from '@/types/fitness';
 import { useRouter } from 'expo-router';
-import { authenticatedGet } from '@/utils/api';
+import { authenticatedGet, getBearerToken } from '@/utils/api';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -46,6 +46,11 @@ export default function PlanScreen() {
     console.log('[Plan] Loading profile...');
     try {
       try {
+        const token = await getBearerToken();
+        if (!token) {
+          console.log('[Plan] No auth token, skipping backend profile fetch');
+          throw new Error('no_token');
+        }
         const backendProfile = await authenticatedGet('/api/fitness-profile');
         
         if (backendProfile) {

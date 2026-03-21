@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   seeAllText: { fontSize: 13, fontWeight: '600', color: C.teal },
   programsScroll: { gap: 12, paddingRight: 4 },
-  programCard: { width: CARD_WIDTH, backgroundColor: C.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: C.tealBorder, overflow: 'hidden', position: 'relative', minHeight: 180, justifyContent: 'space-between' },
+  programCard: { backgroundColor: C.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: C.tealBorder, overflow: 'hidden', position: 'relative', minHeight: 180, justifyContent: 'space-between' },
   programGlow: { position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(0,212,170,0.06)' },
   programTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   programIconCircle: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.tealMuted, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.tealBorder },
