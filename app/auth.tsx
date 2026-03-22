@@ -17,7 +17,6 @@ import { useRouter } from "expo-router";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import ParticleBackground from "@/components/ParticleBackground";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiPost } from "@/utils/api";
 
 const TEAL = "#00D4AA";
@@ -26,7 +25,7 @@ type Mode = "signin" | "signup" | "forgot-password" | "reset-password";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple, user } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple, user, onboardingCompleted } = useAuth();
 
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -52,21 +51,16 @@ export default function AuthScreen() {
 
   useEffect(() => {
     console.log('[AuthScreen] Checking if user is already authenticated');
-    const checkAuthAndOnboarding = async () => {
-      if (user) {
-        console.log('[AuthScreen] User is authenticated, checking onboarding status');
-        const hasProfile = await AsyncStorage.getItem('fitnessProfile');
-        if (hasProfile) {
-          console.log('[AuthScreen] User has completed onboarding, redirecting to home');
-          router.replace('/(tabs)/(home)');
-        } else {
-          console.log('[AuthScreen] User needs to complete onboarding');
-          router.replace('/onboarding');
-        }
+    if (user && onboardingCompleted !== null) {
+      if (onboardingCompleted) {
+        console.log('[AuthScreen] User has completed onboarding, redirecting to home');
+        router.replace('/(tabs)/(home)');
+      } else {
+        console.log('[AuthScreen] User needs to complete onboarding');
+        router.replace('/onboarding');
       }
-    };
-    checkAuthAndOnboarding();
-  }, [user, router]);
+    }
+  }, [user, onboardingCompleted, router]);
 
   useEffect(() => {
     if (Platform.OS === "web") {
@@ -145,18 +139,12 @@ export default function AuthScreen() {
       if (mode === "signin") {
         console.log('[AuthScreen] Signing in with email');
         await signInWithEmail(email, password);
-        console.log('[AuthScreen] Sign in successful, checking onboarding');
-        const hasProfile = await AsyncStorage.getItem('fitnessProfile');
-        if (hasProfile) {
-          router.replace('/(tabs)/(home)');
-        } else {
-          router.replace('/onboarding');
-        }
+        // Navigation is handled by the useEffect watching user + onboardingCompleted
+        console.log('[AuthScreen] Sign in successful, navigation will trigger via useEffect');
       } else {
         console.log('[AuthScreen] Signing up with email');
         await signUpWithEmail(email, password, name);
-        console.log('[AuthScreen] Sign up successful, redirecting to onboarding');
-        router.replace('/onboarding');
+        console.log('[AuthScreen] Sign up successful, navigation will trigger via useEffect');
       }
     } catch (error: any) {
       console.error('[AuthScreen] Email auth error:', error);
@@ -175,13 +163,8 @@ export default function AuthScreen() {
       } else if (provider === "apple") {
         await signInWithApple();
       }
-      console.log('[AuthScreen] Social auth successful, checking onboarding');
-      const hasProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (hasProfile) {
-        router.replace('/(tabs)/(home)');
-      } else {
-        router.replace('/onboarding');
-      }
+      // Navigation is handled by the useEffect watching user + onboardingCompleted
+      console.log('[AuthScreen] Social auth successful, navigation will trigger via useEffect');
     } catch (error: any) {
       console.error('[AuthScreen] Social auth error:', error);
       showError(error.message || "Authentication failed");
@@ -190,21 +173,10 @@ export default function AuthScreen() {
     }
   };
 
-  const handleContinueAsGuest = async () => {
+  const handleContinueAsGuest = () => {
     console.log('[AuthScreen] User tapped Continue as guest');
-    try {
-      await AsyncStorage.setItem('isGuestUser', 'true');
-      const hasProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (hasProfile) {
-        console.log('[AuthScreen] Guest has profile, redirecting to home');
-        router.replace('/(tabs)/(home)');
-      } else {
-        console.log('[AuthScreen] Guest needs onboarding');
-        router.replace('/onboarding');
-      }
-    } catch (error) {
-      console.error('[AuthScreen] Error setting guest mode:', error);
-    }
+    // Guest users skip auth entirely — go straight to onboarding
+    router.replace('/onboarding');
   };
 
   const handleCreateAccount = () => {

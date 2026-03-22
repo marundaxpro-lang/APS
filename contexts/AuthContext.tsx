@@ -96,13 +96,53 @@ function openOAuthPopup(provider: string): Promise<string> {
   });
 }
 
-async function checkOnboardingStatus(): Promise<boolean> {
-  console.log("[AuthContext] Checking onboarding status");
+async function checkOnboardingStatus(userId: string): Promise<boolean> {
+  console.log("[AuthContext] Checking onboarding status for user:", userId);
   try {
-    const localProfile = await AsyncStorage.getItem("fitnessProfile");
-    return !!localProfile;
+    // Check user-scoped key first (set after login), fall back to legacy key only
+    // if it was written by the same user (verified by userId match in stored data).
+    const userScopedKey = `fitnessProfile_${userId}`;
+    const userProfile = await AsyncStorage.getItem(userScopedKey);
+    if (userProfile) return true;
+
+    // Legacy key: only trust it if it contains a userId field matching this user.
+    const legacyProfile = await AsyncStorage.getItem("fitnessProfile");
+    if (legacyProfile) {
+      try {
+        const parsed = JSON.parse(legacyProfile);
+        if (parsed?.userId && parsed.userId === userId) return true;
+        // Belongs to a different user — do not use it.
+        console.log("[AuthContext] Legacy fitnessProfile belongs to a different user, ignoring");
+        return false;
+      } catch {
+        // Unparseable legacy data — ignore it.
+        return false;
+      }
+    }
+    return false;
   } catch {
     return false;
+  }
+}
+
+/** Clears all user-specific cached data from AsyncStorage without wiping app-wide config. */
+async function clearUserScopedCache() {
+  console.log("[AuthContext] Clearing user-scoped cache from AsyncStorage");
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const userDataKeys = keys.filter((k) =>
+      k.startsWith("fitnessProfile") ||
+      k.startsWith("signupName") ||
+      k.startsWith("isGuestUser") ||
+      k.startsWith("aps_") ||
+      k.startsWith("better-auth.")
+    );
+    if (userDataKeys.length > 0) {
+      await AsyncStorage.multiRemove(userDataKeys);
+      console.log("[AuthContext] Cleared user-scoped keys:", userDataKeys);
+    }
+  } catch (e) {
+    console.error("[AuthContext] Failed to clear user-scoped cache:", e);
   }
 }
 
@@ -145,13 +185,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.data?.user) {
         const userData = session.data.user as User;
         setUser(userData);
-        console.log("[AuthContext] User set:", userData.email);
+        console.log("[AuthContext] User set:", userData.email, "id:", userData.id);
 
         if (session.data.session?.token) {
           await setBearerToken(session.data.session.token);
         }
 
-        const onboarded = await checkOnboardingStatus();
+        const onboarded = await checkOnboardingStatus(userData.id);
         setOnboardingCompletedState(onboarded);
         console.log("[AuthContext] Onboarding completed:", onboarded);
 
@@ -187,13 +227,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     console.log("[AuthContext] Starting email sign in for:", email);
-    await authClient.signIn.email({ email, password });
-    console.log("[AuthContext] Email sign in successful, fetching user data");
+
+    // Clear any existing session before attempting a new login so a previously
+    // cached session from a different account cannot bleed into the new one.
+    console.log("[AuthContext] Clearing previous session before new login");
+    try {
+      await authClient.signOut();
+    } catch (e) {
+      console.log("[AuthContext] Pre-login signOut skipped (no active session):", e);
+    }
+    await clearAuthTokens();
+    await clearUserScopedCache();
+    setUser(null);
+    setIsPremium(false);
+    setOnboardingCompletedState(null);
+
+    console.log("[AuthContext] Previous session cleared, proceeding with email sign in");
+    const result = await authClient.signIn.email({ email, password });
+    if (result?.error) {
+      throw new Error(result.error.message || "Sign in failed");
+    }
+    console.log("[AuthContext] Email sign in successful, fetching fresh user data from server");
     await fetchUser();
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     console.log("[AuthContext] Starting email signup for:", email);
+
+    // Clear any existing session before creating a new account.
+    console.log("[AuthContext] Clearing previous session before signup");
+    try {
+      await authClient.signOut();
+    } catch (e) {
+      console.log("[AuthContext] Pre-signup signOut skipped (no active session):", e);
+    }
+    await clearAuthTokens();
+    await clearUserScopedCache();
+    setUser(null);
+    setIsPremium(false);
+    setOnboardingCompletedState(null);
+
     const result = await authClient.signUp.email({ email, password, name: name || "" });
     if (result?.error) {
       throw new Error(result.error.message || "Sign up failed");
@@ -274,15 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPremium(false);
       setOnboardingCompletedState(null);
       await clearAuthTokens();
-
-      try {
-        const keys = await AsyncStorage.getAllKeys();
-        await AsyncStorage.multiRemove(keys);
-        console.log("[AuthContext] AsyncStorage cleared successfully");
-      } catch (e) {
-        console.error("[AuthContext] Failed to clear AsyncStorage:", e);
-      }
-
+      await clearUserScopedCache();
       console.log("[AuthContext] Sign out complete");
     }
   };
