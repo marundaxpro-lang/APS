@@ -118,84 +118,89 @@ async function sendWelcomeEmail(user: { email: string; name: string }) {
   app.logger.info({ email: user.email }, 'Welcome email queued for sending');
 }
 
-// Enable authentication with Better Auth and password reset
+// Enable authentication with Better Auth, email verification, and password reset
+const fromEmail = process.env.FROM_EMAIL ?? 'noreply@aps-fitness.com';
+
 app.withAuth({
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // Don't await to prevent timing attacks - email sends in background
+      resend.emails
+        .send({
+          from: fromEmail,
+          to: user.email,
+          subject: 'Verify your APS Fitness email',
+          html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:16px;overflow:hidden;max-width:560px;width:100%">
+        <tr><td style="background:linear-gradient(135deg,#6c47ff,#a78bfa);padding:32px;text-align:center">
+          <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;letter-spacing:-0.5px">APS Fitness</h1>
+          <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px">Your AI-Powered Training Partner</p>
+        </td></tr>
+        <tr><td style="padding:40px 32px">
+          <h2 style="margin:0 0 16px;color:#fff;font-size:22px;font-weight:600">Verify your email address</h2>
+          <p style="margin:0 0 24px;color:#a0a0a0;font-size:15px;line-height:1.6">Click the button below to verify your email and activate your APS Fitness account.</p>
+          <table cellpadding="0" cellspacing="0"><tr><td>
+            <a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#6c47ff,#a78bfa);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600">Verify Email Address</a>
+          </td></tr></table>
+          <p style="margin:24px 0 0;color:#666;font-size:13px">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #2a2a2a;text-align:center">
+          <p style="margin:0;color:#555;font-size:12px">© 2025 APS Fitness. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+        })
+        .catch((error) => {
+          app.logger.error({ err: error, email: user.email }, 'Failed to send verification email');
+        });
+
+      app.logger.info({ email: user.email }, 'Verification email queued for sending');
+    },
+  },
   emailAndPassword: {
     sendResetPassword: async ({ user, url }) => {
       // Don't await to prevent timing attacks - email sends in background
       resend.emails
         .send({
-          from: 'APS Fitness <noreply@apsfitness.com>',
+          from: fromEmail,
           to: user.email,
-          subject: 'Reset Your APS Fitness Password',
-          html: `
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <meta charset="UTF-8">
-                <style>
-                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                  .header { background-color: #459b9b; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
-                  .header h1 { margin: 0; }
-                  .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-                  .message { margin: 20px 0; }
-                  .reset-button { display: inline-block; background-color: #459b9b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-                  .warning-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
-                  .warning-box p { margin: 0; color: #856404; }
-                  .info-box { background-color: #f0f0f0; padding: 15px; margin: 20px 0; border-radius: 4px; }
-                  .info-box p { margin: 5px 0; font-size: 14px; color: #555; }
-                  .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
-                  .link-display { word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 12px; color: #555; margin: 10px 0; }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <div class="header">
-                    <h1>Password Reset Request</h1>
-                  </div>
-                  <div class="content">
-                    <div class="message">
-                      <p>Hi ${user.name || 'there'},</p>
-                      <p>We received a request to reset your APS Fitness password. Click the button below to reset it:</p>
-                    </div>
-
-                    <div style="text-align: center;">
-                      <a href="${url}" class="reset-button">Reset Your Password</a>
-                    </div>
-
-                    <div class="message" style="text-align: center; font-size: 14px; color: #666;">
-                      <p>Or copy and paste this link in your browser:</p>
-                      <div class="link-display">${url}</div>
-                    </div>
-
-                    <div class="warning-box">
-                      <p><strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons.</p>
-                    </div>
-
-                    <div class="info-box">
-                      <p><strong>Didn't request a password reset?</strong></p>
-                      <p>If you didn't request this reset, please ignore this email. Your password will remain unchanged. If you believe your account is compromised, please contact our support team immediately.</p>
-                    </div>
-
-                    <div class="message">
-                      <p><strong>For your security:</strong></p>
-                      <ul>
-                        <li>Never share your password reset link with anyone</li>
-                        <li>Use a strong, unique password</li>
-                        <li>After resetting, sign in immediately and update your password</li>
-                      </ul>
-                    </div>
-
-                    <div class="footer">
-                      <p>&copy; 2026 APS Fitness. All rights reserved.</p>
-                      <p>This is an automated email. Please do not reply directly to this message.</p>
-                    </div>
-                  </div>
-                </div>
-              </body>
-            </html>
-          `,
+          subject: 'Reset your APS Fitness password',
+          html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:16px;overflow:hidden;max-width:560px;width:100%">
+        <tr><td style="background:linear-gradient(135deg,#6c47ff,#a78bfa);padding:32px;text-align:center">
+          <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;letter-spacing:-0.5px">APS Fitness</h1>
+          <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px">Your AI-Powered Training Partner</p>
+        </td></tr>
+        <tr><td style="padding:40px 32px">
+          <h2 style="margin:0 0 16px;color:#fff;font-size:22px;font-weight:600">Reset your password</h2>
+          <p style="margin:0 0 24px;color:#a0a0a0;font-size:15px;line-height:1.6">We received a request to reset your APS Fitness password. Click the button below to choose a new password.</p>
+          <table cellpadding="0" cellspacing="0"><tr><td>
+            <a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#6c47ff,#a78bfa);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600">Reset Password</a>
+          </td></tr></table>
+          <p style="margin:24px 0 0;color:#666;font-size:13px">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #2a2a2a;text-align:center">
+          <p style="margin:0;color:#555;font-size:12px">© 2025 APS Fitness. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
         })
         .catch((error) => {
           app.logger.error({ err: error, email: user.email }, 'Failed to send password reset email');
@@ -205,6 +210,55 @@ app.withAuth({
     },
   },
 });
+
+// Send welcome email after successful sign-up (after user creation)
+const sendWelcomeEmailAfterSignup = async (user: any) => {
+  const userName = user.name || user.email?.split('@')[0] || 'there';
+
+  resend.emails
+    .send({
+      from: fromEmail,
+      to: user.email,
+      subject: 'Welcome to APS Fitness!',
+      html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:40px 20px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:16px;overflow:hidden;max-width:560px;width:100%">
+        <tr><td style="background:linear-gradient(135deg,#6c47ff,#a78bfa);padding:32px;text-align:center">
+          <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;letter-spacing:-0.5px">APS Fitness</h1>
+          <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px">Your AI-Powered Training Partner</p>
+        </td></tr>
+        <tr><td style="padding:40px 32px">
+          <h2 style="margin:0 0 16px;color:#fff;font-size:22px;font-weight:600">Welcome aboard, ${userName}! 🎉</h2>
+          <p style="margin:0 0 16px;color:#a0a0a0;font-size:15px;line-height:1.6">Your account is verified and ready to go. Here's what you can do with APS Fitness:</p>
+          <table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px">
+            <tr><td style="padding:10px 0;border-bottom:1px solid #2a2a2a;color:#d0d0d0;font-size:14px">💪 <strong>AI-Powered Workouts</strong> — Personalised plans that adapt to you</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #2a2a2a;color:#d0d0d0;font-size:14px">🥗 <strong>Nutrition Tracking</strong> — Log meals and hit your macro goals</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #2a2a2a;color:#d0d0d0;font-size:14px">📈 <strong>Progress Analytics</strong> — Track streaks, adherence, and growth</td></tr>
+            <tr><td style="padding:10px 0;color:#d0d0d0;font-size:14px">🤖 <strong>AI Coach</strong> — Get real-time guidance and insights</td></tr>
+          </table>
+          <table cellpadding="0" cellspacing="0"><tr><td>
+            <a href="https://aps-fitness.com" style="display:inline-block;background:linear-gradient(135deg,#6c47ff,#a78bfa);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600">Open APS Fitness</a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #2a2a2a;text-align:center">
+          <p style="margin:0;color:#555;font-size:12px">© 2025 APS Fitness. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    })
+    .catch((error) => {
+      app.logger.error({ err: error, email: user.email }, 'Failed to send welcome email');
+    });
+
+  app.logger.info({ email: user.email }, 'Welcome email queued for sending');
+};
 
 // Enable storage for file uploads
 app.withStorage();
