@@ -31,6 +31,7 @@ export const fitnessProfiles = pgTable(
     activityLevel: text('activity_level', { enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'] }),
     equipmentType: text('equipment_type', { enum: ['gym', 'home', 'minimal'] }), // available equipment for workouts
     focusAreas: jsonb('focus_areas').$type<string[]>().default([]), // e.g., ['chest', 'back', 'legs']
+    dietPreference: text('diet_preference'), // e.g., 'standard', 'vegetarian', 'vegan', 'keto', 'paleo'
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

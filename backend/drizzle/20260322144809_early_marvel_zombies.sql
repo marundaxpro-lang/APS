@@ -1,0 +1,1 @@
+ALTER TABLE "fitness_profiles" ADD COLUMN "diet_preference" text;

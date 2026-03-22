@@ -16,6 +16,7 @@ const fitnessProfileSchema = z.object({
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'very_active']).optional(),
   equipmentType: z.enum(['gym', 'home', 'minimal']).optional(),
   focusAreas: z.array(z.string()).optional(), // e.g., ['chest', 'back', 'legs']
+  diet_preference: z.string().optional(), // e.g., 'standard', 'vegetarian', 'vegan', 'keto', 'paleo'
 });
 
 const calculateCaloriesSchema = z.object({
@@ -89,10 +90,62 @@ export function registerFitnessProfileRoutes(app: App) {
   /**
    * POST /api/fitness-profile - Save or update fitness profile
    */
-  app.fastify.post('/api/fitness-profile', async (
-    request: FastifyRequest<{ Body: any }>,
-    reply: FastifyReply
-  ): Promise<any> => {
+  app.fastify.post(
+    '/api/fitness-profile',
+    {
+      schema: {
+        description: 'Create or update user fitness profile',
+        tags: ['fitness-profile'],
+        body: {
+          type: 'object',
+          required: ['goal'],
+          properties: {
+            name: { type: 'string' },
+            experienceLevel: { type: 'string', enum: ['beginner', 'intermediate', 'advanced'] },
+            goal: { type: 'string' },
+            trainingFrequency: { type: 'integer' },
+            gender: { type: 'string', enum: ['male', 'female', 'other'] },
+            weight: { type: 'number', description: 'Weight in kg' },
+            height: { type: 'number', description: 'Height in cm' },
+            age: { type: 'integer' },
+            activityLevel: {
+              type: 'string',
+              enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
+            },
+            equipmentType: { type: 'string', enum: ['gym', 'home', 'minimal'] },
+            focusAreas: { type: 'array', items: { type: 'string' } },
+            diet_preference: { type: 'string' },
+          },
+        },
+        response: {
+          200: {
+            description: 'Fitness profile created or updated',
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              name: { type: 'string' },
+              experienceLevel: { type: 'string' },
+              goal: { type: 'string' },
+              trainingFrequency: { type: 'integer' },
+              gender: { type: 'string' },
+              weight: { type: 'string' },
+              height: { type: 'string' },
+              age: { type: 'integer' },
+              activityLevel: { type: 'string' },
+              equipmentType: { type: 'string' },
+              focusAreas: { type: 'array', items: { type: 'string' } },
+              dietPreference: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+          400: { type: 'object', properties: { error: { type: 'string' } } },
+          401: { type: 'object', properties: { error: { type: 'string' } } },
+          500: { type: 'object', properties: { error: { type: 'string' } } },
+        },
+      },
+    },
+    async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply): Promise<any> => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
@@ -115,6 +168,7 @@ export function registerFitnessProfileRoutes(app: App) {
         activityLevel,
         equipmentType,
         focusAreas,
+        diet_preference,
       } = validation.data;
       const userId = session.user.id;
 
@@ -153,6 +207,7 @@ export function registerFitnessProfileRoutes(app: App) {
             activityLevel: activityLevel ?? existingProfile[0].activityLevel,
             equipmentType: equipmentType ?? existingProfile[0].equipmentType,
             focusAreas: focusAreas ?? existingProfile[0].focusAreas,
+            dietPreference: diet_preference ?? existingProfile[0].dietPreference,
           })
           .where(eq(schema.fitnessProfiles.userId, userId))
           .returning();
@@ -172,6 +227,7 @@ export function registerFitnessProfileRoutes(app: App) {
           activityLevel: updated.activityLevel,
           equipmentType: updated.equipmentType,
           focusAreas: updated.focusAreas,
+          dietPreference: updated.dietPreference,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };
@@ -192,6 +248,7 @@ export function registerFitnessProfileRoutes(app: App) {
             activityLevel: activityLevel || null,
             equipmentType: equipmentType || null,
             focusAreas: focusAreas || [],
+            dietPreference: diet_preference || null,
           })
           .returning();
 
@@ -210,6 +267,7 @@ export function registerFitnessProfileRoutes(app: App) {
           activityLevel: profile.activityLevel,
           equipmentType: profile.equipmentType,
           focusAreas: profile.focusAreas,
+          dietPreference: profile.dietPreference,
           createdAt: profile.createdAt,
           updatedAt: profile.updatedAt,
         };
@@ -223,10 +281,41 @@ export function registerFitnessProfileRoutes(app: App) {
   /**
    * GET /api/fitness-profile - Get user's fitness profile
    */
-  app.fastify.get('/api/fitness-profile', async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<any> => {
+  app.fastify.get(
+    '/api/fitness-profile',
+    {
+      schema: {
+        description: 'Get user fitness profile',
+        tags: ['fitness-profile'],
+        response: {
+          200: {
+            description: 'Fitness profile retrieved',
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              name: { type: 'string' },
+              experienceLevel: { type: 'string' },
+              goal: { type: 'string' },
+              trainingFrequency: { type: 'integer' },
+              gender: { type: 'string' },
+              weight: { type: 'string' },
+              height: { type: 'string' },
+              age: { type: 'integer' },
+              activityLevel: { type: 'string' },
+              equipmentType: { type: 'string' },
+              focusAreas: { type: 'array', items: { type: 'string' } },
+              dietPreference: { type: 'string' },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
+            },
+          },
+          401: { type: 'object', properties: { error: { type: 'string' } } },
+          404: { type: 'object', properties: { error: { type: 'string' } } },
+          500: { type: 'object', properties: { error: { type: 'string' } } },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply): Promise<any> => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
@@ -266,6 +355,7 @@ export function registerFitnessProfileRoutes(app: App) {
         activityLevel: p.activityLevel,
         equipmentType: p.equipmentType,
         focusAreas: p.focusAreas || [],
+        dietPreference: p.dietPreference,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       };
@@ -278,10 +368,50 @@ export function registerFitnessProfileRoutes(app: App) {
   /**
    * POST /api/fitness-profile/calculate-calories - Calculate caloric needs
    */
-  app.fastify.post('/api/fitness-profile/calculate-calories', async (
-    request: FastifyRequest<{ Body: any }>,
-    reply: FastifyReply
-  ): Promise<any> => {
+  app.fastify.post(
+    '/api/fitness-profile/calculate-calories',
+    {
+      schema: {
+        description: 'Calculate caloric needs and macros',
+        tags: ['fitness-profile'],
+        body: {
+          type: 'object',
+          required: ['gender', 'weight', 'height', 'age', 'activityLevel', 'goal'],
+          properties: {
+            gender: { type: 'string', enum: ['male', 'female', 'other'] },
+            weight: { type: 'number', description: 'Weight in kg' },
+            height: { type: 'number', description: 'Height in cm' },
+            age: { type: 'integer' },
+            activityLevel: {
+              type: 'string',
+              enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
+            },
+            goal: {
+              type: 'string',
+              enum: ['weight_loss', 'muscle_gain', 'strength', 'endurance'],
+            },
+          },
+        },
+        response: {
+          200: {
+            description: 'Caloric calculation completed',
+            type: 'object',
+            properties: {
+              dailyCalorieGoal: { type: 'number' },
+              bmr: { type: 'number' },
+              tdee: { type: 'number' },
+              proteinGoal: { type: 'number' },
+              carbsGoal: { type: 'number' },
+              fatGoal: { type: 'number' },
+            },
+          },
+          400: { type: 'object', properties: { error: { type: 'string' } } },
+          401: { type: 'object', properties: { error: { type: 'string' } } },
+          500: { type: 'object', properties: { error: { type: 'string' } } },
+        },
+      },
+    },
+    async (request: FastifyRequest<{ Body: any }>, reply: FastifyReply): Promise<any> => {
     const session = await requireAuth(request, reply);
     if (!session) return;
 
