@@ -343,9 +343,10 @@ export default function ProfileScreen() {
       setIsGuest(guestStatus === 'true');
       console.log('ProfileScreen: Guest status:', guestStatus);
 
+      let parsedProfile: any = null;
       const localProfile = await AsyncStorage.getItem('fitnessProfile');
       if (localProfile) {
-        const parsedProfile = JSON.parse(localProfile);
+        parsedProfile = JSON.parse(localProfile);
         console.log('ProfileScreen: Loaded profile from AsyncStorage:', parsedProfile);
         setProfile(parsedProfile);
       }

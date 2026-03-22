@@ -205,10 +205,20 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const checkTour = async () => {
-      const onboardingDone = await AsyncStorage.getItem('fitnessProfile');
-      if (!onboardingDone) return;
-      const show = await shouldShowTour();
-      if (show) setShowTour(true);
+      const [fitnessProfile, justCompleted] = await Promise.all([
+        AsyncStorage.getItem('fitnessProfile'),
+        AsyncStorage.getItem('onboardingJustCompleted'),
+      ]);
+      if (!fitnessProfile) return;
+      // Only show tour right after onboarding completes for the first time
+      if (justCompleted === 'true') {
+        const show = await shouldShowTour();
+        if (show) {
+          console.log('[Home iOS] First time after onboarding — starting app tour');
+          await AsyncStorage.removeItem('onboardingJustCompleted');
+          setShowTour(true);
+        }
+      }
     };
     checkTour();
   }, []);

@@ -382,9 +382,6 @@ export default function OnboardingScreen() {
     if (step === 10) {
       return profile.trainingExperience && profile.activityLevelOutsideTraining;
     }
-    if (step === 11) {
-      return profile.nutritionPreference;
-    }
     return false;
   };
 
@@ -1356,7 +1353,7 @@ export default function OnboardingScreen() {
         >
           <View style={styles.content}>
             <View style={styles.progressBar}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
                 <View
                   key={s}
                   style={[
@@ -1377,7 +1374,6 @@ export default function OnboardingScreen() {
             {step === 8 && renderStep8()}
             {step === 9 && renderStep9()}
             {step === 10 && renderStep10()}
-            {step === 11 && renderStep11()}
 
             <View style={styles.navigation}>
               {step > 1 && !(nameSkipped && step === 2) && (
@@ -1398,7 +1394,7 @@ export default function OnboardingScreen() {
                   !canProceed() && styles.nextButtonDisabled,
                 ]}
                 onPress={() => {
-                  if (step < 11) {
+                  if (step < 10) {
                     console.log('[Onboarding] User tapped Next, step:', step);
                     setStep(step + 1);
                   } else {
@@ -1408,7 +1404,7 @@ export default function OnboardingScreen() {
                 disabled={!canProceed()}
               >
                 <Text style={styles.nextButtonText}>
-                  {step === 11 ? 'Build My Plan' : 'Next'}
+                  {step === 10 ? 'Build My Plan' : 'Next'}
                 </Text>
               </TouchableOpacity>
             </View>

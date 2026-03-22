@@ -9,11 +9,13 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { authenticatedPut } from '@/utils/api';
 import {
   FoodItem,
   MealTemplate,
@@ -62,6 +64,15 @@ const STORAGE_KEYS = {
   MEAL_TEMPLATES: 'apex_meal_templates',
   NUTRITION_TARGETS: 'apex_nutrition_targets',
 } as const;
+
+const DIET_LABELS: Record<string, string> = {
+  'balanced': '⚖️ Balanced',
+  'high-protein': '🥩 High Protein',
+  'low-carb': '🥑 Low Carb',
+  'vegan': '🌱 Vegan',
+  'vegetarian': '🥦 Vegetarian',
+  'keto': '🔥 Keto',
+};
 
 const DEFAULT_TARGETS = { calories: 2200, protein: 175, carbs: 220, fat: 70 };
 
@@ -372,6 +383,7 @@ export default function NutritionScreen() {
   const [loaded, setLoaded] = useState(false);
   const [eatenMeals, setEatenMeals] = useState<Set<MealType>>(new Set());
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [dietPreference, setDietPreference] = useState<string>('balanced');
 
   const today = todayStr();
   const hour = new Date().getHours();
@@ -382,10 +394,11 @@ export default function NutritionScreen() {
     async function load() {
       console.log('[Nutrition] Loading data from AsyncStorage');
       try {
-        const [logsRaw, tplRaw, targetsRaw] = await Promise.all([
+        const [logsRaw, tplRaw, targetsRaw, profileRaw] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.MEAL_LOGS),
           AsyncStorage.getItem(STORAGE_KEYS.MEAL_TEMPLATES),
           AsyncStorage.getItem(STORAGE_KEYS.NUTRITION_TARGETS),
+          AsyncStorage.getItem('fitnessProfile'),
         ]);
 
         const savedLogs: Record<string, MealLog[]> = logsRaw ? JSON.parse(logsRaw) : {};
@@ -400,6 +413,27 @@ export default function NutritionScreen() {
         setTemplates(merged);
 
         if (targetsRaw) setTargets(JSON.parse(targetsRaw));
+
+        // Load diet preference from local profile
+        if (profileRaw) {
+          const localProfile = JSON.parse(profileRaw);
+          if (localProfile.dietPreference) {
+            setDietPreference(localProfile.dietPreference);
+            console.log('[Nutrition] Loaded diet preference from AsyncStorage:', localProfile.dietPreference);
+          }
+        }
+
+        // Fetch backend profile for diet_preference
+        try {
+          const { authenticatedGet } = await import('@/utils/api');
+          const backendProfile = await authenticatedGet<any>('/api/profile');
+          if (backendProfile?.diet_preference) {
+            setDietPreference(backendProfile.diet_preference);
+            console.log('[Nutrition] Loaded diet preference from backend:', backendProfile.diet_preference);
+          }
+        } catch (profileErr) {
+          console.log('[Nutrition] Could not fetch backend profile for diet preference:', profileErr);
+        }
 
         console.log('[Nutrition] Loaded', Object.keys(savedLogs).length, 'log days,', merged.length, 'templates');
       } catch (e) {
@@ -463,6 +497,25 @@ export default function NutritionScreen() {
     }
     return FOUR_MEALS[FOUR_MEALS.length - 1];
   }, [eatenMeals]);
+
+  // ── Save diet preference ──
+  const saveDietPreference = useCallback(async (value: string) => {
+    console.log('[Nutrition] User selected diet preference:', value);
+    setDietPreference(value);
+    try {
+      // Persist to AsyncStorage
+      const profileRaw = await AsyncStorage.getItem('fitnessProfile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : {};
+      profile.dietPreference = value;
+      await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
+      console.log('[Nutrition] Diet preference saved to AsyncStorage:', value);
+      // Persist to backend
+      await authenticatedPut('/api/profile', { diet_preference: value });
+      console.log('[Nutrition] Diet preference saved to backend:', value);
+    } catch (e) {
+      console.error('[Nutrition] Error saving diet preference:', e);
+    }
+  }, []);
 
   // ── Persist ──
   const saveLogs = useCallback(async (newLogs: Record<string, MealLog[]>) => {
@@ -610,10 +663,19 @@ export default function NutritionScreen() {
                   {caloriesEatenStr} eaten · {caloriesGoalStr} goal
                 </Text>
               </View>
-              {/* Diet chip placeholder — shown if a preference exists */}
-              <View style={s.dietChip}>
-                <Text style={s.dietChipText}>🥩 High Protein</Text>
-              </View>
+              {/* Diet preference chip — tappable to cycle through options */}
+              <TouchableOpacity
+                style={s.dietChip}
+                onPress={() => {
+                  const options = ['balanced', 'high-protein', 'low-carb', 'vegan', 'vegetarian', 'keto'];
+                  const currentIdx = options.indexOf(dietPreference);
+                  const nextVal = options[(currentIdx + 1) % options.length];
+                  console.log('[Nutrition] User tapped diet chip, cycling to:', nextVal);
+                  saveDietPreference(nextVal);
+                }}
+              >
+                <Text style={s.dietChipText}>{DIET_LABELS[dietPreference] ?? dietPreference}</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Calorie bar */}
