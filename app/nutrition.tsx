@@ -66,12 +66,91 @@ const STORAGE_KEYS = {
 } as const;
 
 const DIET_LABELS: Record<string, string> = {
+  'standard': '🍽️ Standard',
   'balanced': '⚖️ Balanced',
   'high-protein': '🥩 High Protein',
   'low-carb': '🥑 Low Carb',
   'vegan': '🌱 Vegan',
   'vegetarian': '🥦 Vegetarian',
   'keto': '🔥 Keto',
+  'paleo': '🦴 Paleo',
+  'mediterranean': '🫒 Mediterranean',
+};
+
+// ─── Diet-specific meal sets ──────────────────────────────────────────────────
+
+interface DietMeal {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+const DIET_MEALS: Record<string, DietMeal[]> = {
+  standard: [
+    { name: 'Chicken Breast & Rice', calories: 480, protein: 42, carbs: 52, fat: 8 },
+    { name: 'Brown Rice Bowl', calories: 360, protein: 12, carbs: 68, fat: 5 },
+    { name: 'Mixed Vegetables Stir-fry', calories: 220, protein: 8, carbs: 28, fat: 9 },
+    { name: 'Scrambled Eggs', calories: 280, protein: 22, carbs: 2, fat: 20 },
+    { name: 'Oats with Banana', calories: 340, protein: 10, carbs: 62, fat: 6 },
+  ],
+  balanced: [
+    { name: 'Chicken Breast & Rice', calories: 480, protein: 42, carbs: 52, fat: 8 },
+    { name: 'Brown Rice Bowl', calories: 360, protein: 12, carbs: 68, fat: 5 },
+    { name: 'Mixed Vegetables Stir-fry', calories: 220, protein: 8, carbs: 28, fat: 9 },
+    { name: 'Scrambled Eggs', calories: 280, protein: 22, carbs: 2, fat: 20 },
+    { name: 'Oats with Banana', calories: 340, protein: 10, carbs: 62, fat: 6 },
+  ],
+  'high-protein': [
+    { name: 'Grilled Chicken Breast', calories: 320, protein: 58, carbs: 0, fat: 8 },
+    { name: 'Greek Yogurt & Berries', calories: 220, protein: 20, carbs: 24, fat: 4 },
+    { name: 'Tuna Salad', calories: 280, protein: 40, carbs: 6, fat: 10 },
+    { name: 'Protein Oats', calories: 380, protein: 32, carbs: 44, fat: 8 },
+    { name: 'Egg White Omelette', calories: 240, protein: 36, carbs: 4, fat: 6 },
+  ],
+  'low-carb': [
+    { name: 'Grilled Salmon', calories: 380, protein: 42, carbs: 0, fat: 22 },
+    { name: 'Avocado & Egg Bowl', calories: 340, protein: 18, carbs: 8, fat: 28 },
+    { name: 'Chicken Caesar Salad', calories: 320, protein: 36, carbs: 6, fat: 16 },
+    { name: 'Beef & Broccoli', calories: 360, protein: 38, carbs: 10, fat: 18 },
+    { name: 'Zucchini Noodles & Meatballs', calories: 300, protein: 32, carbs: 12, fat: 14 },
+  ],
+  vegetarian: [
+    { name: 'Tofu Scramble', calories: 280, protein: 22, carbs: 14, fat: 16 },
+    { name: 'Quinoa Bowl', calories: 380, protein: 16, carbs: 58, fat: 10 },
+    { name: 'Lentil Soup', calories: 320, protein: 18, carbs: 48, fat: 6 },
+    { name: 'Greek Yogurt Parfait', calories: 260, protein: 18, carbs: 32, fat: 6 },
+    { name: 'Veggie Stir-fry', calories: 300, protein: 14, carbs: 42, fat: 10 },
+  ],
+  vegan: [
+    { name: 'Tempeh Bowl', calories: 360, protein: 28, carbs: 38, fat: 12 },
+    { name: 'Chickpea Curry', calories: 400, protein: 18, carbs: 56, fat: 12 },
+    { name: 'Smoothie Bowl', calories: 320, protein: 10, carbs: 58, fat: 8 },
+    { name: 'Avocado Toast', calories: 280, protein: 8, carbs: 32, fat: 16 },
+    { name: 'Black Bean Tacos', calories: 380, protein: 16, carbs: 52, fat: 12 },
+  ],
+  keto: [
+    { name: 'Bacon & Eggs', calories: 420, protein: 28, carbs: 2, fat: 34 },
+    { name: 'Avocado Salad', calories: 340, protein: 8, carbs: 8, fat: 30 },
+    { name: 'Salmon with Butter', calories: 460, protein: 42, carbs: 0, fat: 32 },
+    { name: 'Cheese Omelette', calories: 380, protein: 26, carbs: 2, fat: 30 },
+    { name: 'Beef Stir-fry', calories: 440, protein: 38, carbs: 6, fat: 28 },
+  ],
+  paleo: [
+    { name: 'Grilled Chicken', calories: 360, protein: 48, carbs: 0, fat: 16 },
+    { name: 'Sweet Potato & Beef', calories: 440, protein: 36, carbs: 38, fat: 14 },
+    { name: 'Mixed Nuts & Fruit', calories: 280, protein: 8, carbs: 28, fat: 18 },
+    { name: 'Fruit Salad', calories: 180, protein: 2, carbs: 44, fat: 1 },
+    { name: 'Grass-fed Beef Bowl', calories: 480, protein: 44, carbs: 12, fat: 26 },
+  ],
+  mediterranean: [
+    { name: 'Grilled Fish & Veggies', calories: 380, protein: 40, carbs: 18, fat: 16 },
+    { name: 'Hummus & Veggie Plate', calories: 280, protein: 12, carbs: 32, fat: 14 },
+    { name: 'Falafel Wrap', calories: 420, protein: 16, carbs: 52, fat: 18 },
+    { name: 'Greek Salad', calories: 240, protein: 8, carbs: 18, fat: 16 },
+    { name: 'Olive Oil Pasta', calories: 460, protein: 14, carbs: 68, fat: 16 },
+  ],
 };
 
 const DEFAULT_TARGETS = { calories: 2200, protein: 175, carbs: 220, fat: 70 };
@@ -384,6 +463,8 @@ export default function NutritionScreen() {
   const [eatenMeals, setEatenMeals] = useState<Set<MealType>>(new Set());
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
   const [dietPreference, setDietPreference] = useState<string>('balanced');
+  const [dietMeals, setDietMeals] = useState<DietMeal[]>(DIET_MEALS['balanced']);
+  const [swappedMealIndices, setSwappedMealIndices] = useState<Record<number, number>>({});
 
   const today = todayStr();
   const hour = new Date().getHours();
@@ -415,9 +496,11 @@ export default function NutritionScreen() {
         if (targetsRaw) setTargets(JSON.parse(targetsRaw));
 
         // Load diet preference from local profile
+        let loadedDiet = 'balanced';
         if (profileRaw) {
           const localProfile = JSON.parse(profileRaw);
           if (localProfile.dietPreference) {
+            loadedDiet = localProfile.dietPreference;
             setDietPreference(localProfile.dietPreference);
             console.log('[Nutrition] Loaded diet preference from AsyncStorage:', localProfile.dietPreference);
           }
@@ -428,12 +511,18 @@ export default function NutritionScreen() {
           const { authenticatedGet } = await import('@/utils/api');
           const backendProfile = await authenticatedGet<any>('/api/profile');
           if (backendProfile?.diet_preference) {
+            loadedDiet = backendProfile.diet_preference;
             setDietPreference(backendProfile.diet_preference);
             console.log('[Nutrition] Loaded diet preference from backend:', backendProfile.diet_preference);
           }
         } catch (profileErr) {
           console.log('[Nutrition] Could not fetch backend profile for diet preference:', profileErr);
         }
+
+        // Apply diet meals for loaded preference
+        const meals = DIET_MEALS[loadedDiet] || DIET_MEALS['balanced'];
+        setDietMeals(meals);
+        console.log('[Nutrition] Applied diet meals for:', loadedDiet, '—', meals.length, 'meals');
 
         console.log('[Nutrition] Loaded', Object.keys(savedLogs).length, 'log days,', merged.length, 'templates');
       } catch (e) {
@@ -502,6 +591,10 @@ export default function NutritionScreen() {
   const saveDietPreference = useCallback(async (value: string) => {
     console.log('[Nutrition] User selected diet preference:', value);
     setDietPreference(value);
+    const meals = DIET_MEALS[value] || DIET_MEALS['balanced'];
+    setDietMeals(meals);
+    setSwappedMealIndices({});
+    console.log('[Nutrition] Diet meals updated for:', value, '—', meals.length, 'meals');
     try {
       // Persist to AsyncStorage
       const profileRaw = await AsyncStorage.getItem('fitnessProfile');
@@ -582,6 +675,36 @@ export default function NutritionScreen() {
       return next;
     });
   }, []);
+
+  // ── Meal swap with free-user limit ──
+  const handleSwapDietMeal = useCallback(async (mealIndex: number) => {
+    console.log('[Nutrition] User tapped swap on diet meal index:', mealIndex);
+    const today = todayStr();
+    const swapKey = `mealSwaps_${today}`;
+    try {
+      const raw = await AsyncStorage.getItem(swapKey);
+      const count = raw ? parseInt(raw, 10) : 0;
+      const FREE_LIMIT = 3;
+      if (count >= FREE_LIMIT) {
+        const { Alert } = await import('react-native');
+        Alert.alert(
+          'Swap Limit Reached',
+          "You've used your 3 free swaps today. Upgrade to Pro for unlimited swaps.",
+          [{ text: 'OK' }]
+        );
+        console.log('[Nutrition] Swap limit reached for today:', count);
+        return;
+      }
+      const meals = DIET_MEALS[dietPreference] || DIET_MEALS['balanced'];
+      const currentIdx = swappedMealIndices[mealIndex] ?? mealIndex;
+      const nextIdx = (currentIdx + 1) % meals.length;
+      setSwappedMealIndices((prev) => ({ ...prev, [mealIndex]: nextIdx }));
+      await AsyncStorage.setItem(swapKey, String(count + 1));
+      console.log('[Nutrition] Diet meal swapped, new index:', nextIdx, 'swaps today:', count + 1);
+    } catch (e) {
+      console.error('[Nutrition] Error handling meal swap:', e);
+    }
+  }, [dietPreference, swappedMealIndices]);
 
   const handleSwap = useCallback(
     (mealType: MealType) => {
@@ -752,6 +875,43 @@ export default function NutritionScreen() {
           </View>
         </View>
 
+        {/* ── Diet Meal Plan ── */}
+        <AnimatedItem index={5}>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Your Meal Plan</Text>
+            <View style={s.mealsCard}>
+              {FOUR_MEALS.map((mealType, idx) => {
+                const mealIdx = swappedMealIndices[idx] ?? idx;
+                const meal = dietMeals[mealIdx % dietMeals.length];
+                const mealLabel = MEAL_TYPE_LABELS[mealType];
+                const mealCalStr = String(meal.calories);
+                const mealProteinStr = String(meal.protein);
+                return (
+                  <View key={mealType}>
+                    {idx > 0 && <View style={s.divider} />}
+                    <View style={s.dietMealRow}>
+                      <View style={s.dietMealLeft}>
+                        <Text style={s.dietMealType}>{mealLabel}</Text>
+                        <Text style={s.dietMealName} numberOfLines={1}>{meal.name}</Text>
+                        <Text style={s.dietMealMeta}>{mealCalStr} kcal · {mealProteinStr}g protein</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={s.dietMealSwapBtn}
+                        onPress={() => {
+                          console.log('[Nutrition] User tapped swap on diet meal:', mealLabel);
+                          handleSwapDietMeal(idx);
+                        }}
+                      >
+                        <Text style={s.dietMealSwapText}>↕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </AnimatedItem>
+
         {/* ── Quick Log (frequent templates) ── */}
         {frequentTemplates.length > 0 && (
           <AnimatedItem index={6}>
@@ -908,6 +1068,29 @@ const s = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 2,
   },
+
+  // Diet meal plan
+  dietMealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  dietMealLeft: { flex: 1, gap: 3 },
+  dietMealType: { fontSize: 10, fontWeight: '700', color: TEAL, letterSpacing: 0.8, textTransform: 'uppercase' },
+  dietMealName: { fontSize: 14, fontWeight: '600', color: TEXT_PRIMARY },
+  dietMealMeta: { fontSize: 11, color: TEXT_SECONDARY },
+  dietMealSwapBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dietMealSwapText: { fontSize: 16, color: TEXT_SECONDARY },
 
   // Quick log
   quickRow: {

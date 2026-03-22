@@ -20,12 +20,10 @@ import { AnimatedPressable } from '@/components/AnimatedPressable';
 import {
   Play,
   Zap,
-  Apple,
   Target,
   ChevronRight,
   Dumbbell,
   Clock,
-  Flame,
   Moon,
   Brain,
   Plus,
@@ -257,8 +255,8 @@ const TOUR_STEPS = [
     route: "/(tabs)/momentum",
   },
   {
-    title: "Quick actions",
-    body: "Jump to AI Coach, Nutrition, or Habits from your home screen anytime.",
+    title: "Your AI Coach",
+    body: "Get personalised advice, workout tips, and motivation from your AI coach anytime.",
     cta: "Let's go →",
     route: null,
   },
@@ -412,16 +410,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (loading) return;
     const checkTour = async () => {
-      const [seen, justCompleted] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.appTourSeen),
-        AsyncStorage.getItem(STORAGE_KEYS.onboardingJustCompleted),
-      ]);
-      if (!seen && justCompleted === 'true') {
+      const justCompleted = await AsyncStorage.getItem(STORAGE_KEYS.onboardingJustCompleted);
+      if (justCompleted === 'true') {
         console.log('[Home] First time after onboarding — starting app tour');
         await AsyncStorage.removeItem(STORAGE_KEYS.onboardingJustCompleted);
         setTourStep(1);
       } else {
-        console.log('[Home] Tour skipped — seen:', seen, 'justCompleted:', justCompleted);
+        console.log('[Home] Tour skipped — justCompleted:', justCompleted);
       }
     };
     checkTour();
@@ -545,8 +540,38 @@ export default function HomeScreen() {
             </View>
           </FadeSection>
 
-          {/* ── 2. Today's Workout ── */}
+          {/* ── 2. AI Coach Card (prominent, first) ── */}
           <FadeSection index={1}>
+            <AnimatedPressable
+              scaleValue={0.97}
+              onPress={() => {
+                console.log('[Home] User tapped AI Coach card → navigating to /ai-coach');
+                router.push('/ai-coach');
+              }}
+              style={styles.aiCoachCard}
+            >
+              <View style={styles.aiCoachGlow} pointerEvents="none" />
+              <View style={styles.aiCoachTopRow}>
+                <View style={styles.aiCoachIconCircle}>
+                  <Brain size={24} color={C.teal} strokeWidth={2} />
+                </View>
+                <View style={styles.aiCoachBadge}>
+                  <Text style={styles.aiCoachBadgeText}>AI POWERED</Text>
+                </View>
+              </View>
+              <Text style={styles.aiCoachTitle}>Your AI Coach</Text>
+              <Text style={styles.aiCoachSubtitle}>
+                Get personalised advice, workout tips, and motivation
+              </Text>
+              <View style={styles.aiCoachCta}>
+                <Text style={styles.aiCoachCtaText}>Chat Now</Text>
+                <ChevronRight size={16} color="#000" strokeWidth={2.5} />
+              </View>
+            </AnimatedPressable>
+          </FadeSection>
+
+          {/* ── 3. Today's Workout ── */}
+          <FadeSection index={2}>
             <SectionLabel title="TODAY'S WORKOUT" />
             {todayWorkout ? (
               <View
@@ -613,8 +638,8 @@ export default function HomeScreen() {
             )}
           </FadeSection>
 
-          {/* ── 3. This Week ── */}
-          <FadeSection index={2}>
+          {/* ── 4. This Week ── */}
+          <FadeSection index={3}>
             <SectionLabel title="THIS WEEK" />
             <View style={styles.weekRow}>
               {weekSchedule.map((day) => {
@@ -666,60 +691,6 @@ export default function HomeScreen() {
                   </View>
                 );
               })}
-            </View>
-          </FadeSection>
-
-          {/* ── 4. Quick Actions ── */}
-          <FadeSection index={3}>
-            <SectionLabel title="QUICK ACTIONS" />
-            <View style={styles.quickActionsRow}>
-              <AnimatedPressable
-                scaleValue={0.95}
-                onPress={() => {
-                  console.log('[Home] User tapped Quick Action: AI Coach → navigating to /ai-coach');
-                  router.push('/ai-coach');
-                }}
-                style={[styles.quickCard, styles.quickCardTall]}
-              >
-                <View style={[styles.quickIconCircle, { backgroundColor: 'rgba(0,212,170,0.12)' }]}>
-                  <Brain size={20} color={C.teal} strokeWidth={2} />
-                </View>
-                <Text style={styles.quickCardLabel}>AI Coach</Text>
-                <Text style={styles.quickCardSub}>Get guidance</Text>
-                <ChevronRight size={14} color={C.textSecondary} strokeWidth={2} style={styles.quickChevron} />
-              </AnimatedPressable>
-
-              <View style={styles.quickColRight}>
-                <AnimatedPressable
-                  scaleValue={0.95}
-                  onPress={() => {
-                    console.log('[Home] User tapped Quick Action: Nutrition → navigating to /nutrition');
-                    router.push('/nutrition');
-                  }}
-                  style={styles.quickCard}
-                >
-                  <View style={[styles.quickIconCircle, { backgroundColor: 'rgba(255,183,77,0.12)' }]}>
-                    <Apple size={18} color="#FFB74D" strokeWidth={2} />
-                  </View>
-                  <Text style={styles.quickCardLabel}>Nutrition</Text>
-                  <ChevronRight size={13} color={C.textSecondary} strokeWidth={2} style={styles.quickChevron} />
-                </AnimatedPressable>
-
-                <AnimatedPressable
-                  scaleValue={0.95}
-                  onPress={() => {
-                    console.log('[Home] User tapped Quick Action: Habits → navigating to /habits');
-                    router.push('/habits');
-                  }}
-                  style={styles.quickCard}
-                >
-                  <View style={[styles.quickIconCircle, { backgroundColor: 'rgba(255,107,107,0.12)' }]}>
-                    <Flame size={18} color="#FF6B6B" strokeWidth={2} />
-                  </View>
-                  <Text style={styles.quickCardLabel}>Habits</Text>
-                  <ChevronRight size={13} color={C.textSecondary} strokeWidth={2} style={styles.quickChevron} />
-                </AnimatedPressable>
-              </View>
             </View>
           </FadeSection>
 
@@ -903,6 +874,90 @@ const styles = StyleSheet.create({
     marginBottom: -8,
   },
 
+  // AI Coach card
+  aiCoachCard: {
+    backgroundColor: '#0D2420',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,212,170,0.35)',
+    overflow: 'hidden',
+    position: 'relative',
+    gap: 10,
+    // @ts-expect-error borderCurve is iOS-only
+    borderCurve: 'continuous',
+    boxShadow: '0 4px 24px rgba(0,212,170,0.12)',
+  },
+  aiCoachGlow: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0,212,170,0.08)',
+  },
+  aiCoachTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  aiCoachIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,212,170,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+  },
+  aiCoachBadge: {
+    backgroundColor: 'rgba(0,212,170,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.25)',
+  },
+  aiCoachBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.teal,
+    letterSpacing: 0.8,
+  },
+  aiCoachTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: C.text,
+    letterSpacing: -0.4,
+    lineHeight: 32,
+  },
+  aiCoachSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: C.textSecondary,
+    lineHeight: 20,
+  },
+  aiCoachCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: C.teal,
+    borderRadius: 12,
+    height: 48,
+    marginTop: 4,
+    // @ts-expect-error borderCurve is iOS-only
+    borderCurve: 'continuous',
+  },
+  aiCoachCtaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#000',
+    letterSpacing: 0.2,
+  },
+
   // Card base
   card: {
     backgroundColor: C.card,
@@ -1039,56 +1094,6 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-  },
-
-  // Quick actions
-  quickActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  quickCard: {
-    flex: 1,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    // @ts-expect-error borderCurve is iOS-only
-    borderCurve: 'continuous',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-    position: 'relative',
-  },
-  quickCardTall: {
-    justifyContent: 'flex-end',
-    minHeight: 140,
-  },
-  quickColRight: {
-    flex: 1,
-    gap: 10,
-  },
-  quickIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickCardLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.text,
-  },
-  quickCardSub: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: C.textSecondary,
-    marginTop: 2,
-  },
-  quickChevron: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
   },
 
   // Tasks

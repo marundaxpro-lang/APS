@@ -19,7 +19,7 @@ import {
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { HabitStreakBadge } from '@/components/HabitStreakBadge';
 import { Habit, HabitCategory, HABIT_LIBRARY, getHabitInsight } from '@/utils/habitEngine';
-import { getHabits, saveHabits, toggleHabit, completeHabit, seedDemoHabits } from '@/utils/habitStore';
+import { getHabits, saveHabits, toggleHabit, completeHabit } from '@/utils/habitStore';
 import { colors } from '@/styles/commonStyles';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string; strokeWidth?: number }>> = {
@@ -223,7 +223,6 @@ export default function HabitsScreen() {
 
   const loadHabits = useCallback(async () => {
     try {
-      await seedDemoHabits();
       const all = await getHabits();
       setHabits(all);
       console.log('[Habits] Loaded habits:', all.length);

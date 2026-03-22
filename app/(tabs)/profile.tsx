@@ -375,6 +375,7 @@ export default function ProfileScreen() {
             protein: parsedProfile?.protein,
             carbs: parsedProfile?.carbs,
             fat: parsedProfile?.fat,
+            dietPreference: backendProfile.diet_preference || parsedProfile?.dietPreference,
           };
           
           console.log('ProfileScreen: Mapped profile:', mappedProfile);

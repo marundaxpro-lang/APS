@@ -12,25 +12,22 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { useAuth } from '@/contexts/AuthContext';
-import { AppTour, shouldShowTour } from '@/components/AppTour';
+import { AppTour } from '@/components/AppTour';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Bell,
-  Flame,
   Clock,
   Dumbbell,
   Zap,
   ChevronRight,
   BarChart2,
-  CheckCircle,
   Moon,
   Heart,
   Sparkles,
   Droplets,
   Footprints,
   Layers,
-  Apple,
-  CheckSquare,
+  Brain,
 } from 'lucide-react-native';
 
 const C = {
@@ -54,9 +51,6 @@ const C = {
 };
 
 const homeData = {
-  streakDays: 7,
-  weeklyWorkouts: { done: 4, total: 5 },
-  habitsToday: { completed: 3, total: 4 },
   todayWorkout: {
     title: 'Upper Body Power',
     duration: 52,
@@ -195,29 +189,17 @@ export default function HomeScreen() {
   const waterLeft = waterToday.targetLitres - waterToday.loggedLitres;
   const waterLeftText = waterLeft.toFixed(1) + 'L left';
   const proteinLeftText = proteinLeft + 'g left';
-  const streakNum = String(homeData.streakDays);
-  const weeklyText = `${homeData.weeklyWorkouts.done}/${homeData.weeklyWorkouts.total}`;
-  const habitsText = `${homeData.habitsToday.completed}/${homeData.habitsToday.total}`;
   const durationText = `${todayWorkout.duration} min`;
   const exercisesText = `${todayWorkout.exerciseCount} exercises`;
   const caloriesText = `${todayWorkout.calories} kcal`;
-  const stillToDoCountStr = '3';
 
   useEffect(() => {
     const checkTour = async () => {
-      const [fitnessProfile, justCompleted] = await Promise.all([
-        AsyncStorage.getItem('fitnessProfile'),
-        AsyncStorage.getItem('onboardingJustCompleted'),
-      ]);
-      if (!fitnessProfile) return;
-      // Only show tour right after onboarding completes for the first time
+      const justCompleted = await AsyncStorage.getItem('onboardingJustCompleted');
       if (justCompleted === 'true') {
-        const show = await shouldShowTour();
-        if (show) {
-          console.log('[Home iOS] First time after onboarding — starting app tour');
-          await AsyncStorage.removeItem('onboardingJustCompleted');
-          setShowTour(true);
-        }
+        console.log('[Home iOS] First time after onboarding — starting app tour');
+        await AsyncStorage.removeItem('onboardingJustCompleted');
+        setShowTour(true);
       }
     };
     checkTour();
@@ -232,6 +214,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: 120 }]}
       >
+        {/* ── Header ── */}
         <FadeSection index={0}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -250,13 +233,43 @@ export default function HomeScreen() {
           </View>
         </FadeSection>
 
+        {/* ── AI Coach Card (prominent, first) ── */}
         <FadeSection index={1}>
+          <AnimatedPressable
+            scaleValue={0.97}
+            onPress={() => {
+              console.log('[Home iOS] User tapped AI Coach card → navigating to /ai-coach');
+              router.push('/ai-coach');
+            }}
+            style={styles.aiCoachCard}
+          >
+            <View style={styles.aiCoachGlow} pointerEvents="none" />
+            <View style={styles.aiCoachTopRow}>
+              <View style={styles.aiCoachIconCircle}>
+                <Brain size={24} color={C.teal} strokeWidth={2} />
+              </View>
+              <View style={styles.aiCoachBadge}>
+                <Text style={styles.aiCoachBadgeText}>AI POWERED</Text>
+              </View>
+            </View>
+            <Text style={styles.aiCoachTitle}>Your AI Coach</Text>
+            <Text style={styles.aiCoachSubtitle}>
+              Get personalised advice, workout tips, and motivation
+            </Text>
+            <View style={styles.aiCoachCta}>
+              <Text style={styles.aiCoachCtaText}>Chat Now →</Text>
+            </View>
+          </AnimatedPressable>
+        </FadeSection>
+
+        {/* ── Today's Workout ── */}
+        <FadeSection index={2}>
           <View style={styles.heroCard}>
             <View style={styles.heroGlow} pointerEvents="none" />
             <View style={styles.heroTopRow}>
               <Text style={styles.heroLabel}>TODAY'S WORKOUT</Text>
               <View style={styles.intensityChip}>
-                <Flame size={11} color={C.amber} strokeWidth={2} />
+                <Zap size={11} color={C.amber} strokeWidth={2} />
                 <Text style={styles.intensityChipText}>{todayWorkout.intensity}</Text>
               </View>
             </View>
@@ -266,25 +279,27 @@ export default function HomeScreen() {
               <StatChip icon={<Dumbbell size={13} color={C.textSecondary} strokeWidth={2} />} value={exercisesText} />
               <StatChip icon={<Zap size={13} color={C.textSecondary} strokeWidth={2} />} value={caloriesText} />
             </View>
-            <AnimatedPressable scaleValue={0.97} onPress={() => { console.log('[Home] User tapped Start Workout button → navigating to /workout-detail/1'); router.push('/workout-detail/1'); }} style={styles.heroButton}>
+            <AnimatedPressable scaleValue={0.97} onPress={() => { console.log('[Home iOS] User tapped Start Workout button → navigating to /workout-detail/1'); router.push('/workout-detail/1'); }} style={styles.heroButton}>
               <Text style={styles.heroButtonText}>Start Workout →</Text>
             </AnimatedPressable>
           </View>
         </FadeSection>
 
-        <FadeSection index={2}>
-          <SectionHeader title="Programs" onSeeAll={() => { console.log('[Home] User tapped See all programs → navigating to /program-packs'); router.push('/program-packs'); }} />
+        {/* ── Programs ── */}
+        <FadeSection index={3}>
+          <SectionHeader title="Programs" onSeeAll={() => { console.log('[Home iOS] User tapped See all programs → navigating to /program-packs'); router.push('/program-packs'); }} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled snapToInterval={CARD_WIDTH + 12} decelerationRate="fast" contentContainerStyle={styles.programsScroll}>
             {homeData.programs.map((program) => (
-              <ProgramCarouselCard key={program.id} program={program} cardWidth={CARD_WIDTH} onPress={() => { console.log('[Home] User tapped program card:', program.title); router.push('/program-packs'); }} />
+              <ProgramCarouselCard key={program.id} program={program} cardWidth={CARD_WIDTH} onPress={() => { console.log('[Home iOS] User tapped program card:', program.title); router.push('/program-packs'); }} />
             ))}
           </ScrollView>
         </FadeSection>
 
-        <FadeSection index={3}>
-          <SectionHeader title="Still to do" badge={stillToDoCountStr} />
+        {/* ── Still to do ── */}
+        <FadeSection index={4}>
+          <SectionHeader title="Still to do" />
           <View style={styles.taskCard}>
-            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home] User tapped "Hit protein goal" task → navigating to /nutrition'); router.push('/nutrition'); }}>
+            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Hit protein goal" task → navigating to /nutrition'); router.push('/nutrition'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.tealMuted }]}><Zap size={16} color={C.teal} strokeWidth={2} /></View>
                 <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Nutrition</Text><Text style={styles.taskSubtitle}>Hit protein goal</Text></View>
@@ -293,7 +308,7 @@ export default function HomeScreen() {
               </View>
             </AnimatedPressable>
             <View style={styles.taskDivider} />
-            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home] User tapped "Drink water" task → navigating to /nutrition'); router.push('/nutrition'); }}>
+            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Drink water" task → navigating to /nutrition'); router.push('/nutrition'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.blueMuted }]}><Droplets size={16} color={C.blue} strokeWidth={2} /></View>
                 <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Hydration</Text><Text style={styles.taskSubtitle}>Drink water</Text></View>
@@ -302,7 +317,7 @@ export default function HomeScreen() {
               </View>
             </AnimatedPressable>
             <View style={styles.taskDivider} />
-            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home] User tapped "Evening stretch" task → navigating to /habits'); router.push('/habits'); }}>
+            <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Evening stretch" task → navigating to /habits'); router.push('/habits'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.amberMuted }]}><Footprints size={16} color={C.amber} strokeWidth={2} /></View>
                 <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Mobility</Text><Text style={styles.taskSubtitle}>Evening stretch</Text></View>
@@ -313,37 +328,19 @@ export default function HomeScreen() {
           </View>
         </FadeSection>
 
-        <FadeSection index={4}>
-          <View style={styles.progressRow}>
-            <AnimatedPressable scaleValue={0.97} onPress={() => { console.log('[Home] User tapped streak stat card → navigating to /streak-detail'); router.push('/streak-detail'); }} style={styles.statCard}>
-              <Flame size={20} color={C.teal} strokeWidth={2} />
-              <Text style={styles.statCardNumber}>{streakNum}</Text>
-              <Text style={styles.statCardLabel}>day streak</Text>
-            </AnimatedPressable>
-            <AnimatedPressable scaleValue={0.97} onPress={() => { console.log('[Home] User tapped weekly stat card → navigating to /weekly-adherence-detail'); router.push('/weekly-adherence-detail'); }} style={styles.statCard}>
-              <BarChart2 size={20} color={C.teal} strokeWidth={2} />
-              <Text style={styles.statCardNumber}>{weeklyText}</Text>
-              <Text style={styles.statCardLabel}>workouts</Text>
-            </AnimatedPressable>
-            <AnimatedPressable scaleValue={0.97} onPress={() => { console.log('[Home] User tapped habits stat card → navigating to /habits'); router.push('/habits'); }} style={styles.statCard}>
-              <CheckCircle size={20} color={C.teal} strokeWidth={2} />
-              <Text style={styles.statCardNumber}>{habitsText}</Text>
-              <Text style={styles.statCardLabel}>habits done</Text>
-            </AnimatedPressable>
-          </View>
-        </FadeSection>
-
+        {/* ── Coming up ── */}
         <FadeSection index={5}>
           <SectionHeader title="Coming up" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.upcomingScroll}>
             {homeData.upcomingDays.map((day, i) => (
-              <UpcomingCard key={i} day={day} onPress={() => { console.log(`[Home] User tapped upcoming day "${day.label}" → navigating to /training-plan`); router.push('/training-plan'); }} />
+              <UpcomingCard key={i} day={day} onPress={() => { console.log(`[Home iOS] User tapped upcoming day "${day.label}" → navigating to /training-plan`); router.push('/training-plan'); }} />
             ))}
           </ScrollView>
         </FadeSection>
 
+        {/* ── Coach Insight ── */}
         <FadeSection index={6}>
-          <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home] User tapped coach insight card → navigating to /coach-insights'); router.push('/coach-insights'); }} style={styles.insightCard}>
+          <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped coach insight card → navigating to /coach-insights'); router.push('/coach-insights'); }} style={styles.insightCard}>
             <View style={styles.insightTopRow}>
               <Sparkles size={14} color={C.teal} strokeWidth={2} />
               <Text style={styles.insightLabel}>COACH INSIGHT</Text>
@@ -353,31 +350,9 @@ export default function HomeScreen() {
             <Text style={styles.insightLink}>See full analysis →</Text>
           </AnimatedPressable>
         </FadeSection>
-
-        <FadeSection index={7}>
-          <SectionHeader title="Quick Links" />
-          <View style={styles.quickLinksRow}>
-            <AnimatedPressable scaleValue={0.94} onPress={() => { console.log('[Home] User tapped Quick Link: Programs → navigating to /program-packs'); router.push('/program-packs'); }} style={styles.quickLinkBtn}>
-              <Layers size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Programs</Text>
-            </AnimatedPressable>
-            <AnimatedPressable scaleValue={0.94} onPress={() => { console.log('[Home] User tapped Quick Link: Nutrition → navigating to /nutrition'); router.push('/nutrition'); }} style={styles.quickLinkBtn}>
-              <Apple size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Nutrition</Text>
-            </AnimatedPressable>
-            <AnimatedPressable scaleValue={0.94} onPress={() => { console.log('[Home] User tapped Quick Link: AI Coach → navigating to /ai-coach'); router.push('/ai-coach'); }} style={styles.quickLinkBtn}>
-              <Sparkles size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>AI Coach</Text>
-            </AnimatedPressable>
-            <AnimatedPressable scaleValue={0.94} onPress={() => { console.log('[Home] User tapped Quick Link: Habits → navigating to /habits'); router.push('/habits'); }} style={styles.quickLinkBtn}>
-              <CheckSquare size={22} color={C.teal} strokeWidth={2} />
-              <Text style={styles.quickLinkLabel}>Habits</Text>
-            </AnimatedPressable>
-          </View>
-        </FadeSection>
       </ScrollView>
 
-      <AppTour visible={showTour} onComplete={() => { console.log('[Home] App tour completed'); setShowTour(false); }} />
+      <AppTour visible={showTour} onComplete={() => { console.log('[Home iOS] App tour completed'); setShowTour(false); }} />
     </View>
   );
 }
@@ -394,6 +369,63 @@ const styles = StyleSheet.create({
   headerIconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,212,170,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(0,212,170,0.3)' },
   avatarInitials: { fontSize: 15, fontWeight: '700', color: C.teal, letterSpacing: 0.5 },
+
+  // AI Coach card
+  aiCoachCard: {
+    backgroundColor: '#0D2420',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,212,170,0.35)',
+    overflow: 'hidden',
+    position: 'relative',
+    gap: 10,
+  },
+  aiCoachGlow: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0,212,170,0.08)',
+  },
+  aiCoachTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  aiCoachIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,212,170,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.3)',
+  },
+  aiCoachBadge: {
+    backgroundColor: 'rgba(0,212,170,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,170,0.25)',
+  },
+  aiCoachBadgeText: { fontSize: 10, fontWeight: '700', color: C.teal, letterSpacing: 0.8 },
+  aiCoachTitle: { fontSize: 26, fontWeight: '800', color: C.text, letterSpacing: -0.4, lineHeight: 32 },
+  aiCoachSubtitle: { fontSize: 14, fontWeight: '400', color: C.textSecondary, lineHeight: 20 },
+  aiCoachCta: {
+    backgroundColor: C.teal,
+    borderRadius: 12,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  aiCoachCtaText: { fontSize: 15, fontWeight: '700', color: '#000000', letterSpacing: 0.2 },
+
   heroCard: { backgroundColor: C.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: C.border, overflow: 'hidden', position: 'relative', width: '100%' },
   heroGlow: { position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,212,170,0.07)' },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
@@ -434,18 +466,11 @@ const styles = StyleSheet.create({
   taskTitle: { fontSize: 15, fontWeight: '500', color: C.text },
   taskSubtitle: { fontSize: 12, fontWeight: '400', color: C.textSecondary },
   taskMetric: { fontSize: 13, fontWeight: '600', marginRight: 2 },
-  progressRow: { flexDirection: 'row', gap: 10, width: '100%' },
-  statCard: { flex: 1, backgroundColor: C.surface, borderRadius: 14, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: C.tealBorder },
-  statCardNumber: { fontSize: 28, fontWeight: '800', color: C.text, letterSpacing: -0.5, lineHeight: 32 },
-  statCardLabel: { fontSize: 11, fontWeight: '500', color: C.textSecondary, textAlign: 'center' },
   upcomingScroll: { gap: 10, paddingRight: 4 },
   upcomingCard: { width: 120, height: 110, backgroundColor: C.surface, borderRadius: 14, padding: 14, justifyContent: 'space-between', borderWidth: 1, borderColor: C.border },
   upcomingDayLabel: { fontSize: 12, fontWeight: '500', color: C.textSecondary },
   upcomingSessionName: { fontSize: 14, fontWeight: '600', color: C.text, lineHeight: 18 },
   upcomingDuration: { fontSize: 12, fontWeight: '400', color: C.textSecondary },
-  quickLinksRow: { flexDirection: 'row', gap: 10, width: '100%' },
-  quickLinkBtn: { flex: 1, backgroundColor: C.surface, borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: C.tealBorder },
-  quickLinkLabel: { fontSize: 11, fontWeight: '600', color: C.textSecondary, textAlign: 'center' },
   insightCard: { backgroundColor: C.surface3, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.border, borderLeftWidth: 3, borderLeftColor: C.teal, width: '100%' },
   insightTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   insightLabel: { fontSize: 10, fontWeight: '700', color: C.teal, letterSpacing: 1.2, textTransform: 'uppercase' },
