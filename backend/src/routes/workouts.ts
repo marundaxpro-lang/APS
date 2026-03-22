@@ -122,35 +122,40 @@ export function registerWorkoutRoutes(app: App) {
     if (!session) return;
 
     try {
-      const { name, duration, caloriesBurned, exercises, startedAt, endedAt } = request.body as {
+      const { name, date, duration_minutes, caloriesBurned, exercises, startedAt, endedAt, completed } = request.body as {
         name?: string;
-        duration?: number;
+        date?: string;
+        duration_minutes?: number;
         caloriesBurned?: number;
         exercises?: any;
         startedAt?: string;
         endedAt?: string;
+        completed?: boolean;
       };
       const userId = session.user.id;
 
-      if (!name) {
-        return reply.status(400).send({ error: 'Workout name is required' });
+      // Generate workout name if not provided
+      let workoutName = name;
+      if (!workoutName) {
+        // Use provided date or today's date in YYYY-MM-DD format
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        workoutName = `Workout - ${dateStr}`;
       }
 
-      if (!startedAt) {
-        return reply.status(400).send({ error: 'Start time is required' });
-      }
+      // Map duration_minutes to duration, default to 0 if not provided
+      const duration = duration_minutes ?? 0;
 
-      app.logger.info({ userId, name }, 'Creating workout session');
+      app.logger.info({ userId, workoutName, duration }, 'Creating workout session');
 
       const [workout] = await app.db
         .insert(schema.workoutSessions)
         .values({
           userId,
-          name,
+          name: workoutName,
           duration: duration || null,
           caloriesBurned: caloriesBurned || null,
           exercises: exercises || null,
-          startedAt: new Date(startedAt),
+          startedAt: startedAt ? new Date(startedAt) : new Date(),
           endedAt: endedAt ? new Date(endedAt) : null,
         })
         .returning();
