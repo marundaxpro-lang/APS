@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { colors } from '@/styles/commonStyles';
-import BodyScrollView from '@/components/BodyScrollView';
+import { BodyScrollView } from '@/components/BodyScrollView';
 
 const TEAL = '#00D4AA';
 const GOLD = '#FFD700';
