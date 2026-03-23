@@ -2,7 +2,7 @@
 import "react-native-reanimated";
 import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Stack, router, usePathname, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,9 +17,9 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Modal from "@/components/ui/Modal";
-import { isOnboardingComplete, isGuestMode } from "@/utils/onboardingStorage";
+import { isGuestMode } from "@/utils/onboardingStorage";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -28,60 +28,38 @@ export const unstable_settings = {
   initialRouteName: "(tabs)", // Ensure any route can link back to `/`
 };
 
-
-function SubscriptionRedirect() {
-  const { isSubscribed, loading } = useSubscription();
+/**
+ * Single navigation guard — the ONLY place that redirects to /auth.
+ * Rules:
+ *   1. Auth still loading → do nothing (show whatever is already rendered)
+ *   2. No user AND not guest → redirect to /auth
+ *   3. User exists OR guest mode → let the app render normally
+ *   4. NEVER redirects to /paywall — paywall is opened explicitly by the user
+ */
+function AuthGuard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    if (loading || authLoading) return;
-    const onAuthScreen = pathname === "/auth";
-    if (onAuthScreen) return;
+    if (authLoading) return;
 
     let cancelled = false;
-    isGuestMode().then((guest) => {
+    isGuestMode().then((isGuest) => {
       if (cancelled) return;
-      // Guest users are allowed through — no auth or subscription required
-      if (guest) return;
-
-      if (!user) {
-        console.log('[SubscriptionRedirect] No user and not guest, redirecting to /auth');
+      if (!user && !isGuest) {
+        console.log('[AuthGuard] No user and not guest — redirecting to /auth');
         router.replace("/auth");
-        return;
       }
-
-      const onOnboarding = pathname.startsWith("/onboarding");
-      if (onOnboarding) return;
-
-      isOnboardingComplete().then((done) => {
-        if (cancelled) return;
-        if (!done) {
-          router.replace("/onboarding");
-          return;
-        }
-        const onPaywall = pathname === "/paywall";
-        if (onPaywall) return;
-        if (!isSubscribed) {
-          router.replace("/paywall");
-        }
-      }).catch(() => {
-        if (cancelled) return;
-        const onPaywall = pathname === "/paywall";
-        if (onPaywall) return;
-        if (!isSubscribed) {
-          router.replace("/paywall");
-        }
-      });
     }).catch(() => {
       if (cancelled) return;
       if (!user) {
+        console.log('[AuthGuard] Guest check failed, no user — redirecting to /auth');
         router.replace("/auth");
       }
     });
+
     return () => { cancelled = true; };
-  }, [isSubscribed, loading, authLoading, pathname, user]);
+  }, [user, authLoading, router]);
 
   return null;
 }
@@ -146,7 +124,7 @@ export default function RootLayout() {
       >
         <AuthProvider>
         <SubscriptionProvider>
-          <SubscriptionRedirect />
+          <AuthGuard />
           <WidgetProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <Stack>

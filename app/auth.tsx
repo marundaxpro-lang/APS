@@ -26,7 +26,7 @@ type Mode = "signin" | "signup" | "forgot-password" | "reset-password";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple, user, onboardingCompleted } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithApple } = useAuth();
 
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -50,18 +50,9 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  useEffect(() => {
-    console.log('[AuthScreen] Checking if user is already authenticated');
-    if (user && onboardingCompleted !== null) {
-      if (onboardingCompleted) {
-        console.log('[AuthScreen] User has completed onboarding, redirecting to home');
-        router.replace('/(tabs)/(home)');
-      } else {
-        console.log('[AuthScreen] User needs to complete onboarding');
-        router.replace('/onboarding');
-      }
-    }
-  }, [user, onboardingCompleted, router]);
+  // NOTE: No mount-time redirect here. AuthGuard in _layout.tsx is the single
+  // source of truth for auth-based navigation. Redirecting from both places
+  // causes screens to stack on top of each other.
 
   useEffect(() => {
     if (Platform.OS === "web") {
