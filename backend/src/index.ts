@@ -1,10 +1,10 @@
-import { createApplication, resend } from "@specific-dev/framework";
+import { createApplication } from "@specific-dev/framework";
 import * as appSchema from './db/schema.js';
 import * as authSchema from './db/auth-schema.js';
-import { sendWelcomeEmail, sendLoginNotificationEmail, sendPasswordResetEmail } from './utils/email.js';
 
 // Import route registration functions
-import { registerAuthRoutes } from './routes/auth.js';
+import { registerHealthRoutes } from './routes/health.js';
+import { registerAuthSupabaseRoutes } from './routes/auth-supabase.js';
 import { registerTrackingRoutes } from './routes/tracking.js';
 import { registerUserRoutes } from './routes/user.js';
 import { registerProgressPhotoRoutes } from './routes/progress-photos.js';
@@ -48,81 +48,15 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
-// Build social providers based on available environment variables
-const socialProviders: any = {};
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  socialProviders.google = {
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  };
-}
-if (process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET) {
-  socialProviders.apple = {
-    clientId: process.env.APPLE_CLIENT_ID,
-    clientSecret: process.env.APPLE_CLIENT_SECRET,
-  };
-}
-
-// Enable authentication with Better Auth, email verification, OAuth, and transactional emails
-app.withAuth({
-  ...(Object.keys(socialProviders).length > 0 && { socialProviders }),
-  emailVerification: {
-    sendOnSignUp: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      app.logger.info({ email: user.email }, 'Sending email verification');
-      resend.emails
-        .send({
-          from: process.env.FROM_EMAIL ?? 'APS App <noreply@aps.app>',
-          to: user.email,
-          subject: 'Verify your APS email',
-          html: `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:40px 20px">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:16px;overflow:hidden;max-width:600px;width:100%">
-        <tr><td style="background:linear-gradient(135deg,#FF6B35,#FF8C42);padding:32px;text-align:center">
-          <h1 style="margin:0;color:#fff;font-size:32px;font-weight:700;letter-spacing:-1px">APS</h1>
-          <p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:13px;font-weight:500">Your Fitness Companion</p>
-        </td></tr>
-        <tr><td style="padding:40px 32px">
-          <h2 style="margin:0 0 16px;color:#fff;font-size:24px;font-weight:700">Verify your email</h2>
-          <p style="margin:0 0 24px;color:#e0e0e0;font-size:15px;line-height:1.6">Click the button below to verify your email and activate your APS account.</p>
-          <table cellpadding="0" cellspacing="0"><tr><td>
-            <a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#FF6B35,#FF8C42);color:#fff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:15px;font-weight:600">Verify Email Address</a>
-          </td></tr></table>
-          <p style="margin:24px 0 0;color:#999;font-size:13px">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
-        </td></tr>
-        <tr><td style="padding:20px 32px;border-top:1px solid #2a2a2a;text-align:center">
-          <p style="margin:0;color:#555;font-size:12px">© 2025 APS App. All rights reserved.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
-        })
-        .catch((error) => {
-          app.logger.error({ err: error, email: user.email }, 'Failed to send verification email');
-        });
-
-      app.logger.info({ email: user.email }, 'Verification email queued for sending');
-    },
-  },
-  emailAndPassword: {
-    sendResetPassword: async ({ user, token }) => {
-      app.logger.info({ email: user.email }, 'Sending password reset email');
-      await sendPasswordResetEmail(user.email, user.name || '', token);
-    },
-  },
-});
+// Using Supabase authentication instead of Better Auth
+// See src/routes/auth-supabase.ts for authentication endpoints
 
 // Enable storage for file uploads
 app.withStorage();
 
 // Register all route modules
-registerAuthRoutes(app);
+registerHealthRoutes(app);
+registerAuthSupabaseRoutes(app);
 registerUserRoutes(app);
 registerTrackingRoutes(app);
 registerProgressPhotoRoutes(app);
