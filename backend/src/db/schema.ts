@@ -348,6 +348,81 @@ export const userTasks = pgTable(
 );
 
 /**
+ * WorkoutLog: Track individual workout log entries
+ */
+export const workoutLogs = pgTable(
+  'workout_logs',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    workoutId: text('workout_id').notNull(),
+    workoutName: text('workout_name').notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    caloriesBurned: integer('calories_burned'),
+    completedAt: text('completed_at').notNull(), // ISO 8601
+    notes: text('notes'),
+  },
+  (table) => [
+    index('idx_workout_logs_user_id').on(table.userId),
+    index('idx_workout_logs_user_completed').on(table.userId, table.completedAt.desc()),
+  ]
+);
+
+/**
+ * HabitLog: Track habit completions
+ */
+export const habitLogs = pgTable(
+  'habit_logs',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    habitId: text('habit_id').notNull(),
+    habitName: text('habit_name').notNull(),
+    completedAt: text('completed_at').notNull(), // ISO 8601
+    date: text('date').notNull(), // YYYY-MM-DD
+  },
+  (table) => [
+    index('idx_habit_logs_user_id').on(table.userId),
+    index('idx_habit_logs_user_date').on(table.userId, table.date.desc()),
+  ]
+);
+
+/**
+ * Streak: Track user streaks for workouts and habits
+ */
+export const streaks = pgTable(
+  'streaks',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+    currentStreak: integer('current_streak').notNull().default(0),
+    longestStreak: integer('longest_streak').notNull().default(0),
+    lastActivityDate: text('last_activity_date'), // YYYY-MM-DD
+    updatedAt: text('updated_at').notNull(), // ISO 8601
+  },
+  (table) => [index('idx_streaks_user_id').on(table.userId)]
+);
+
+/**
+ * UserProfile: Extended user profile information
+ */
+export const userProfiles = pgTable(
+  'user_profiles',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+    fitnessGoal: text('fitness_goal'),
+    fitnessLevel: text('fitness_level'),
+    weightKg: decimal('weight_kg', { precision: 6, scale: 2 }),
+    heightCm: decimal('height_cm', { precision: 5, scale: 2 }),
+    age: integer('age'),
+    onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
+    updatedAt: text('updated_at').notNull(), // ISO 8601
+  },
+  (table) => [index('idx_user_profiles_user_id').on(table.userId)]
+);
+
+/**
  * Relations
  */
 export const fitnessProfilesRelations = relations(fitnessProfiles, ({ one }) => ({
@@ -465,6 +540,34 @@ export const mealPlanMealsRelations = relations(mealPlanMeals, ({ one }) => ({
 export const userTasksRelations = relations(userTasks, ({ one }) => ({
   user: one(user, {
     fields: [userTasks.userId],
+    references: [user.id],
+  }),
+}));
+
+export const workoutLogsRelations = relations(workoutLogs, ({ one }) => ({
+  user: one(user, {
+    fields: [workoutLogs.userId],
+    references: [user.id],
+  }),
+}));
+
+export const habitLogsRelations = relations(habitLogs, ({ one }) => ({
+  user: one(user, {
+    fields: [habitLogs.userId],
+    references: [user.id],
+  }),
+}));
+
+export const streaksRelations = relations(streaks, ({ one }) => ({
+  user: one(user, {
+    fields: [streaks.userId],
+    references: [user.id],
+  }),
+}));
+
+export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+  user: one(user, {
+    fields: [userProfiles.userId],
     references: [user.id],
   }),
 }));

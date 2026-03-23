@@ -5,6 +5,7 @@ import { sendWelcomeEmail, sendLoginNotificationEmail, sendPasswordResetEmail } 
 
 // Import route registration functions
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerTrackingRoutes } from './routes/tracking.js';
 import { registerUserRoutes } from './routes/user.js';
 import { registerProgressPhotoRoutes } from './routes/progress-photos.js';
 import { registerMeasurementRoutes } from './routes/measurements.js';
@@ -47,8 +48,24 @@ function validatePassword(password: string): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
-// Enable authentication with Better Auth, email verification, and transactional emails
+// Build social providers based on available environment variables
+const socialProviders: any = {};
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  socialProviders.google = {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  };
+}
+if (process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET) {
+  socialProviders.apple = {
+    clientId: process.env.APPLE_CLIENT_ID,
+    clientSecret: process.env.APPLE_CLIENT_SECRET,
+  };
+}
+
+// Enable authentication with Better Auth, email verification, OAuth, and transactional emails
 app.withAuth({
+  ...(Object.keys(socialProviders).length > 0 && { socialProviders }),
   emailVerification: {
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
@@ -107,6 +124,7 @@ app.withStorage();
 // Register all route modules
 registerAuthRoutes(app);
 registerUserRoutes(app);
+registerTrackingRoutes(app);
 registerProgressPhotoRoutes(app);
 registerMeasurementRoutes(app);
 registerAchievementRoutes(app);
