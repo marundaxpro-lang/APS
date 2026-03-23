@@ -20,6 +20,7 @@ import {
   Zap,
   BarChart2,
   User,
+  Star,
   LucideIcon,
 } from 'lucide-react-native';
 
@@ -47,6 +48,7 @@ const ROUTE_ICONS: Record<string, LucideIcon> = {
   nutrition: Utensils,
   momentum: Zap,
   progress: BarChart2,
+  shop: Star,
   profile: User,
 };
 

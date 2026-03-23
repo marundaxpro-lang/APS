@@ -21,9 +21,9 @@ export default function TabLayout() {
         <Icon sf="bolt.fill" drawable="bolt" />
         <Label>Momentum</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="progress" name="progress">
-        <Icon sf="chart.line.uptrend.xyaxis" drawable="show_chart" />
-        <Label>Progress</Label>
+      <NativeTabs.Trigger key="shop" name="shop">
+        <Icon sf="star.fill" drawable="star" />
+        <Label>Shop</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.circle.fill" drawable="person" />

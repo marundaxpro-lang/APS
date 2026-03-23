@@ -483,7 +483,7 @@ export default function ProfileScreen() {
           <Text style={styles.subtitle}>Manage your fitness profile</Text>
         </View>
 
-        {isGuest && (
+        {(isGuest || !user) && (
           <View style={styles.guestBanner}>
             <IconSymbol
               ios_icon_name="person.crop.circle.badge.exclamationmark"
@@ -493,13 +493,13 @@ export default function ProfileScreen() {
             />
             <Text style={styles.guestBannerTitle}>You&apos;re using Guest Mode</Text>
             <Text style={styles.guestBannerText}>
-              Create an account to sync your progress across devices and never lose your data.
+              Sign in to sync your progress across devices and never lose your data.
             </Text>
             <TouchableOpacity
               style={styles.guestBannerButton}
               onPress={handleCreateAccount}
             >
-              <Text style={styles.guestBannerButtonText}>Create Account</Text>
+              <Text style={styles.guestBannerButtonText}>Sign In</Text>
             </TouchableOpacity>
           </View>
         )}

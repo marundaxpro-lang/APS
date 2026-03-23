@@ -175,8 +175,7 @@ export default function AuthScreen() {
 
   const handleContinueAsGuest = () => {
     console.log('[AuthScreen] User tapped Continue as guest');
-    // Guest users skip auth entirely — go straight to onboarding
-    router.replace('/onboarding');
+    router.replace('/(tabs)');
   };
 
   const handleCreateAccount = () => {

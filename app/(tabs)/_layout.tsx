@@ -38,10 +38,10 @@ export default function TabLayout() {
             label: 'Momentum',
           },
           {
-            name: 'progress',
-            route: '/(tabs)/progress',
-            icon: 'show_chart',
-            label: 'Progress',
+            name: 'shop',
+            route: '/(tabs)/shop',
+            icon: 'star',
+            label: 'Shop',
           },
           {
             name: 'profile',
