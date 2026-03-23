@@ -2,6 +2,7 @@
 import { authenticatedGet } from '@/utils/api';
 import { IconSymbol } from '@/components/IconSymbol';
 import CustomModal from '@/components/ui/Modal';
+import { setGuestMode } from '@/utils/onboardingStorage';
 import {
   View,
   Text,
@@ -427,6 +428,7 @@ export default function ProfileScreen() {
     try {
       if (isGuest) {
         await AsyncStorage.removeItem('isGuestUser');
+        await setGuestMode(false);
         console.log('ProfileScreen: Guest logged out, redirecting to auth');
         router.replace('/auth');
       } else {

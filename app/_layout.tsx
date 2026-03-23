@@ -19,8 +19,7 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
 import Modal from "@/components/ui/Modal";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { isOnboardingComplete } from "@/utils/onboardingStorage";
+import { isOnboardingComplete, isGuestMode } from "@/utils/onboardingStorage";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,31 +39,45 @@ function SubscriptionRedirect() {
     if (loading || authLoading) return;
     const onAuthScreen = pathname === "/auth";
     if (onAuthScreen) return;
-    if (!user) {
-      router.replace("/auth");
-      return;
-    }
-    const onOnboarding = pathname.startsWith("/onboarding");
-    if (onOnboarding) return;
 
     let cancelled = false;
-    isOnboardingComplete().then((done) => {
+    isGuestMode().then((guest) => {
       if (cancelled) return;
-      if (!done) {
-        router.replace("/onboarding");
+      // Guest users are allowed through — no auth or subscription required
+      if (guest) return;
+
+      if (!user) {
+        console.log('[SubscriptionRedirect] No user and not guest, redirecting to /auth');
+        router.replace("/auth");
         return;
       }
-      const onPaywall = pathname === "/paywall";
-      if (onPaywall) return;
-      if (!isSubscribed) {
-        router.replace("/paywall");
-      }
+
+      const onOnboarding = pathname.startsWith("/onboarding");
+      if (onOnboarding) return;
+
+      isOnboardingComplete().then((done) => {
+        if (cancelled) return;
+        if (!done) {
+          router.replace("/onboarding");
+          return;
+        }
+        const onPaywall = pathname === "/paywall";
+        if (onPaywall) return;
+        if (!isSubscribed) {
+          router.replace("/paywall");
+        }
+      }).catch(() => {
+        if (cancelled) return;
+        const onPaywall = pathname === "/paywall";
+        if (onPaywall) return;
+        if (!isSubscribed) {
+          router.replace("/paywall");
+        }
+      });
     }).catch(() => {
       if (cancelled) return;
-      const onPaywall = pathname === "/paywall";
-      if (onPaywall) return;
-      if (!isSubscribed) {
-        router.replace("/paywall");
+      if (!user) {
+        router.replace("/auth");
       }
     });
     return () => { cancelled = true; };

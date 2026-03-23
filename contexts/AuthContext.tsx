@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 import { authClient, setBearerToken, clearAuthTokens } from "@/lib/auth";
+import { isOnboardingComplete } from "@/utils/onboardingStorage";
 
 interface User {
   id: string;
@@ -13,6 +14,10 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  authLoading: boolean;
+  isPremium: boolean;
+  onboardingCompleted: boolean | null;
+  setOnboardingCompleted: (value: boolean) => void;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -70,6 +75,7 @@ function openOAuthPopup(provider: string): Promise<string> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchUser();
@@ -98,13 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session.data.session?.token) {
           await setBearerToken(session.data.session.token);
         }
+        // Load onboarding status from storage when user is known
+        const done = await isOnboardingComplete();
+        setOnboardingCompleted(done);
       } else {
         setUser(null);
         await clearAuthTokens();
+        setOnboardingCompleted(null);
       }
     } catch (error) {
       console.error("Failed to fetch user:", error);
       setUser(null);
+      setOnboardingCompleted(null);
     } finally {
       setLoading(false);
     }
@@ -182,6 +193,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        authLoading: loading,
+        isPremium: false,
+        onboardingCompleted,
+        setOnboardingCompleted: (value: boolean) => setOnboardingCompleted(value),
         signInWithEmail,
         signUpWithEmail,
         signInWithApple,

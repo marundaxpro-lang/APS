@@ -18,6 +18,7 @@ import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import ParticleBackground from "@/components/ParticleBackground";
 import { apiPost } from "@/utils/api";
+import { setGuestMode } from "@/utils/onboardingStorage";
 
 const TEAL = "#00D4AA";
 
@@ -173,8 +174,9 @@ export default function AuthScreen() {
     }
   };
 
-  const handleContinueAsGuest = () => {
+  const handleContinueAsGuest = async () => {
     console.log('[AuthScreen] User tapped Continue as guest');
+    await setGuestMode(true);
     router.replace('/(tabs)');
   };
 
