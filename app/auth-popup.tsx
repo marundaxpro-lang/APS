@@ -2,7 +2,9 @@ import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { authClient } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+
+const VALID_PROVIDERS = ["apple", "google"];
 
 export default function AuthPopupScreen() {
   const { provider } = useLocalSearchParams<{ provider: string }>();
@@ -10,14 +12,17 @@ export default function AuthPopupScreen() {
   useEffect(() => {
     if (Platform.OS !== "web") return;
 
-    if (!provider || !"[\"apple\", \"google\"]".includes(provider)) {
+    if (!provider || !VALID_PROVIDERS.includes(provider)) {
       window.opener?.postMessage({ type: "oauth-error", error: "Invalid provider" }, "*");
       return;
     }
 
-    authClient.signIn.social({
-      provider: provider as any,
-      callbackURL: `${window.location.origin}/auth-callback`,
+    console.log("[AuthPopup] Starting OAuth for provider:", provider);
+    supabase.auth.signInWithOAuth({
+      provider: provider as "apple" | "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth-callback`,
+      },
     });
   }, [provider]);
 

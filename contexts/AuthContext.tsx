@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Platform } from "react-native";
-import * as Linking from "expo-linking";
-import { authClient, setBearerToken, clearAuthTokens } from "@/lib/auth";
-import { isOnboardingComplete } from "@/utils/onboardingStorage";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { isOnboardingComplete } from '@/utils/onboardingStorage';
 
 interface User {
   id: string;
@@ -13,11 +12,14 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   authLoading: boolean;
   isPremium: boolean;
   onboardingCompleted: boolean | null;
   setOnboardingCompleted: (value: boolean) => void;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -28,92 +30,71 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function openOAuthPopup(provider: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const popupUrl = `${window.location.origin}/auth-popup?provider=${provider}`;
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      popupUrl,
-      "oauth-popup",
-      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-    );
-
-    if (!popup) {
-      reject(new Error("Failed to open popup. Please allow popups."));
-      return;
-    }
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type === "oauth-success" && event.data?.token) {
-        window.removeEventListener("message", handleMessage);
-        clearInterval(checkClosed);
-        resolve(event.data.token);
-      } else if (event.data?.type === "oauth-error") {
-        window.removeEventListener("message", handleMessage);
-        clearInterval(checkClosed);
-        reject(new Error(event.data.error || "OAuth failed"));
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener("message", handleMessage);
-        reject(new Error("Authentication cancelled"));
-      }
-    }, 500);
-  });
+function mapSupabaseUser(supabaseUser: SupabaseUser): User {
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email ?? '',
+    name: supabaseUser.user_metadata?.full_name ?? supabaseUser.user_metadata?.name,
+    image: supabaseUser.user_metadata?.avatar_url,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetchUser();
-
-    const subscription = Linking.addEventListener("url", (event) => {
-      console.log("Deep link received, refreshing user session");
-      fetchUser();
+    // Load initial session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      console.log('[AuthContext] Initial session loaded:', s ? 'authenticated' : 'no session');
+      setSession(s);
+      if (s?.user) {
+        setUser(mapSupabaseUser(s.user));
+        isOnboardingComplete().then(setOnboardingCompleted);
+      } else {
+        setUser(null);
+        setOnboardingCompleted(null);
+      }
+      setLoading(false);
     });
 
-    const intervalId = setInterval(() => {
-      fetchUser();
-    }, 5 * 60 * 1000);
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      console.log('[AuthContext] Auth state changed:', _event);
+      setSession(s);
+      if (s?.user) {
+        setUser(mapSupabaseUser(s.user));
+        isOnboardingComplete().then(setOnboardingCompleted);
+      } else {
+        setUser(null);
+        setOnboardingCompleted(null);
+      }
+      setLoading(false);
+    });
 
     return () => {
-      subscription.remove();
-      clearInterval(intervalId);
+      subscription.unsubscribe();
     };
   }, []);
 
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const session = await authClient.getSession();
-      if (session?.data?.user) {
-        setUser(session.data.user as User);
-        if (session.data.session?.token) {
-          await setBearerToken(session.data.session.token);
-        }
-        // Load onboarding status from storage when user is known
+      const { data: { session: s } } = await supabase.auth.getSession();
+      console.log('[AuthContext] fetchUser:', s ? 'session found' : 'no session');
+      setSession(s);
+      if (s?.user) {
+        setUser(mapSupabaseUser(s.user));
         const done = await isOnboardingComplete();
         setOnboardingCompleted(done);
       } else {
         setUser(null);
-        await clearAuthTokens();
         setOnboardingCompleted(null);
       }
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      console.error('[AuthContext] Failed to fetch user:', error);
       setUser(null);
       setOnboardingCompleted(null);
     } finally {
@@ -121,70 +102,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signIn = async (email: string, password: string) => {
+    console.log('[AuthContext] signInWithPassword:', email);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('[AuthContext] signIn error:', error.message);
+      throw new Error(error.message);
+    }
+    console.log('[AuthContext] signIn successful');
+  };
+
+  const signUp = async (email: string, password: string) => {
+    console.log('[AuthContext] signUp:', email);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      console.error('[AuthContext] signUp error:', error.message);
+      throw new Error(error.message);
+    }
+    console.log('[AuthContext] signUp successful');
+  };
+
   const signInWithEmail = async (email: string, password: string) => {
-    await authClient.signIn.email({ email, password });
-    await fetchUser();
+    await signIn(email, password);
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    await authClient.signUp.email({ email, password, name });
-    await fetchUser();
+    console.log('[AuthContext] signUpWithEmail:', email, 'name:', name);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error) {
+      console.error('[AuthContext] signUpWithEmail error:', error.message);
+      throw new Error(error.message);
+    }
+    console.log('[AuthContext] signUpWithEmail successful');
   };
 
-  const signInWithSocial = async (provider: string) => {
-    if (Platform.OS === "web") {
-      const token = await openOAuthPopup(provider);
-      await setBearerToken(token);
-      await fetchUser();
-    } else {
-      const { error } = await authClient.signIn.social({
-        provider,
-        callbackURL: "aps://auth-callback",
-      });
-      if (error) {
-        throw new Error(error.message || "Social sign in failed");
-      }
-      await fetchUser();
+  const signInWithGoogle = async () => {
+    console.log('[AuthContext] signInWithGoogle');
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) {
+      console.error('[AuthContext] Google OAuth error:', error.message);
+      throw new Error(error.message);
     }
   };
 
-  const signInWithGoogle = () => signInWithSocial("google");
-
   const signInWithApple = async () => {
-    if (Platform.OS === "ios") {
-      // Native Apple Sign In on iOS — shows the system Face ID / password modal
-      const AppleAuthentication = require("expo-apple-authentication");
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      if (!credential.identityToken) {
-        throw new Error("No identity token received from Apple");
-      }
-      const { error } = await authClient.signIn.social({
-        provider: "apple",
-        idToken: credential.identityToken,
-      });
-      if (error) {
-        throw new Error(error.message || "Apple sign in failed");
-      }
-      await fetchUser();
-    } else {
-      // Web / Android: OAuth redirect flow
-      await signInWithSocial("apple");
+    console.log('[AuthContext] signInWithApple');
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
+    if (error) {
+      console.error('[AuthContext] Apple OAuth error:', error.message);
+      throw new Error(error.message);
     }
   };
 
   const signOut = async () => {
+    console.log('[AuthContext] signOut');
     try {
-      await authClient.signOut();
-    } catch (error) {
-      console.error("Sign out failed (API):", error);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[AuthContext] signOut error:', error.message);
+      }
     } finally {
       setUser(null);
-      await clearAuthTokens();
+      setSession(null);
     }
   };
 
@@ -192,11 +175,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        session,
         loading,
         authLoading: loading,
         isPremium: false,
         onboardingCompleted,
         setOnboardingCompleted: (value: boolean) => setOnboardingCompleted(value),
+        signIn,
+        signUp,
         signInWithEmail,
         signUpWithEmail,
         signInWithApple,
@@ -213,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 }
