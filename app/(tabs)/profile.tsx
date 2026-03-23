@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
@@ -327,6 +328,7 @@ const styles = StyleSheet.create({
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, authLoading, isPremium } = useAuth();
+  const { isSubscribed } = useSubscription();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -528,7 +530,7 @@ export default function ProfileScreen() {
 
         {/* Premium / Subscription Status */}
         {!isGuest && user && (
-          isPremium ? (
+          isSubscribed ? (
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardHeader}>
                 <IconSymbol
@@ -537,26 +539,19 @@ export default function ProfileScreen() {
                   size={28}
                   color="#FFD700"
                 />
-                <Text style={styles.premiumCardTitle}>
-                  {subscriptionStatus?.planType === 'elite' ? 'Elite Plan' : 'Pro Plan'} Active
-                </Text>
+                <Text style={styles.premiumCardTitle}>Pro Plan Active</Text>
                 <View style={styles.premiumCardBadge}>
-                  <Text style={styles.premiumCardBadgeText}>✨ PREMIUM</Text>
+                  <Text style={styles.premiumCardBadgeText}>✨ PRO</Text>
                 </View>
               </View>
               <Text style={styles.premiumCardSubtitle}>
-                You have access to all premium features including AI coaching, advanced analytics, and unlimited meal plans.
+                You have access to all premium features including AI coaching, advanced analytics, and unlimited programs.
               </Text>
-              {subscriptionStatus?.currentPeriodEnd && (
-                <Text style={styles.premiumCardPeriod}>
-                  Renews on {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString('en-NL', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </Text>
-              )}
               <TouchableOpacity
                 style={styles.premiumUpgradeButton}
                 onPress={() => {
                   console.log('ProfileScreen: User tapped Manage Subscription');
-                  router.push('/(tabs)/shop');
+                  router.push('/paywall');
                 }}
               >
                 <Text style={styles.premiumUpgradeButtonText}>Manage Subscription</Text>
@@ -577,16 +572,16 @@ export default function ProfileScreen() {
                 </View>
               </View>
               <Text style={styles.freePlanSubtitle}>
-                Upgrade to Pro (€9.99/mo) or Elite (€29.99/mo) to unlock AI coaching, advanced analytics, unlimited meal plans, and more. Supports iDEAL, Apple Pay, PayPal & more.
+                Unlock AI coaching, unlimited programs, advanced analytics, and travel &amp; student modes with APS Pro.
               </Text>
               <TouchableOpacity
                 style={styles.upgradeButton}
                 onPress={() => {
-                  console.log('ProfileScreen: User tapped Upgrade to Premium');
-                  router.push('/(tabs)/shop');
+                  console.log('ProfileScreen: User tapped Go Pro button');
+                  router.push('/paywall');
                 }}
               >
-                <Text style={styles.upgradeButtonText}>⭐ Upgrade to Premium</Text>
+                <Text style={styles.upgradeButtonText}>⚡ Go Pro</Text>
               </TouchableOpacity>
             </View>
           )

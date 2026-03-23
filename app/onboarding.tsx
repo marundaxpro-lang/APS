@@ -138,7 +138,7 @@ export default function OnboardingScreen() {
     const init = async () => {
       const existingProfile = await AsyncStorage.getItem('fitnessProfile');
       if (existingProfile) {
-        router.replace('/(tabs)/(home)');
+        router.replace("/paywall");
         return;
       }
       // If user provided a name during sign-up, skip the name step

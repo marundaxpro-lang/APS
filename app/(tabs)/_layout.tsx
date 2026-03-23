@@ -3,8 +3,11 @@ import React from 'react';
 import { Slot } from 'expo-router';
 import FloatingTabBar from '@/components/FloatingTabBar';
 import { View } from 'react-native';
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 export default function TabLayout() {
+  useSubscriptionGuard();
+
   return (
     <View style={{ flex: 1 }}>
       <Slot />
