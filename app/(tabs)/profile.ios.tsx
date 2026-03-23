@@ -342,17 +342,20 @@ export default function ProfileScreen() {
       setLoading(true);
 
       const guestStatus = await AsyncStorage.getItem('isGuestUser');
-      setIsGuest(guestStatus === 'true');
-      console.log('ProfileScreen: Guest status:', guestStatus);
+      const guestModeStatus = await AsyncStorage.getItem('guest_mode');
+      const isGuestUser = guestStatus === 'true' || guestModeStatus === 'true';
+      setIsGuest(isGuestUser);
+      console.log('ProfileScreen: Guest status:', { isGuestUser, guestStatus, guestModeStatus });
 
+      let parsedProfile: any = null;
       const localProfile = await AsyncStorage.getItem('fitnessProfile');
       if (localProfile) {
-        const parsedProfile = JSON.parse(localProfile);
+        parsedProfile = JSON.parse(localProfile);
         console.log('ProfileScreen: Loaded profile from AsyncStorage:', parsedProfile);
         setProfile(parsedProfile);
       }
 
-      if (user) {
+      if (user && !isGuestUser) {
         console.log('ProfileScreen: Fetching profile from backend for user:', user.id);
         try {
           const backendProfile = await authenticatedGet<any>('/api/fitness-profile');
@@ -369,8 +372,8 @@ export default function ProfileScreen() {
           setProfile(mergedProfile);
           await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mergedProfile));
         } catch (error) {
-          console.error('ProfileScreen: Error fetching profile from backend:', error);
-          // Continue with local profile if backend fails
+          // Silently fall back to local profile — backend errors are non-fatal here
+          console.log('ProfileScreen: Backend profile unavailable, using local data');
         }
 
         // Fetch subscription status
@@ -381,9 +384,11 @@ export default function ProfileScreen() {
         } catch (error) {
           console.log('ProfileScreen: Could not fetch subscription status');
         }
+      } else {
+        console.log('ProfileScreen: Guest user — skipping backend fetch, using local data only');
       }
     } catch (error) {
-      console.error('ProfileScreen: Error loading profile:', error);
+      console.log('ProfileScreen: Error loading profile (non-fatal):', error);
     } finally {
       setLoading(false);
     }

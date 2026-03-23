@@ -141,15 +141,25 @@ export default function OnboardingScreen() {
         router.replace("/paywall");
         return;
       }
-      // If user provided a name during sign-up, skip the name step
-      const signupName = await AsyncStorage.getItem('signupName');
-      if (signupName) {
-        console.log('[Onboarding] Name provided during sign-up, skipping name step:', signupName);
-        setProfile((prev) => ({ ...prev, name: signupName }));
+
+      // Resolve a pre-existing name from any source: signupName, userName, or guestName
+      const [signupName, storedUserName, guestName] = await Promise.all([
+        AsyncStorage.getItem('signupName'),
+        AsyncStorage.getItem('userName'),
+        AsyncStorage.getItem('guestName'),
+      ]);
+
+      const resolvedName = signupName || storedUserName || guestName || null;
+
+      if (resolvedName) {
+        console.log('[Onboarding] Name already exists, skipping name step:', resolvedName);
+        setProfile((prev) => ({ ...prev, name: resolvedName }));
         setNameSkipped(true);
         setStep(2);
-        // Clear so it doesn't persist across sessions
-        await AsyncStorage.removeItem('signupName');
+        if (signupName) {
+          // Clear signupName so it doesn't persist across sessions
+          await AsyncStorage.removeItem('signupName');
+        }
       }
     };
     init();
