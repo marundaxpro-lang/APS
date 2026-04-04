@@ -2,11 +2,15 @@ import * as React from "react";
 import { createContext, useCallback, useContext } from "react";
 import { Platform } from "react-native";
 
-// @bacons/apple-targets is native-only — guard for web
+// @bacons/apple-targets is native-only — guard for web and Expo Go (where it may not be linked)
 let ExtensionStorage: { new(group: string): { set: (key: string, value: unknown) => void }; reloadWidget: () => void } | null = null;
 if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  ExtensionStorage = require('@bacons/apple-targets').ExtensionStorage;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    ExtensionStorage = require('@bacons/apple-targets').ExtensionStorage;
+  } catch {
+    // Package not available in this build (e.g. Expo Go) — widget sync disabled
+  }
 }
 
 type WidgetContextType = {

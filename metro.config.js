@@ -15,6 +15,7 @@ const WEB_STUBS = {
   'expo-video': path.resolve(__dirname, 'modules/expo-video.web.ts'),
   'expo-haptics': path.resolve(__dirname, 'modules/expo-haptics.web.ts'),
   'expo-calendar': path.resolve(__dirname, 'modules/expo-calendar.web.ts'),
+  'expo-network': path.resolve(__dirname, 'modules/expo-network.web.ts'),
   'react-native-edge-to-edge': path.resolve(__dirname, 'modules/react-native-edge-to-edge.web.ts'),
   'react-native-purchases': path.resolve(__dirname, 'modules/react-native-purchases.web.ts'),
 };
