@@ -111,6 +111,13 @@ export default function PlanScreen() {
 
   const syncToAppleCalendar = async () => {
     console.log('[Plan] User tapped Sync to Apple Calendar');
+
+    if (Platform.OS === 'web') {
+      setErrorMessage('Calendar sync is not available in the web preview. Please use the mobile app.');
+      setShowErrorModal(true);
+      return;
+    }
+
     setSyncing(true);
     
     try {

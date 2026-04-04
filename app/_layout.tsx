@@ -4,10 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { GestureHandlerRootView, Platform } from "react-native";
 import { useColorScheme } from "react-native";
-import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
   DefaultTheme,
@@ -20,6 +18,16 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Modal from "@/components/ui/Modal";
 import { isGuestMode } from "@/utils/onboardingStorage";
+
+// Native-only imports — guarded for web
+let SystemBars: React.ComponentType<{ style?: string }> = () => null;
+let useNetworkState: () => { isConnected?: boolean | null; isInternetReachable?: boolean | null } = () => ({});
+if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  SystemBars = require('react-native-edge-to-edge').SystemBars;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  useNetworkState = require('expo-network').useNetworkState;
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

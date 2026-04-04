@@ -29,7 +29,22 @@ import Purchases, {
   LOG_LEVEL,
 } from "react-native-purchases";
 import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
+
+// expo-secure-store is not available on web — use a localStorage shim instead
+const SecureStore = Platform.OS === 'web'
+  ? {
+      getItemAsync: async (key: string): Promise<string | null> => {
+        try { return typeof window !== 'undefined' ? localStorage.getItem(key) : null; } catch { return null; }
+      },
+      setItemAsync: async (key: string, value: string): Promise<void> => {
+        try { if (typeof window !== 'undefined') localStorage.setItem(key, value); } catch {}
+      },
+      deleteItemAsync: async (key: string): Promise<void> => {
+        try { if (typeof window !== 'undefined') localStorage.removeItem(key); } catch {}
+      },
+    }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  : require('expo-secure-store');
 
 // Import auth hook for user syncing (validated at setup time)
 import { useAuth } from "./AuthContext";

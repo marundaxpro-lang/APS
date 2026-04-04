@@ -7,6 +7,29 @@ const config = getDefaultConfig(__dirname);
 
 config.resolver.unstable_enablePackageExports = true;
 
+// Web stubs for native-only packages.
+// When bundling for web, Metro will resolve these module names to the stub files
+// in the /modules directory instead of the real native packages.
+const WEB_STUBS = {
+  'expo-glass-effect': path.resolve(__dirname, 'modules/expo-glass-effect.web.ts'),
+  'expo-video': path.resolve(__dirname, 'modules/expo-video.web.ts'),
+  'expo-haptics': path.resolve(__dirname, 'modules/expo-haptics.web.ts'),
+  'expo-calendar': path.resolve(__dirname, 'modules/expo-calendar.web.ts'),
+  'react-native-edge-to-edge': path.resolve(__dirname, 'modules/react-native-edge-to-edge.web.ts'),
+  'react-native-purchases': path.resolve(__dirname, 'modules/react-native-purchases.web.ts'),
+};
+
+const originalResolver = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && WEB_STUBS[moduleName]) {
+    return { filePath: WEB_STUBS[moduleName], type: 'sourceFile' };
+  }
+  if (originalResolver) {
+    return originalResolver(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 // Use turborepo to restore the cache when possible
 config.cacheStores = [
     new FileStore({ root: path.join(__dirname, 'node_modules', '.cache', 'metro') }),
