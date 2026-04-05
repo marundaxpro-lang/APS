@@ -18,6 +18,8 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES } from '@/lib/i18n';
 
 interface SubscriptionStatus {
   planType: string;
@@ -146,6 +148,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '600',
+  },
+  secondaryButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  secondaryButtonValue: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -328,6 +341,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, authLoading, isPremium } = useAuth();
   const { isSubscribed } = useSubscription();
+  const { i18n } = useTranslation();
+  const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === i18n.language);
+  const currentLangLabel = currentLang?.nativeLabel ?? 'English';
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -629,6 +645,19 @@ export default function ProfileScreen() {
             }}
           >
             <Text style={styles.buttonText}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => {
+              console.log('ProfileScreen: User tapped Language button');
+              router.push('/language-select?from=settings');
+            }}
+          >
+            <View style={styles.secondaryButtonInner}>
+              <Text style={styles.secondaryButtonText}>Language</Text>
+              <Text style={styles.secondaryButtonValue}>{currentLangLabel}</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity

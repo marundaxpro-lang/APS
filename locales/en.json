@@ -1,0 +1,38 @@
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "skip": "Skip",
+    "save": "Save",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "done": "Done",
+    "loading": "Loading...",
+    "error": "Error",
+    "warning": "Warning"
+  },
+  "language": {
+    "selectTitle": "Choose your language.",
+    "selectSubtitle": "You can change this at any time in Settings.",
+    "changeTitle": "Language",
+    "changeSubtitle": "Select your preferred language.",
+    "continueButton": "Continue"
+  },
+  "onboarding": {
+    "buildPlan": "Build My Programme",
+    "successTitle": "You're set.",
+    "successMessage": "Your programme is ready. Start when you are."
+  },
+  "tabs": {
+    "home": "Home",
+    "train": "Train",
+    "nutrition": "Nutrition",
+    "momentum": "Momentum",
+    "shop": "Shop",
+    "profile": "Profile"
+  },
+  "profile": {
+    "language": "Language",
+    "languageDescription": "App display language"
+  }
+}

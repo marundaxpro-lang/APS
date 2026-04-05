@@ -1,0 +1,38 @@
+{
+  "common": {
+    "continue": "Weiter",
+    "back": "Zurück",
+    "skip": "Überspringen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "ok": "OK",
+    "done": "Fertig",
+    "loading": "Laden...",
+    "error": "Fehler",
+    "warning": "Warnung"
+  },
+  "language": {
+    "selectTitle": "Wähle deine Sprache.",
+    "selectSubtitle": "Du kannst dies jederzeit in den Einstellungen ändern.",
+    "changeTitle": "Sprache",
+    "changeSubtitle": "Wähle deine bevorzugte Sprache.",
+    "continueButton": "Weiter"
+  },
+  "onboarding": {
+    "buildPlan": "Mein Programm erstellen",
+    "successTitle": "Bereit.",
+    "successMessage": "Dein Programm ist fertig. Starte, wann du möchtest."
+  },
+  "tabs": {
+    "home": "Start",
+    "train": "Training",
+    "nutrition": "Ernährung",
+    "momentum": "Momentum",
+    "shop": "Shop",
+    "profile": "Profil"
+  },
+  "profile": {
+    "language": "Sprache",
+    "languageDescription": "Anzeigesprache der App"
+  }
+}

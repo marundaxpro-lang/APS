@@ -36,7 +36,8 @@
       "expo-router",
       "expo-web-browser",
       "expo-secure-store",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-localization"
     ],
     "scheme": "aps",
     "experiments": {

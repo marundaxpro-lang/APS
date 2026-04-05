@@ -1,0 +1,38 @@
+{
+  "common": {
+    "continue": "Continuer",
+    "back": "Retour",
+    "skip": "Passer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "ok": "OK",
+    "done": "Terminé",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "warning": "Avertissement"
+  },
+  "language": {
+    "selectTitle": "Choisissez votre langue.",
+    "selectSubtitle": "Vous pouvez modifier cela à tout moment dans les Paramètres.",
+    "changeTitle": "Langue",
+    "changeSubtitle": "Sélectionnez votre langue préférée.",
+    "continueButton": "Continuer"
+  },
+  "onboarding": {
+    "buildPlan": "Créer mon programme",
+    "successTitle": "C'est parti.",
+    "successMessage": "Votre programme est prêt. Commencez quand vous voulez."
+  },
+  "tabs": {
+    "home": "Accueil",
+    "train": "S'entraîner",
+    "nutrition": "Nutrition",
+    "momentum": "Élan",
+    "shop": "Boutique",
+    "profile": "Profil"
+  },
+  "profile": {
+    "language": "Langue",
+    "languageDescription": "Langue d'affichage de l'application"
+  }
+}

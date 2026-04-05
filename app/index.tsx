@@ -4,6 +4,9 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/commonStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LANGUAGE_SELECTED_KEY = 'language_selection_done';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -37,9 +40,18 @@ export default function IndexScreen() {
       setNavigated(true);
       router.replace('/(tabs)/(home)');
     } else {
-      console.log('[IndexScreen] Onboarding not complete → redirecting to /onboarding');
-      setNavigated(true);
-      router.replace('/onboarding');
+      (async () => {
+        const languageDone = await AsyncStorage.getItem(LANGUAGE_SELECTED_KEY);
+        if (!languageDone) {
+          console.log('[IndexScreen] Language not selected → redirecting to /language-select');
+          setNavigated(true);
+          router.replace('/language-select');
+        } else {
+          console.log('[IndexScreen] Onboarding not complete → redirecting to /onboarding');
+          setNavigated(true);
+          router.replace('/onboarding');
+        }
+      })();
     }
   }, [authLoading, user, onboardingCompleted, navigated, router]);
 

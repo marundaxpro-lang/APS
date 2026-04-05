@@ -14,10 +14,12 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { I18nextProvider } from "react-i18next";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Modal from "@/components/ui/Modal";
+import i18n, { initI18n } from "@/lib/i18n";
 
 // Native-only imports — guarded for web
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
@@ -67,10 +69,14 @@ export default function RootLayout() {
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [i18nReady, setI18nReady] = useState(false);
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      initI18n().then(() => {
+        setI18nReady(true);
+        SplashScreen.hideAsync();
+      });
     }
   }, [loaded]);
 
@@ -83,7 +89,7 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  if (!loaded) {
+  if (!loaded || !i18nReady) {
     return null;
   }
 
@@ -113,7 +119,7 @@ export default function RootLayout() {
   };
   
   return (
-    <>
+    <I18nextProvider i18n={i18n}>
       <StatusBar style="auto" animated />
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
@@ -126,6 +132,7 @@ export default function RootLayout() {
               <Stack>
                 {/* Auth and onboarding screens */}
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
+                <Stack.Screen name="language-select" options={{ headerShown: false }} />
                 <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                 
                 {/* Main app with tabs */}
@@ -187,6 +194,6 @@ export default function RootLayout() {
         message="You can keep using the app! Your changes will be saved locally and synced when you are back online."
         confirmText="OK"
       />
-    </>
+    </I18nextProvider>
   );
 }

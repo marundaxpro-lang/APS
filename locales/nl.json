@@ -1,0 +1,38 @@
+{
+  "common": {
+    "continue": "Doorgaan",
+    "back": "Terug",
+    "skip": "Overslaan",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "ok": "OK",
+    "done": "Klaar",
+    "loading": "Laden...",
+    "error": "Fout",
+    "warning": "Waarschuwing"
+  },
+  "language": {
+    "selectTitle": "Kies je taal.",
+    "selectSubtitle": "Je kunt dit altijd wijzigen in Instellingen.",
+    "changeTitle": "Taal",
+    "changeSubtitle": "Selecteer je voorkeurstaal.",
+    "continueButton": "Doorgaan"
+  },
+  "onboarding": {
+    "buildPlan": "Bouw mijn programma",
+    "successTitle": "Je bent klaar.",
+    "successMessage": "Je programma is gereed. Begin wanneer je wilt."
+  },
+  "tabs": {
+    "home": "Home",
+    "train": "Trainen",
+    "nutrition": "Voeding",
+    "momentum": "Momentum",
+    "shop": "Winkel",
+    "profile": "Profiel"
+  },
+  "profile": {
+    "language": "Taal",
+    "languageDescription": "Weergavetaal van de app"
+  }
+}
