@@ -20,7 +20,7 @@ export default function PrivacySecurityScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Privacy & Security',
+          title: 'Privacy',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
@@ -40,9 +40,9 @@ export default function PrivacySecurityScreen() {
             size={64}
             color={colors.primary}
           />
-          <Text style={styles.title}>Privacy & Security</Text>
+          <Text style={styles.title}>Privacy</Text>
           <Text style={styles.description}>
-            Your privacy and security are our top priorities. We use industry-standard encryption to protect your data.
+            Your data is encrypted and never sold. We take privacy seriously.
           </Text>
         </View>
 

@@ -31,23 +31,23 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const FEATURES = [
   {
     icon: "⭐",
-    title: "Premium Feature 1",
-    description: "Description of your first premium feature",
+    title: "Unlimited Programmes",
+    description: "Access every training programme and pack.",
   },
   {
     icon: "⚡",
-    title: "Premium Feature 2",
-    description: "Description of your second premium feature",
+    title: "AI Coach — Unlimited",
+    description: "Unrestricted access to your AI coach.",
   },
   {
     icon: "🛡️",
-    title: "Premium Feature 3",
-    description: "Description of your third premium feature",
+    title: "Advanced Analytics",
+    description: "Deep performance insights and progress tracking.",
   },
   {
     icon: "☁️",
-    title: "Premium Feature 4",
-    description: "Description of your fourth premium feature",
+    title: "Priority Support",
+    description: "Direct access to our support team.",
   },
 ];
 
@@ -95,12 +95,12 @@ export default function PaywallScreen() {
       setPurchasing(true);
       const success = await purchasePackage(selectedPackage);
       if (success) {
-        Alert.alert("Welcome!", "Thank you for your purchase.", [
+        Alert.alert("Access granted.", "Your Pro membership is now active.", [
           { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
         ]);
       }
     } catch (error: any) {
-      Alert.alert("Purchase Failed", error.message || "Please try again.");
+      Alert.alert("Purchase failed", error.message || "Please try again.");
     } finally {
       setPurchasing(false);
     }
@@ -112,17 +112,17 @@ export default function PaywallScreen() {
       setRestoring(true);
       const restored = await restorePurchases();
       if (restored) {
-        Alert.alert("Restored!", "Your subscription has been restored.", [
+        Alert.alert("Restored.", "Your subscription has been restored.", [
           { text: "OK", onPress: () => router.replace("/(tabs)/(home)") },
         ]);
       } else {
         Alert.alert(
-          "No Purchases Found",
-          "We couldn't find any previous purchases."
+          "No purchases found",
+          "No previous purchases were found for this account."
         );
       }
     } catch (error: any) {
-      Alert.alert("Restore Failed", error.message || "Please try again.");
+      Alert.alert("Restore failed", error.message || "Please try again.");
     } finally {
       setRestoring(false);
     }
@@ -151,10 +151,10 @@ export default function PaywallScreen() {
 
     // On web, we can't detect which device the user has, so show both options
     Alert.alert(
-      "Download the App",
-      "To subscribe, please download our app from your device's app store.",
+      "Download required",
+      "Subscriptions are available in the mobile app only.",
       [
-        { text: "App Store (iOS)", onPress: () => Linking.openURL(iosUrl) },
+        { text: "App Store", onPress: () => Linking.openURL(iosUrl) },
         { text: "Google Play", onPress: () => Linking.openURL(androidUrl) },
         { text: "Cancel", style: "cancel" },
       ]
@@ -191,18 +191,18 @@ export default function PaywallScreen() {
 
               {/* PRO MEMBER badge */}
               <View style={styles.proMemberBadge}>
-                <Text style={styles.proMemberText}>PRO MEMBER</Text>
+                <Text style={styles.proMemberText}>PRO</Text>
               </View>
 
               {/* Title */}
-              <Text style={styles.subscribedTitle}>You're All Set!</Text>
+              <Text style={styles.subscribedTitle}>You're in.</Text>
               <Text style={styles.subscribedSubtitle}>
-                Welcome to the premium experience
+                Full access is now active.
               </Text>
 
               {/* Features card */}
               <View style={styles.featuresCard}>
-                <Text style={styles.featuresCardTitle}>Unlocked Features</Text>
+                <Text style={styles.featuresCardTitle}>Active features</Text>
                 {FEATURES.slice(0, 3).map((feature, index) => (
                   <View key={index} style={styles.featureCheckRow}>
                     <View style={styles.checkCircle}>
@@ -216,7 +216,7 @@ export default function PaywallScreen() {
               {/* Start Exploring button */}
               <TouchableOpacity style={styles.exploreButton} onPress={handleClose}>
                 <View style={styles.exploreButtonInner}>
-                  <Text style={styles.exploreButtonText}>Start Exploring</Text>
+                  <Text style={styles.exploreButtonText}>Continue</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -283,17 +283,17 @@ export default function PaywallScreen() {
             <View style={styles.header}>
               {/* Premium badge */}
               <View style={styles.premiumBadge}>
-                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+                <Text style={styles.premiumBadgeText}>PRO</Text>
               </View>
-              <Text style={styles.title}>Upgrade to Premium</Text>
+              <Text style={styles.title}>Go Pro</Text>
               <Text style={styles.subtitle}>
-                Unlock all features and get the most out of the app
+                Unlock the full programme. No limits.
               </Text>
             </View>
 
             {/* Features List - Glass Card */}
             <View style={styles.featuresCard}>
-              <Text style={styles.featuresCardTitle}>What You'll Get</Text>
+              <Text style={styles.featuresCardTitle}>What's included</Text>
               {FEATURES.map((feature, index) => (
                 <View key={index} style={styles.featureRow}>
                   <View style={[styles.featureIcon, { backgroundColor: featureIconColors[index % featureIconColors.length] }]}>
@@ -354,11 +354,10 @@ export default function PaywallScreen() {
             {!isWeb && packages.length === 0 && !loading && (
               <View style={styles.noPackagesContainer}>
                 <Text style={styles.noPackagesText}>
-                  Purchases are not available in standard Expo Go.
+                  Purchases unavailable in Expo Go.
                 </Text>
                 <Text style={[styles.noPackagesText, { marginTop: 8, opacity: 0.7 }]}>
-                  To test purchases, use a development build or production build.
-                  {"\n"}This is expected — your onboarding and storage are working correctly.
+                  Use a development or production build to test purchases.
                 </Text>
                 {__DEV__ && (
                   <TouchableOpacity
@@ -395,7 +394,7 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? selectedPackage.product.priceString
-                          ? `Subscribe for ${selectedPackage.product.priceString}`
+                          ? `Subscribe · ${selectedPackage.product.priceString}`
                           : "Subscribe"
                         : "Select a plan"}
                     </Text>
@@ -410,12 +409,12 @@ export default function PaywallScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={styles.secondaryButtonText}>
-                      Restore Purchases
+                      Restore
                     </Text>
                   )}
                 </TouchableOpacity>
                 <Text style={styles.legalText}>
-                  Preview mode — purchases available in the mobile app
+                  Preview mode. Purchases available in the mobile app.
                 </Text>
               </>
             ) : (
@@ -435,7 +434,7 @@ export default function PaywallScreen() {
                     <Text style={styles.primaryButtonText}>
                       {selectedPackage
                         ? (selectedPackage.product.priceString
-                            ? `Subscribe for ${selectedPackage.product.priceString}`
+                            ? `Subscribe · ${selectedPackage.product.priceString}`
                             : "Subscribe")
                         : "Select a plan"}
                     </Text>
@@ -451,16 +450,15 @@ export default function PaywallScreen() {
                   {restoring ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.secondaryButtonText}>Restore Purchases</Text>
+                    <Text style={styles.secondaryButtonText}>Restore</Text>
                   )}
                 </TouchableOpacity>
 
                 {/* Legal Text - Required by App Store */}
                 <Text style={styles.legalText}>
-                  Payment will be charged to your{" "}
-                  {Platform.OS === "ios" ? "Apple ID" : "Google Play"} account.
-                  Subscription automatically renews unless canceled at least 24 hours
-                  before the end of the current period.
+                  {Platform.OS === "ios"
+                    ? "Billed to your Apple ID. Renews automatically unless cancelled at least 24 hours before the end of the current period."
+                    : "Billed to your Google Play account. Renews automatically unless cancelled at least 24 hours before the end of the current period."}
                 </Text>
               </>
             )}
@@ -489,7 +487,7 @@ Price: ${selectedPackage?.product.priceString || "N/A"}`}
                   onPress={() => setWebMockDialogState("failed")}
                 >
                   <Text style={[styles.webDialogButtonText, { color: "#FF3B30" }]}>
-                    Test Failed Purchase
+                    Simulate failure
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.webDialogDivider} />
@@ -502,7 +500,7 @@ Price: ${selectedPackage?.product.priceString || "N/A"}`}
                   }}
                 >
                   <Text style={[styles.webDialogButtonText, { color: "#007AFF" }]}>
-                    Test Valid Purchase
+                    Simulate success
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.webDialogDivider} />
@@ -518,9 +516,9 @@ Price: ${selectedPackage?.product.priceString || "N/A"}`}
             )}
             {webMockDialogState === "failed" && (
               <>
-                <Text style={styles.webDialogTitle}>Purchase Failed</Text>
+                <Text style={styles.webDialogTitle}>Purchase failed</Text>
                 <Text style={styles.webDialogBody}>
-                  Test purchase failure: no real transaction occurred
+                  Simulated failure. No transaction occurred.
                 </Text>
                 <View style={styles.webDialogDivider} />
                 <TouchableOpacity

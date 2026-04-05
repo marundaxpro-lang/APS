@@ -142,7 +142,7 @@ const COST_LABELS: Record<StudentNutritionTemplate['costLevel'], string> = {
 const SCENARIO_LABELS: Record<StudentNutritionTemplate['scenario'], string> = {
   budget_meal: 'Budget',
   study_snack: 'Snack',
-  exam_day: 'Exam Day',
+  exam_day: 'High-Stakes Day',
   late_night: 'Late Night',
   quick_prep: 'Quick Prep',
 };
@@ -263,12 +263,12 @@ export default function StudentModeScreen() {
   const daysUntilEnd = session ? getDaysUntilEnd(session) : null;
   const completedCount = priorities.filter(p => p.completed).length;
   const totalCount = priorities.length;
-  const daysUntilEndText = daysUntilEnd !== null ? `${daysUntilEnd} day${daysUntilEnd === 1 ? '' : 's'} left` : 'Open-ended';
+  const daysUntilEndText = daysUntilEnd !== null ? `${daysUntilEnd} days remaining` : 'Open-ended';
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Stack.Screen options={{ title: 'Student Mode', headerTransparent: true, headerTintColor: C.text, headerShadowVisible: false }} />
+        <Stack.Screen options={{ title: 'Focus Mode', headerTransparent: true, headerTintColor: C.text, headerShadowVisible: false }} />
         <View style={styles.loadingContainer}>
           <BookOpen size={32} color={C.student} />
         </View>
@@ -280,7 +280,7 @@ export default function StudentModeScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Student Mode',
+          title: 'Focus Mode',
           headerTransparent: true,
           headerTintColor: C.text,
           headerShadowVisible: false,
@@ -301,14 +301,14 @@ export default function StudentModeScreen() {
                 <BookOpen size={28} color="#fff" />
               </View>
               <View style={styles.heroText}>
-                <Text style={styles.heroTitle}>Student Mode</Text>
+                <Text style={styles.heroTitle}>Focus Mode</Text>
                 <Text style={styles.heroSubtitle}>
-                  {session ? session.examName : 'Short workouts, smart nutrition, study support'}
+                  {session ? session.examName : 'Structured training around high-demand periods.'}
                 </Text>
               </View>
             </View>
             <View style={[styles.statusBadge, session ? styles.statusBadgeActive : styles.statusBadgeInactive]}>
-              <Text style={styles.statusBadgeText}>{session ? 'Active' : 'Set up'}</Text>
+              <Text style={styles.statusBadgeText}>{session ? 'Active' : 'Set Up'}</Text>
             </View>
           </View>
         </AnimatedItem>
@@ -324,7 +324,7 @@ export default function StudentModeScreen() {
                 </View>
                 <AnimatedPressable onPress={handleEndSession} style={styles.endButton}>
                   <X size={14} color={C.danger} />
-                  <Text style={styles.endButtonText}>End session</Text>
+                  <Text style={styles.endButtonText}>End Session</Text>
                 </AnimatedPressable>
               </View>
               <View style={styles.sessionMeta}>
@@ -348,14 +348,14 @@ export default function StudentModeScreen() {
         {!session && (
           <AnimatedItem index={1}>
             <View style={styles.setupCard}>
-              <Text style={styles.setupTitle}>Start a session</Text>
-              <Text style={styles.setupSubtitle}>Set your exam context for personalised workouts, nutrition, and daily priorities.</Text>
+              <Text style={styles.setupTitle}>Start a focus period</Text>
+              <Text style={styles.setupSubtitle}>Define your context. We adapt your training, nutrition, and priorities accordingly.</Text>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Exam / period name</Text>
+                <Text style={styles.formLabel}>Period name</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Finals week, MCAT prep"
+                  placeholder="e.g. Finals, Board prep, Project deadline"
                   placeholderTextColor={C.textTertiary}
                   value={examName}
                   onChangeText={setExamName}
@@ -388,7 +388,7 @@ export default function StudentModeScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Study hours per day</Text>
+                <Text style={styles.formLabel}>Daily focus hours</Text>
                 <View style={styles.segmentedControl}>
                   {STUDY_HOURS_OPTIONS.map(opt => {
                     const isSelected = studyHours === opt.value;
@@ -429,7 +429,7 @@ export default function StudentModeScreen() {
               >
                 <BookOpen size={18} color="#fff" />
                 <Text style={styles.startButtonText}>
-                  {saving ? 'Starting...' : 'Start student mode'}
+                  {saving ? 'Activating...' : 'Activate'}
                 </Text>
               </AnimatedPressable>
             </View>
@@ -441,8 +441,8 @@ export default function StudentModeScreen() {
           <AnimatedItem index={2}>
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Today's priorities</Text>
-                <Text style={styles.sectionMeta}>{completedCount}/{totalCount} done</Text>
+                <Text style={styles.sectionTitle}>Today</Text>
+                <Text style={styles.sectionMeta}>{completedCount} of {totalCount}</Text>
               </View>
               <View style={styles.prioritiesList}>
                 {priorities.map(p => {
@@ -475,7 +475,7 @@ export default function StudentModeScreen() {
         {session && recommendedWorkout && (
           <AnimatedItem index={3}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Today's workout</Text>
+              <Text style={styles.sectionTitle}>Session</Text>
               <AnimatedPressable
                 style={styles.featuredWorkoutCard}
                 onPress={() => handleWorkoutPress(recommendedWorkout.id)}
@@ -530,7 +530,7 @@ export default function StudentModeScreen() {
         {session && (
           <AnimatedItem index={4}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Study block planner</Text>
+              <Text style={styles.sectionTitle}>Focus blocks</Text>
               <View style={styles.studyBlocksList}>
                 {STUDY_BLOCKS.map(block => {
                   const isUsed = usedBlocks.includes(block.id);
@@ -545,7 +545,7 @@ export default function StudentModeScreen() {
                         {isUsed && (
                           <View style={styles.usedBadge}>
                             <CheckCircle size={12} color={C.success} />
-                            <Text style={styles.usedBadgeText}>Done today</Text>
+                            <Text style={styles.usedBadgeText}>Done</Text>
                           </View>
                         )}
                       </View>
@@ -570,7 +570,7 @@ export default function StudentModeScreen() {
                       )}
                       {!isUsed && (
                         <View style={styles.studyBlockCta}>
-                          <Text style={styles.studyBlockCtaText}>Tap to start</Text>
+                          <Text style={styles.studyBlockCtaText}>Start</Text>
                           <ChevronRight size={12} color={C.student} />
                         </View>
                       )}
@@ -585,7 +585,7 @@ export default function StudentModeScreen() {
         {/* ── Nutrition section ── */}
         <AnimatedItem index={5}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Student nutrition</Text>
+            <Text style={styles.sectionTitle}>Nutrition</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -629,7 +629,7 @@ export default function StudentModeScreen() {
         {/* ── All workouts ── */}
         <AnimatedItem index={6}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>All student workouts</Text>
+            <Text style={styles.sectionTitle}>All sessions</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -674,7 +674,7 @@ export default function StudentModeScreen() {
             <AnimatedPressable style={styles.tipsHeader} onPress={handleTipsToggle}>
               <View style={styles.tipsHeaderLeft}>
                 <Flame size={18} color={C.student} />
-                <Text style={styles.sectionTitle}>Brain & body tips</Text>
+                <Text style={styles.sectionTitle}>Performance tips</Text>
               </View>
               {tipsExpanded
                 ? <ChevronUp size={18} color={C.textSecondary} />

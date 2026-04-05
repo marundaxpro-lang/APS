@@ -65,22 +65,22 @@ const homeData = {
     reason: 'Your heart rate data shows incomplete recovery. Adding 15–20s rest will improve output on your next session.',
   },
   upcomingDays: [
-    { label: 'Tomorrow', name: 'Push Day', duration: 45, isRest: false, type: 'strength' },
+    { label: 'Tomorrow', name: 'Push', duration: 45, isRest: false, type: 'strength' },
     { label: 'Wed', name: 'Cardio', duration: 30, isRest: false, type: 'cardio' },
     { label: 'Thu', name: 'Recovery', duration: 0, isRest: true, type: 'rest' },
-    { label: 'Fri', name: 'Leg Day', duration: 55, isRest: false, type: 'strength' },
+    { label: 'Fri', name: 'Legs', duration: 55, isRest: false, type: 'strength' },
   ],
   programs: [
-    { id: '1', title: 'Strength Builder', subtitle: '12-week progressive overload program', weeks: 12, level: 'Intermediate' },
-    { id: '2', title: 'Fat Loss Accelerator', subtitle: 'High-intensity fat burning protocol', weeks: 8, level: 'Beginner' },
-    { id: '3', title: 'Muscle Hypertrophy', subtitle: 'Volume-focused muscle building', weeks: 10, level: 'Advanced' },
+    { id: '1', title: 'Strength Builder', subtitle: '12-week progressive overload programme', weeks: 12, level: 'Intermediate' },
+    { id: '2', title: 'Fat Loss Protocol', subtitle: 'High-intensity fat reduction protocol', weeks: 8, level: 'Beginner' },
+    { id: '3', title: 'Hypertrophy', subtitle: 'Volume-focused muscle development', weeks: 10, level: 'Advanced' },
   ],
 };
 
 function getGreeting(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'Good morning,';
-  if (hour >= 12 && hour < 17) return 'Good afternoon,';
-  if (hour >= 17 && hour < 21) return 'Good evening,';
+  if (hour >= 5 && hour < 12) return 'Morning,';
+  if (hour >= 12 && hour < 17) return 'Afternoon,';
+  if (hour >= 17 && hour < 21) return 'Evening,';
   return 'Late session,';
 }
 
@@ -220,7 +220,7 @@ export default function HomeScreen() {
             <View style={styles.headerLeft}>
               <Text style={styles.headerGreeting}>{greetingPrefix}</Text>
               <Text style={styles.headerName}>{displayName}</Text>
-              <Text style={styles.headerSubtitle}>Ready to train?</Text>
+              <Text style={styles.headerSubtitle}>Ready.</Text>
             </View>
             <View style={styles.headerRight}>
               <AnimatedPressable scaleValue={0.9} onPress={() => { console.log('[Home] User tapped notification bell → navigating to /notifications'); router.push('/notifications'); }} style={styles.headerIconBtn} accessibilityLabel="Notifications">
@@ -249,15 +249,15 @@ export default function HomeScreen() {
                 <Brain size={24} color={C.teal} strokeWidth={2} />
               </View>
               <View style={styles.aiCoachBadge}>
-                <Text style={styles.aiCoachBadgeText}>AI POWERED</Text>
+                <Text style={styles.aiCoachBadgeText}>AI</Text>
               </View>
             </View>
-            <Text style={styles.aiCoachTitle}>Your AI Coach</Text>
+            <Text style={styles.aiCoachTitle}>AI Coach</Text>
             <Text style={styles.aiCoachSubtitle}>
-              Get personalised advice, workout tips, and motivation
+              Plan-aware coaching. Available at any time.
             </Text>
             <View style={styles.aiCoachCta}>
-              <Text style={styles.aiCoachCtaText}>Chat Now →</Text>
+              <Text style={styles.aiCoachCtaText}>Open →</Text>
             </View>
           </AnimatedPressable>
         </FadeSection>
@@ -287,7 +287,7 @@ export default function HomeScreen() {
 
         {/* ── Programs ── */}
         <FadeSection index={3}>
-          <SectionHeader title="Programs" onSeeAll={() => { console.log('[Home iOS] User tapped See all programs → navigating to /program-packs'); router.push('/program-packs'); }} />
+          <SectionHeader title="Programmes" onSeeAll={() => { console.log('[Home iOS] User tapped See all programs → navigating to /program-packs'); router.push('/program-packs'); }} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} pagingEnabled snapToInterval={CARD_WIDTH + 12} decelerationRate="fast" contentContainerStyle={styles.programsScroll}>
             {homeData.programs.map((program) => (
               <ProgramCarouselCard key={program.id} program={program} cardWidth={CARD_WIDTH} onPress={() => { console.log('[Home iOS] User tapped program card:', program.title); router.push('/program-packs'); }} />
@@ -297,12 +297,12 @@ export default function HomeScreen() {
 
         {/* ── Still to do ── */}
         <FadeSection index={4}>
-          <SectionHeader title="Still to do" />
+          <SectionHeader title="Remaining" />
           <View style={styles.taskCard}>
             <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Hit protein goal" task → navigating to /nutrition'); router.push('/nutrition'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.tealMuted }]}><Zap size={16} color={C.teal} strokeWidth={2} /></View>
-                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Nutrition</Text><Text style={styles.taskSubtitle}>Hit protein goal</Text></View>
+                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Nutrition</Text><Text style={styles.taskSubtitle}>Protein target</Text></View>
                 <Text style={[styles.taskMetric, { color: C.teal }]}>{proteinLeftText}</Text>
                 <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
               </View>
@@ -311,7 +311,7 @@ export default function HomeScreen() {
             <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Drink water" task → navigating to /nutrition'); router.push('/nutrition'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.blueMuted }]}><Droplets size={16} color={C.blue} strokeWidth={2} /></View>
-                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Hydration</Text><Text style={styles.taskSubtitle}>Drink water</Text></View>
+                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Hydration</Text><Text style={styles.taskSubtitle}>Water intake</Text></View>
                 <Text style={[styles.taskMetric, { color: C.blue }]}>{waterLeftText}</Text>
                 <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
               </View>
@@ -320,7 +320,7 @@ export default function HomeScreen() {
             <AnimatedPressable scaleValue={0.98} onPress={() => { console.log('[Home iOS] User tapped "Evening stretch" task → navigating to /habits'); router.push('/habits'); }}>
               <View style={styles.taskRow}>
                 <View style={[styles.taskIconCircle, { backgroundColor: C.amberMuted }]}><Footprints size={16} color={C.amber} strokeWidth={2} /></View>
-                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Mobility</Text><Text style={styles.taskSubtitle}>Evening stretch</Text></View>
+                <View style={styles.taskTextGroup}><Text style={styles.taskTitle}>Mobility</Text><Text style={styles.taskSubtitle}>Evening mobility</Text></View>
                 <Text style={[styles.taskMetric, { color: C.amber }]}>10 min</Text>
                 <ChevronRight size={14} color={C.textTertiary} strokeWidth={2} />
               </View>

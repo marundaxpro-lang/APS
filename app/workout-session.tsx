@@ -193,11 +193,11 @@ export default function WorkoutSessionScreen() {
           saveWorkoutToBackend();
           
           Alert.alert(
-            '🎉 Workout Complete!',
-            'Amazing work! You crushed it today!',
+            'Session Complete',
+            'Session logged. Well executed.',
             [
               {
-                text: 'Finish',
+                text: 'Done',
                 onPress: () => router.back(),
               },
             ]
@@ -263,7 +263,7 @@ export default function WorkoutSessionScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <ParticleBackground />
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>Loading workout...</Text>
+          <Text style={styles.emptyText}>Loading...</Text>
         </View>
       </View>
     );
@@ -281,9 +281,9 @@ export default function WorkoutSessionScreen() {
             size={64}
             color={colors.textSecondary}
           />
-          <Text style={styles.emptyText}>No workout loaded</Text>
+          <Text style={styles.emptyText}>No session loaded</Text>
           <Text style={styles.emptySubtext}>
-            Please select a workout from the Training screen
+            Select a session from the Training screen to begin.
           </Text>
           <TouchableOpacity
             style={styles.backButton}
@@ -303,7 +303,7 @@ export default function WorkoutSessionScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Workout Session',
+          title: 'Session',
           headerStyle: {
             backgroundColor: colors.background,
           },
@@ -366,15 +366,15 @@ export default function WorkoutSessionScreen() {
               size={64}
               color={colors.primary}
             />
-            <Text style={styles.videoText}>Watch Exercise Demo</Text>
+            <Text style={styles.videoText}>View Demo</Text>
             <Text style={styles.videoSubtext}>
-              Learn proper form and technique
+              Technique and form guidance
             </Text>
           </TouchableOpacity>
 
           {/* Set Counter */}
           <View style={styles.setCounter}>
-            <Text style={styles.setLabel}>Current Set</Text>
+            <Text style={styles.setLabel}>Set</Text>
             <Text style={styles.setNumber}>
               {currentSet} / {currentExercise.sets}
             </Text>
@@ -395,20 +395,20 @@ export default function WorkoutSessionScreen() {
               />
               <Text style={styles.completeButtonText}>
                 {currentSet < currentExercise.sets
-                  ? 'Complete Set'
-                  : 'Complete Exercise'}
+                  ? 'Log Set'
+                  : 'Complete'}
               </Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.restContainer}>
-              <Text style={styles.restTitle}>RECOVERY RESET</Text>
-              <Text style={styles.restContextLine}>Let your system rebuild.</Text>
+              <Text style={styles.restTitle}>REST</Text>
+              <Text style={styles.restContextLine}>Allow full recovery before the next set.</Text>
               <Text style={styles.restTimer}>{restTimer}s</Text>
               <TouchableOpacity style={styles.skipButton} onPress={() => {
-                console.log('[WorkoutSession] User pressed End Session (skip rest)');
+                console.log('[WorkoutSession] User pressed Skip Rest');
                 skipRest();
               }}>
-                <Text style={styles.skipButtonText}>End Session</Text>
+                <Text style={styles.skipButtonText}>Skip Rest</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -416,7 +416,7 @@ export default function WorkoutSessionScreen() {
 
         {/* Exercise List */}
         <View style={styles.exerciseList}>
-          <Text style={styles.listTitle}>Workout Overview</Text>
+          <Text style={styles.listTitle}>Session Overview</Text>
           {exercises.map((exercise, index) => (
             <View
               key={exercise.id}
@@ -479,12 +479,12 @@ export default function WorkoutSessionScreen() {
             />
 
             <View style={styles.videoInfo}>
-              <Text style={styles.videoInfoTitle}>Key Points:</Text>
+              <Text style={styles.videoInfoTitle}>Technique notes</Text>
               <Text style={styles.videoInfoText}>
-                • Maintain proper form throughout the movement{'\n'}
-                • Control the weight on both concentric and eccentric phases{'\n'}
-                • Breathe consistently - exhale on exertion{'\n'}
-                • Focus on the target muscle group
+                Maintain form throughout the full range of motion.{'\n'}
+                Control the load on both concentric and eccentric phases.{'\n'}
+                Breathe consistently. Exhale on exertion.{'\n'}
+                Focus on the target muscle group.
               </Text>
             </View>
           </View>

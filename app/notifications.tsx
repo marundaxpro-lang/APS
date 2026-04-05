@@ -41,7 +41,7 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Workout Notifications</Text>
+          <Text style={styles.sectionTitle}>Training</Text>
           
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -52,9 +52,9 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Workout Reminders</Text>
+                <Text style={styles.settingTitle}>Session reminders</Text>
                 <Text style={styles.settingDescription}>
-                  Get notified when it&apos;s time to train
+                  Alerts when your next session is due.
                 </Text>
               </View>
             </View>
@@ -68,7 +68,7 @@ export default function NotificationsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nutrition Notifications</Text>
+          <Text style={styles.sectionTitle}>Nutrition</Text>
           
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -79,9 +79,9 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Meal Reminders</Text>
+                <Text style={styles.settingTitle}>Meal reminders</Text>
                 <Text style={styles.settingDescription}>
-                  Reminders to log your meals
+                  Prompts to log meals throughout the day.
                 </Text>
               </View>
             </View>
@@ -95,7 +95,7 @@ export default function NotificationsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Progress & Social</Text>
+          <Text style={styles.sectionTitle}>Progress</Text>
           
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -106,9 +106,9 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Progress Updates</Text>
+                <Text style={styles.settingTitle}>Weekly summaries</Text>
                 <Text style={styles.settingDescription}>
-                  Weekly progress summaries
+                  A weekly overview of your training and nutrition.
                 </Text>
               </View>
             </View>
@@ -129,9 +129,9 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Social Notifications</Text>
+                <Text style={styles.settingTitle}>Social</Text>
                 <Text style={styles.settingDescription}>
-                  Likes, comments, and friend requests
+                  Activity from your network.
                 </Text>
               </View>
             </View>
@@ -152,9 +152,9 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Achievement Alerts</Text>
+                <Text style={styles.settingTitle}>Milestones</Text>
                 <Text style={styles.settingDescription}>
-                  Celebrate your milestones
+                  Alerts when you hit a new milestone.
                 </Text>
               </View>
             </View>

@@ -46,10 +46,10 @@ export default function AboutScreen() {
             size={64}
             color={colors.primary}
           />
-          <Text style={styles.title}>APS Fitness</Text>
+          <Text style={styles.title}>APS</Text>
           <Text style={styles.version}>Version 1.0.0</Text>
           <Text style={styles.description}>
-            Your complete fitness companion for tracking workouts, nutrition, and progress. Built with passion for fitness enthusiasts.
+            A complete training system. Workouts, nutrition, and progress — built for people who take it seriously.
           </Text>
         </View>
 
@@ -63,7 +63,7 @@ export default function AboutScreen() {
                 size={20}
                 color={colors.primary}
               />
-              <Text style={styles.featureText}>Personalized workout plans</Text>
+              <Text style={styles.featureText}>AI-calibrated training programmes</Text>
             </View>
             <View style={styles.featureItem}>
               <IconSymbol
@@ -72,7 +72,7 @@ export default function AboutScreen() {
                 size={20}
                 color={colors.primary}
               />
-              <Text style={styles.featureText}>Nutrition tracking & meal plans</Text>
+              <Text style={styles.featureText}>Nutrition tracking and meal planning</Text>
             </View>
             <View style={styles.featureItem}>
               <IconSymbol
@@ -81,7 +81,7 @@ export default function AboutScreen() {
                 size={20}
                 color={colors.primary}
               />
-              <Text style={styles.featureText}>Progress photos & measurements</Text>
+              <Text style={styles.featureText}>Progress tracking and measurements</Text>
             </View>
             <View style={styles.featureItem}>
               <IconSymbol
@@ -90,7 +90,7 @@ export default function AboutScreen() {
                 size={20}
                 color={colors.primary}
               />
-              <Text style={styles.featureText}>Community & social features</Text>
+              <Text style={styles.featureText}>Community and social features</Text>
             </View>
           </View>
         </View>
@@ -104,7 +104,7 @@ export default function AboutScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>Visit Website</Text>
+              <Text style={styles.settingText}>Website</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
@@ -152,7 +152,7 @@ export default function AboutScreen() {
         </View>
 
         <Text style={styles.copyright}>
-          © 2026 APS Fitness. All rights reserved.
+          © 2026 APS. All rights reserved.
         </Text>
       </ScrollView>
     </View>

@@ -79,11 +79,11 @@ export default function AuthScreen() {
   const validateEmail = (emailValue: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailValue) {
-      setEmailError("Email is required");
+      setEmailError("Email is required.");
       return false;
     }
     if (!emailRegex.test(emailValue)) {
-      setEmailError("Please enter a valid email");
+      setEmailError("Enter a valid email address.");
       return false;
     }
     setEmailError("");
@@ -92,16 +92,16 @@ export default function AuthScreen() {
 
   const validatePassword = (pwd: string): { valid: boolean; message: string } => {
     if (pwd.length < 8) {
-      return { valid: false, message: "Password must be at least 8 characters" };
+      return { valid: false, message: "Minimum 8 characters." };
     }
     if (!/[A-Z]/.test(pwd)) {
-      return { valid: false, message: "Password must contain an uppercase letter" };
+      return { valid: false, message: "Must include an uppercase letter." };
     }
     if (!/[a-z]/.test(pwd)) {
-      return { valid: false, message: "Password must contain a lowercase letter" };
+      return { valid: false, message: "Must include a lowercase letter." };
     }
     if (!/[0-9]/.test(pwd)) {
-      return { valid: false, message: "Password must contain a number" };
+      return { valid: false, message: "Must include a number." };
     }
     return { valid: true, message: "" };
   };
@@ -112,7 +112,7 @@ export default function AuthScreen() {
     if (!validateEmail(email)) return;
 
     if (!password) {
-      setPasswordError("Password is required");
+      setPasswordError("Password is required.");
       return;
     }
 
@@ -203,12 +203,12 @@ export default function AuthScreen() {
     console.log('[AuthScreen] User tapped Reset Password');
 
     if (!newPassword || !confirmPassword) {
-      showError("Please fill in all fields");
+      showError("All fields are required.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      showError("Passwords do not match");
+      showError("Passwords do not match.");
       return;
     }
 
@@ -230,8 +230,8 @@ export default function AuthScreen() {
     } catch (error: any) {
       console.error('[AuthScreen] Reset password error:', error);
       const message = error.message?.includes('400')
-        ? "This reset link has expired or is invalid. Please request a new one."
-        : error.message || "Failed to reset password. Please try again.";
+        ? "This link has expired or is invalid. Request a new one."
+        : error.message || "Password reset failed. Please try again.";
       showError(message);
     } finally {
       setLoading(false);
@@ -277,9 +277,9 @@ export default function AuthScreen() {
             size={80}
             color={TEAL}
           />
-          <Text style={styles.title}>Password Reset!</Text>
+          <Text style={styles.title}>Password updated.</Text>
           <Text style={styles.subtitle}>
-            Your password has been successfully reset. You can now sign in with your new password.
+            Your password has been updated. Sign in to continue.
           </Text>
           <TouchableOpacity
             style={styles.primaryButton}
@@ -319,18 +319,18 @@ export default function AuthScreen() {
                   size={64}
                   color={TEAL}
                 />
-                <Text style={styles.title}>New Password</Text>
+                <Text style={styles.title}>New password</Text>
                 <Text style={styles.subtitle}>
-                  Create a strong new password for your account
+                  Set a new password for your account.
                 </Text>
               </View>
               <View style={styles.form}>
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>New Password</Text>
+                  <Text style={styles.inputLabel}>New password</Text>
                   <View style={styles.passwordInputWrapper}>
                     <TextInput
                       style={styles.passwordInput}
-                      placeholder="Enter new password"
+                      placeholder="New password"
                       placeholderTextColor={colors.grey}
                       value={newPassword}
                       onChangeText={setNewPassword}
@@ -350,11 +350,11 @@ export default function AuthScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.passwordHint}>
-                    Must be 8+ characters with uppercase, lowercase, and number
+                    Min. 8 characters · uppercase · lowercase · number
                   </Text>
                 </View>
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Confirm Password</Text>
+                  <Text style={styles.inputLabel}>Confirm password</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Confirm new password"
@@ -393,10 +393,10 @@ export default function AuthScreen() {
   }
 
   const isSignIn = mode === "signin";
-  const modeTitle = isSignIn ? "Train Smarter.\nPerform Better." : "Start Your Journey";
+  const modeTitle = isSignIn ? "Train with precision.\nPerform at your best." : "Create your account.";
   const modeSubtitle = isSignIn
-    ? "Your progress, goals & plans — all saved."
-    : "Personalized fitness that adapts to you";
+    ? "Your progress, goals, and plans — always with you."
+    : "Intelligent training that evolves with you.";
 
   return (
     <View style={styles.container}>
@@ -427,7 +427,7 @@ export default function AuthScreen() {
               <View style={styles.trustRow}>
                 <View style={styles.trustItem}>
                   <Text style={styles.trustCheck}>✓</Text>
-                  <Text style={styles.trustText}>AI-personalized plans</Text>
+                  <Text style={styles.trustText}>AI-calibrated programmes</Text>
                 </View>
                 <View style={styles.trustItem}>
                   <Text style={styles.trustCheck}>✓</Text>
@@ -435,7 +435,7 @@ export default function AuthScreen() {
                 </View>
                 <View style={styles.trustItem}>
                   <Text style={styles.trustCheck}>✓</Text>
-                  <Text style={styles.trustText}>Auto progress tracking</Text>
+                  <Text style={styles.trustText}>Automatic progress tracking</Text>
                 </View>
               </View>
             </View>
@@ -447,7 +447,7 @@ export default function AuthScreen() {
                   <Text style={styles.inputLabel}>Name (optional)</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter your name"
+                    placeholder="Your name"
                     placeholderTextColor={colors.grey}
                     value={name}
                     onChangeText={setName}
@@ -460,7 +460,7 @@ export default function AuthScreen() {
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
                   style={[styles.input, emailError ? styles.inputError : null]}
-                  placeholder="your@email.com"
+                  placeholder="Email address"
                   placeholderTextColor={colors.grey}
                   value={email}
                   onChangeText={(text) => {
@@ -490,14 +490,14 @@ export default function AuthScreen() {
                       }}
                       style={styles.forgotPasswordButton}
                     >
-                      <Text style={styles.forgotPasswordLink}>Forgot?</Text>
+                      <Text style={styles.forgotPasswordLink}>Forgot password?</Text>
                     </TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.passwordInputWrapper}>
                   <TextInput
                     style={[styles.passwordInput, passwordError ? styles.inputError : null]}
-                    placeholder="Enter your password"
+                    placeholder="Password"
                     placeholderTextColor={colors.grey}
                     value={password}
                     onChangeText={(text) => {
@@ -524,7 +524,7 @@ export default function AuthScreen() {
                 {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
                 {mode === "signup" && !passwordError && (
                   <Text style={styles.passwordHint}>
-                    8+ characters with uppercase, lowercase, and number
+                    Min. 8 characters · uppercase · lowercase · number
                   </Text>
                 )}
               </View>
@@ -591,9 +591,9 @@ export default function AuthScreen() {
               <View style={styles.bottomLinks}>
                 {isSignIn && (
                   <View style={styles.createAccountRow}>
-                    <Text style={styles.createAccountLabel}>New to Apex? </Text>
+                    <Text style={styles.createAccountLabel}>New here? </Text>
                     <TouchableOpacity onPress={handleCreateAccount}>
-                      <Text style={styles.createAccountLink}>Create account</Text>
+                      <Text style={styles.createAccountLink}>Create an account</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -607,7 +607,7 @@ export default function AuthScreen() {
                       setPasswordError("");
                     }}
                   >
-                    <Text style={styles.switchModeText}>Already have an account? Sign In</Text>
+                    <Text style={styles.switchModeText}>Already have an account? Sign in</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -639,16 +639,16 @@ export default function AuthScreen() {
                     size={56}
                     color={colors.success}
                   />
-                  <Text style={styles.modalTitle}>Check Your Email</Text>
+                  <Text style={styles.modalTitle}>Check your inbox.</Text>
                   <Text style={styles.modalMessage}>
-                    If an account exists for {forgotEmail}, you will receive a password reset link shortly.{"\n\n"}
-                    The link expires in 1 hour. Check your spam folder if you don't see it.
+                    If an account exists for {forgotEmail}, a reset link is on its way.{"\n\n"}
+                    The link expires in 1 hour. Check your spam folder if needed.
                   </Text>
                   <TouchableOpacity
                     style={styles.modalButton}
                     onPress={handleCloseForgotPassword}
                   >
-                    <Text style={styles.modalButtonText}>Back to Sign In</Text>
+                    <Text style={styles.modalButtonText}>Back to sign in</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -659,9 +659,9 @@ export default function AuthScreen() {
                     size={56}
                     color={TEAL}
                   />
-                  <Text style={styles.modalTitle}>Reset Password</Text>
+                  <Text style={styles.modalTitle}>Reset password</Text>
                   <Text style={styles.modalMessage}>
-                    Enter your email and we'll send you a reset link.
+                    Enter your email address. We'll send a reset link.
                   </Text>
                   <View style={styles.forgotInputContainer}>
                     <TextInput

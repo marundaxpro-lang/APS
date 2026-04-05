@@ -403,13 +403,13 @@ export default function OnboardingScreen() {
 
     if (step === 4 && daysCount > 0) {
       if (daysCount <= 2) {
-        return '💡 Based on 2 available days, we\'ll likely build a 2-day full-body split. You can adjust later.';
+        return '2 days: full-body split. Adjustable at any time.';
       } else if (daysCount === 3) {
-        return '💡 Based on 3 available days, we\'ll likely build a 3-day full-body or upper/lower rotation. You can adjust later.';
+        return '3 days: full-body or upper/lower rotation. Adjustable at any time.';
       } else if (daysCount === 4) {
-        return '💡 Based on 4 available days, we\'ll likely build an upper/lower or push/pull split. You can adjust later.';
+        return '4 days: upper/lower or push/pull split. Adjustable at any time.';
       } else {
-        return '💡 Based on 5+ available days, we\'ll likely build a targeted body-part split. You can adjust later.';
+        return '5+ days: targeted body-part split. Adjustable at any time.';
       }
     }
 
@@ -417,20 +417,20 @@ export default function OnboardingScreen() {
       const sessionText = sessionLength === '20-30' ? '20-30 minute' :
                          sessionLength === '30-45' ? '30-45 minute' :
                          sessionLength === '45-60' ? '45-60 minute' : '60+ minute';
-      return `💡 Your ${daysCount}-day plan with ${sessionText} sessions will be optimized for maximum efficiency.`;
+      return `${daysCount}-day plan · ${sessionText} sessions. Optimised for output.`;
     }
 
     if (step === 6 && focusCount > 0 && daysCount > 0) {
-      return `💡 We'll give these areas extra attention without neglecting full-body balance.`;
+      return `Selected areas receive added volume. Balance is preserved.`;
     }
 
     if (step === 7 && equipment) {
       if (equipment === 'gym') {
-        return '💡 Full gym access unlocks advanced training techniques and progressive overload strategies.';
+        return 'Full gym: advanced techniques and structured progressive overload.';
       } else if (equipment === 'home') {
-        return '💡 Home equipment is perfect! We\'ll design effective workouts with what you have available.';
+        return 'Home setup: effective programming with what you have.';
       } else {
-        return '💡 Bodyweight training builds incredible strength and control. No equipment needed, just dedication.';
+        return 'Bodyweight: strength and control. No equipment required.';
       }
     }
 
@@ -441,13 +441,13 @@ export default function OnboardingScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What&apos;s your name?</Text>
-      <Text style={styles.stepSubtitle}>We&apos;ll use this to personalize your experience.</Text>
+      <Text style={styles.stepTitle}>Your name.</Text>
+      <Text style={styles.stepSubtitle}>We use this to address you throughout the app.</Text>
 
       <View style={styles.nameInputContainer}>
         <TextInput
           style={styles.nameInput}
-          placeholder="Enter your name"
+          placeholder="Full name"
           placeholderTextColor={colors.grey}
           value={profile.name || ''}
           onChangeText={(text) => {
@@ -464,12 +464,12 @@ export default function OnboardingScreen() {
 
   const renderStep2 = () => {
     const motivationChips = [
-      'Big life change',
-      'Tired of starting over',
-      'Event coming up',
-      'Finally ready',
-      "Doctor's advice",
-      'Proving something to myself',
+      'Major life shift',
+      'Done with false starts',
+      'Deadline ahead',
+      'Ready to commit',
+      'Medical guidance',
+      'Personal standard',
     ];
 
     const selectedChips = profile.selectedMotivationChips || [];
@@ -492,10 +492,10 @@ export default function OnboardingScreen() {
             size={48}
             color={colors.primary}
           />
-          <Text style={styles.emotionalTitle}>Why now?</Text>
+          <Text style={styles.emotionalTitle}>What's driving you?</Text>
         </View>
         <Text style={styles.emotionalSubtitle}>
-          What&apos;s driving you right now?
+          Choose what resonates most.
         </Text>
         
         <View style={styles.motivationChipsContainer}>
@@ -521,7 +521,7 @@ export default function OnboardingScreen() {
         <View style={styles.motivationContainer}>
           <TextInput
             style={styles.motivationInput}
-            placeholder="Or write your own reason..."
+            placeholder="Write your own..."
             placeholderTextColor={colors.grey}
             value={profile.motivation || ''}
             onChangeText={(text) => {
@@ -537,7 +537,7 @@ export default function OnboardingScreen() {
         
         <View style={styles.inspirationBox}>
           <Text style={styles.inspirationText}>
-            We&apos;ll remind you of this on tough days.
+            Saved. We'll surface this when it matters.
           </Text>
         </View>
       </View>
@@ -548,36 +548,36 @@ export default function OnboardingScreen() {
     const goals = [
       { 
         id: 'lose-fat', 
-        label: 'Lose Weight', 
-        description: 'Fat loss and body composition',
+        label: 'Lose Fat', 
+        description: 'Body composition and fat reduction',
         iosIcon: 'flame.fill', 
         androidIcon: 'local-fire-department' 
       },
       { 
         id: 'build-muscle', 
         label: 'Build Muscle', 
-        description: 'Hypertrophy and size',
+        description: 'Hypertrophy and lean mass',
         iosIcon: 'figure.strengthtraining.traditional', 
         androidIcon: 'fitness-center' 
       },
       { 
         id: 'improve-endurance', 
-        label: 'Improve Endurance', 
-        description: 'Stamina and conditioning',
+        label: 'Build Endurance', 
+        description: 'Cardiovascular capacity and conditioning',
         iosIcon: 'figure.run', 
         androidIcon: 'directions-run' 
       },
       { 
         id: 'increase-flexibility', 
-        label: 'Increase Flexibility', 
-        description: 'Mobility and range of motion',
+        label: 'Improve Mobility', 
+        description: 'Flexibility and joint range',
         iosIcon: 'figure.flexibility', 
         androidIcon: 'self-improvement' 
       },
       { 
         id: 'get-stronger', 
         label: 'Get Stronger', 
-        description: 'Strength and power',
+        description: 'Maximal strength and power output',
         iosIcon: 'bolt.fill', 
         androidIcon: 'flash-on' 
       },
@@ -587,7 +587,7 @@ export default function OnboardingScreen() {
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>What&apos;s your primary goal?</Text>
+        <Text style={styles.stepTitle}>Primary objective.</Text>
 
         <View style={styles.goalsContainer}>
           {goals.map((goal) => {
@@ -649,8 +649,8 @@ export default function OnboardingScreen() {
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>When can you train?</Text>
-        <Text style={styles.stepSubtitle}>Select the days that work for your schedule</Text>
+        <Text style={styles.stepTitle}>Training availability.</Text>
+        <Text style={styles.stepSubtitle}>Select your available training days.</Text>
         
         <View style={styles.daysGrid}>
           {DAYS_OF_WEEK.map((day) => {
@@ -690,7 +690,7 @@ export default function OnboardingScreen() {
               color={colors.primary}
             />
             <Text style={styles.selectionText}>
-              {selectedDays.length} {selectedDays.length === 1 ? 'day' : 'days'} selected
+              {selectedDays.length} days selected
             </Text>
           </View>
         )}
@@ -706,18 +706,18 @@ export default function OnboardingScreen() {
 
   const renderStep5 = () => {
     const sessionLengths = [
-      { id: '20-30', label: '20-30 min', description: 'Quick and efficient' },
-      { id: '30-45', label: '30-45 min', description: 'Balanced approach' },
-      { id: '45-60', label: '45-60 min', description: 'Standard workout' },
-      { id: '60+', label: '60+ min', description: 'Extended training' },
+      { id: '20-30', label: '20-30 min', description: 'Efficient and focused' },
+      { id: '30-45', label: '30-45 min', description: 'Structured and balanced' },
+      { id: '45-60', label: '45-60 min', description: 'Full session' },
+      { id: '60+', label: '60+ min', description: 'High-volume training' },
     ];
 
     const daysCount = profile.selectedDays?.length || 0;
 
     return (
       <View style={styles.stepContainer}>
-        <Text style={styles.stepTitle}>How much time do you realistically have per session?</Text>
-        <Text style={styles.stepSubtitle}>This helps us design workouts that fit your schedule</Text>
+        <Text style={styles.stepTitle}>Session duration.</Text>
+        <Text style={styles.stepSubtitle}>We build around your available time.</Text>
         
         <View style={styles.sessionLengthContainer}>
           {sessionLengths.map((length) => (
@@ -758,7 +758,7 @@ export default function OnboardingScreen() {
         {profile.sessionLength && (
           <View style={styles.sessionInfoBox}>
             <Text style={styles.sessionInfoText}>
-              A {daysCount}-day plan with {profile.sessionLength === '20-30' ? '20-30 minute' : profile.sessionLength === '30-45' ? '30-45 minute' : profile.sessionLength === '45-60' ? '45-60 minute' : '60+ minute'} sessions requires different exercise selection and volume than longer workouts.
+              {daysCount} days · {profile.sessionLength === '20-30' ? '20-30 min' : profile.sessionLength === '30-45' ? '30-45 min' : profile.sessionLength === '45-60' ? '45-60 min' : '60+ min'} sessions. Exercise selection and volume are calibrated accordingly.
             </Text>
           </View>
         )}
@@ -781,7 +781,7 @@ export default function OnboardingScreen() {
       { id: 'arms', label: 'Arms', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
       { id: 'back', label: 'Back', iosIcon: 'figure.strengthtraining.traditional', androidIcon: 'fitness-center' },
       { id: 'posture', label: 'Posture', iosIcon: 'figure.stand', androidIcon: 'accessibility-new' },
-      { id: 'cardio', label: 'Cardio Capacity', iosIcon: 'heart.fill', androidIcon: 'favorite' },
+      { id: 'cardio', label: 'Cardio', iosIcon: 'heart.fill', androidIcon: 'favorite' },
     ];
 
     const selectedAreas = profile.focusAreas || [];
@@ -800,8 +800,8 @@ export default function OnboardingScreen() {
         <View style={styles.optionalBadge}>
           <Text style={styles.optionalBadgeText}>OPTIONAL</Text>
         </View>
-        <Text style={styles.stepTitle}>Any areas you want extra attention on?</Text>
-        <Text style={styles.stepSubtitle}>We&apos;ll prioritize these without neglecting full-body balance</Text>
+        <Text style={styles.stepTitle}>Priority areas.</Text>
+        <Text style={styles.stepSubtitle}>These receive additional volume. Full-body balance is maintained.</Text>
         
         <View style={styles.focusAreasGrid}>
           {areas.map((area) => {
@@ -843,14 +843,14 @@ export default function OnboardingScreen() {
 
   const renderStep7 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What equipment do you have?</Text>
-      <Text style={styles.stepSubtitle}>We&apos;ll adapt every workout to what you have available</Text>
+      <Text style={styles.stepTitle}>Training environment.</Text>
+      <Text style={styles.stepSubtitle}>Every session is built around your setup.</Text>
       
       <View style={styles.equipmentOptionsContainer}>
         {[
           { id: 'gym', label: 'Full Gym', iosIcon: 'dumbbell.fill', androidIcon: 'fitness-center' },
-          { id: 'home', label: 'Home Equipment', iosIcon: 'house.fill', androidIcon: 'home' },
-          { id: 'minimal', label: 'Bodyweight Only', iosIcon: 'figure.walk', androidIcon: 'directions-walk' },
+          { id: 'home', label: 'Home Setup', iosIcon: 'house.fill', androidIcon: 'home' },
+          { id: 'minimal', label: 'Bodyweight', iosIcon: 'figure.walk', androidIcon: 'directions-walk' },
         ].map((option) => (
           <TouchableOpacity
             key={option.id}
@@ -901,9 +901,9 @@ export default function OnboardingScreen() {
 
     const isGymUser = profile.equipmentType === 'gym';
     const confidenceLevels = [
-      ...(isGymUser ? [{ id: 'expert', label: 'I know my way around the gym', iosIcon: 'star.fill', androidIcon: 'star' }] : []),
-      { id: 'intermediate', label: 'I know the basics', iosIcon: 'star.leadinghalf.filled', androidIcon: 'star-half' },
-      { id: 'beginner', label: 'I need simple guidance', iosIcon: 'star', androidIcon: 'star-border' },
+      ...(isGymUser ? [{ id: 'expert', label: 'Experienced — I know what I\'m doing', iosIcon: 'star.fill', androidIcon: 'star' }] : []),
+      { id: 'intermediate', label: 'Intermediate — I know the basics', iosIcon: 'star.leadinghalf.filled', androidIcon: 'star-half' },
+      { id: 'beginner', label: 'Beginner — I need clear guidance', iosIcon: 'star', androidIcon: 'star-border' },
     ];
 
     const selectedEquipment = profile.homeEquipmentDetails || [];
@@ -925,8 +925,8 @@ export default function OnboardingScreen() {
       >
         {profile.equipmentType === 'home' && (
           <React.Fragment>
-            <Text style={styles.stepTitle}>What home equipment do you have?</Text>
-            <Text style={styles.stepSubtitle}>Select all that apply</Text>
+            <Text style={styles.stepTitle}>Available equipment.</Text>
+            <Text style={styles.stepSubtitle}>Select all that apply.</Text>
             
             <View style={styles.homeEquipmentGrid}>
               {homeEquipmentOptions.map((equipment) => {
@@ -961,8 +961,8 @@ export default function OnboardingScreen() {
           </React.Fragment>
         )}
 
-        <Text style={styles.stepTitle}>How confident are you with training?</Text>
-        <Text style={styles.stepSubtitle}>This helps us adjust exercise complexity and coaching tone</Text>
+        <Text style={styles.stepTitle}>Training confidence.</Text>
+        <Text style={styles.stepSubtitle}>Determines exercise complexity and coaching approach.</Text>
         
         <View style={styles.confidenceContainer}>
           {confidenceLevels.map((level) => (
@@ -1002,20 +1002,20 @@ export default function OnboardingScreen() {
     const height = profile.height || 0;
 
     const ageError = age > 0 && (age < 13 || age > 100)
-      ? 'Please enter a valid age (13–100)' : '';
+      ? 'Enter a valid age (13–100).' : '';
     const weightErrorKg = weightUnit === 'kg' && weight > 0 && (weight < 30 || weight > 300)
-      ? 'Please enter a valid weight (30–300 kg)' : '';
+      ? 'Enter a valid weight (30–300 kg).' : '';
     const weightErrorLbs = weightUnit === 'lbs' && weight > 0 && (weight < 66 || weight > 660)
-      ? 'Please enter a valid weight (66–660 lbs)' : '';
+      ? 'Enter a valid weight (66–660 lbs).' : '';
     const weightError = weightErrorKg || weightErrorLbs;
 
     const ft = parseInt(heightFt) || 0;
     const inches = parseInt(heightIn) || 0;
     const heightErrorCm = heightUnit === 'cm' && height > 0 && (height < 100 || height > 250)
-      ? 'Please enter a valid height (100–250 cm)' : '';
+      ? 'Enter a valid height (100–250 cm).' : '';
     const heightErrorFt = heightUnit === 'ft' && (heightFt || heightIn)
       && (ft < 3 || ft > 8 || inches < 0 || inches > 11)
-      ? 'Please enter valid height (3–8 ft, 0–11 in)' : '';
+      ? 'Enter a valid height (3–8 ft, 0–11 in).' : '';
     const heightError = heightErrorCm || heightErrorFt;
 
     const genderLabel = (g: string) => {
@@ -1029,10 +1029,10 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.step9ScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.stepTitle}>About You</Text>
+        <Text style={styles.stepTitle}>Physical profile.</Text>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionBlockTitle}>Sex</Text>
+          <Text style={styles.sectionBlockTitle}>Biological sex</Text>
           <View style={styles.segmentedControl}>
             {(['male', 'female', 'prefer-not-to-say'] as const).map((gender) => {
               const isActive = profile.gender === gender;
@@ -1052,11 +1052,11 @@ export default function OnboardingScreen() {
               );
             })}
           </View>
-          <Text style={styles.fieldCaption}>Used for metabolic calculations only</Text>
+          <Text style={styles.fieldCaption}>Used for metabolic calculations only.</Text>
         </View>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.inputLabel}>Age (years)</Text>
+          <Text style={styles.inputLabel}>Age</Text>
           <TextInput
             style={[styles.input, ageError ? styles.inputError : null]}
             keyboardType="numeric"
@@ -1073,7 +1073,7 @@ export default function OnboardingScreen() {
 
         <View style={styles.sectionBlock}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>Weight</Text>
+            <Text style={styles.inputLabel}>Body weight</Text>
             <View style={styles.unitToggle}>
               {(['kg', 'lbs'] as const).map((u) => {
                 const isActive = weightUnit === u;
@@ -1187,13 +1187,13 @@ export default function OnboardingScreen() {
     const trainingExperienceOptions = [
       { id: 'beginner', label: 'Beginner', description: 'New to structured training' },
       { id: 'intermediate', label: 'Intermediate', description: '6+ months of consistent training' },
-      { id: 'advanced', label: 'Advanced', description: '2+ years of serious training' },
+      { id: 'advanced', label: 'Advanced', description: '2+ years of dedicated training' },
     ];
 
     const activityLevelOptions = [
-      { id: 'regular', label: 'Regular', description: 'Light daily movement, mostly desk-based' },
-      { id: 'moderate', label: 'Moderate', description: 'Active lifestyle, on your feet often' },
-      { id: 'very-active', label: 'Very Active', description: 'Physical job or very active daily life' },
+      { id: 'regular', label: 'Sedentary', description: 'Mostly desk-based, light movement' },
+      { id: 'moderate', label: 'Moderate', description: 'Active lifestyle, frequently on your feet' },
+      { id: 'very-active', label: 'High', description: 'Physical occupation or highly active daily life' },
     ];
 
     return (
@@ -1202,10 +1202,10 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.step9ScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.stepTitle}>Your Training</Text>
+        <Text style={styles.stepTitle}>Training background.</Text>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionBlockTitle}>Training Experience</Text>
+          <Text style={styles.sectionBlockTitle}>Experience level</Text>
           <View style={styles.optionsStack}>
             {trainingExperienceOptions.map((option) => {
               const isSelected = profile.trainingExperience === option.id;
@@ -1229,7 +1229,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionBlockTitle}>Activity Level Outside Training</Text>
+          <Text style={styles.sectionBlockTitle}>Daily activity level</Text>
           <View style={styles.optionsStack}>
             {activityLevelOptions.map((option) => {
               const isSelected = profile.activityLevelOutsideTraining === option.id;
@@ -1257,12 +1257,12 @@ export default function OnboardingScreen() {
 
   const renderStep11 = () => {
     const nutritionPreferenceOptions = [
-      { id: 'balanced', label: 'Balanced', description: 'A mix of all food groups, no restrictions' },
-      { id: 'high-protein', label: 'High Protein', description: 'Protein-forward meals to support muscle growth' },
-      { id: 'low-carb', label: 'Low Carb', description: 'Reduced carbohydrates, higher fats and protein' },
-      { id: 'vegan', label: 'Vegan', description: '100% plant-based, no animal products' },
-      { id: 'vegetarian', label: 'Vegetarian', description: 'Plant-based with dairy and eggs permitted' },
-      { id: 'keto', label: 'Keto', description: 'Very low carb, high fat, metabolic focus' },
+      { id: 'balanced', label: 'Balanced', description: 'All food groups, no restrictions' },
+      { id: 'high-protein', label: 'High Protein', description: 'Protein-forward meals for muscle support' },
+      { id: 'low-carb', label: 'Low Carb', description: 'Reduced carbohydrates, elevated fats and protein' },
+      { id: 'vegan', label: 'Vegan', description: 'Fully plant-based, no animal products' },
+      { id: 'vegetarian', label: 'Vegetarian', description: 'Plant-based, dairy and eggs included' },
+      { id: 'keto', label: 'Ketogenic', description: 'Very low carbohydrate, high fat' },
     ];
 
     const daysCount = profile.selectedDays?.length || 0;
@@ -1273,22 +1273,22 @@ export default function OnboardingScreen() {
       : profile.sessionLength === '45-60' ? '45–60' : '60+';
 
     const goalBullet = profile.primaryGoal === 'lose-fat'
-      ? 'Tailored to your fat-loss goal with a sustainable calorie approach'
+      ? 'Calibrated for fat loss with a sustainable caloric deficit'
       : profile.primaryGoal === 'build-muscle'
-      ? 'Built around your muscle-building goal with progressive overload'
+      ? 'Structured for hypertrophy with progressive overload'
       : profile.primaryGoal === 'get-stronger'
-      ? 'Structured around strength progression and compound lifts'
+      ? 'Built around compound lifts and strength progression'
       : profile.primaryGoal === 'improve-endurance'
-      ? 'Designed around your endurance goal with conditioning work'
-      : 'Tailored to your profile and the goals you have set';
+      ? 'Designed for cardiovascular development and conditioning'
+      : 'Calibrated to your profile and stated objectives';
 
     const nutritionBullet = profile.nutritionPreference === 'high-protein'
-      ? 'Nutrition guidance built around high-protein meals'
+      ? 'Nutrition structured around high-protein intake'
       : profile.nutritionPreference === 'vegan'
-      ? 'Nutrition guidance adapted for a fully plant-based approach'
+      ? 'Nutrition adapted for a fully plant-based diet'
       : profile.nutritionPreference === 'keto'
-      ? 'Nutrition guidance aligned with a low-carb, high-fat approach'
-      : 'Nutrition guidance personalised to how you prefer to eat';
+      ? 'Nutrition aligned with low-carb, high-fat principles'
+      : 'Nutrition calibrated to your dietary preference';
 
     return (
       <ScrollView
@@ -1296,10 +1296,10 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.step9ScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.stepTitle}>Your Nutrition</Text>
+        <Text style={styles.stepTitle}>Nutrition approach.</Text>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionBlockTitle}>Nutrition Preference</Text>
+          <Text style={styles.sectionBlockTitle}>Dietary preference</Text>
           <View style={styles.optionsStack}>
             {nutritionPreferenceOptions.map((option) => {
               const isSelected = profile.nutritionPreference === option.id;
@@ -1323,7 +1323,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.planPreviewCard}>
-          <Text style={styles.planPreviewTitle}>Your Plan</Text>
+          <Text style={styles.planPreviewTitle}>Your programme.</Text>
           <View style={styles.summaryContent}>
             <View style={styles.summaryBullet}>
               <Text style={styles.summaryBulletDot}>•</Text>
@@ -1332,7 +1332,7 @@ export default function OnboardingScreen() {
             <View style={styles.summaryBullet}>
               <Text style={styles.summaryBulletDot}>•</Text>
               <Text style={styles.summaryText}>
-                {daysCount > 0 ? `${daysCount} sessions/week` : 'Weekly sessions'} using {equipmentText}, {sessionLengthText} min each — built around how you train
+                {daysCount > 0 ? `${daysCount} sessions/week` : 'Weekly sessions'} · {equipmentText} · {sessionLengthText} min per session
               </Text>
             </View>
             <View style={styles.summaryBullet}>
@@ -1414,7 +1414,7 @@ export default function OnboardingScreen() {
                 disabled={!canProceed()}
               >
                 <Text style={styles.nextButtonText}>
-                  {step === 10 ? 'Build My Plan' : 'Next'}
+                  {step === 10 ? 'Build My Programme' : 'Continue'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1437,9 +1437,9 @@ export default function OnboardingScreen() {
                 color={colors.primary}
               />
             </View>
-            <Text style={styles.successTitle}>Welcome Aboard!</Text>
+            <Text style={styles.successTitle}>You're set.</Text>
             <Text style={styles.successMessage}>
-              Your personalized training plan is ready. Let&apos;s make it happen.
+              Your programme is ready. Start when you are.
             </Text>
           </View>
         </View>

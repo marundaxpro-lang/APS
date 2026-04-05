@@ -139,7 +139,7 @@ export default function EditProfileScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Edit Profile',
+          title: 'Profile',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
@@ -153,13 +153,13 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>Personal</Text>
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Name</Text>
             <TextInput
               style={styles.input}
-              placeholder="Your name"
+              placeholder="Full name"
               placeholderTextColor={colors.grey}
               value={profile.name || ''}
               onChangeText={(text) => setProfile({ ...profile, name: text })}
@@ -190,7 +190,7 @@ export default function EditProfileScreen() {
               color={colors.primary}
             />
             <Text style={styles.infoText}>
-              Updating your body stats will automatically recalculate your daily caloric goal
+              Updating body stats recalculates your daily caloric target.
             </Text>
           </View>
           
@@ -230,7 +230,7 @@ export default function EditProfileScreen() {
               color={colors.primary}
             />
             <Text style={styles.infoText}>
-              Changing your training days will automatically regenerate your weekly workout plan
+              Changing training days regenerates your weekly programme.
             </Text>
           </View>
           
@@ -262,7 +262,7 @@ export default function EditProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -273,8 +273,8 @@ export default function EditProfileScreen() {
           router.back();
         }}
         type="success"
-        title="Success"
-        message="Profile updated successfully! Your caloric goal and weekly workout plan have been regenerated."
+        title="Saved"
+        message="Profile updated. Caloric target and weekly programme have been recalculated."
         confirmText="OK"
       />
 
@@ -283,7 +283,7 @@ export default function EditProfileScreen() {
         onClose={() => setShowErrorModal(false)}
         type="error"
         title="Error"
-        message="Failed to save profile. Please try again."
+        message="Failed to save. Please try again."
         confirmText="OK"
       />
     </View>

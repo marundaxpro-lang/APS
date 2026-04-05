@@ -438,7 +438,7 @@ export default function TrainingPlanScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Stack.Screen options={{ title: 'Training Plan', headerStyle: { backgroundColor: BG }, headerTintColor: '#fff', headerShadowVisible: false }} />
+        <Stack.Screen options={{ title: 'Training', headerStyle: { backgroundColor: BG }, headerTintColor: '#fff', headerShadowVisible: false }} />
         <ActivityIndicator size="large" color={TEAL} />
       </View>
     );
@@ -448,7 +448,7 @@ export default function TrainingPlanScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Training Plan',
+          title: 'Training',
           headerStyle: { backgroundColor: BG },
           headerTintColor: '#fff',
           headerShadowVisible: false,
@@ -465,12 +465,12 @@ export default function TrainingPlanScreen() {
           <Animated.View style={[styles.travelBanner, { opacity: travelBannerAnim }]}>
             <View style={styles.travelBannerLeft}>
               <Text style={styles.travelBannerTitle}>
-                {equipment === 'travel' || equipment === 'bodyweight' ? '✈ Travel Mode Active' : `${equipLabel} Mode Active`}
+                {equipment === 'travel' || equipment === 'bodyweight' ? 'Travel Mode' : `${equipLabel} Mode`}
               </Text>
               <Text style={styles.travelBannerSubtitle}>
                 {equipment === 'travel' || equipment === 'bodyweight'
-                  ? 'Your plan has been adapted. Bodyweight & band alternatives loaded.'
-                  : `Plan adapted for ${equipLabel}. Equipment-appropriate exercises loaded.`}
+                  ? 'Programme adapted. Bodyweight and band alternatives loaded.'
+                  : `Programme adapted for ${equipLabel}. Equipment-matched exercises loaded.`}
               </Text>
             </View>
             <TouchableOpacity onPress={deactivateTravel} activeOpacity={0.7}>
@@ -481,7 +481,7 @@ export default function TrainingPlanScreen() {
 
         {/* ── Plan Summary Card ── */}
         <View style={styles.summaryCard}>
-          <SectionHeader label="YOUR PLAN" />
+          <SectionHeader label="PROGRAMME" />
           <View style={styles.summaryRow}>
             <View style={styles.summaryBadge}>
               <Text style={styles.summaryBadgeText}>{goalLabel}</Text>
@@ -496,26 +496,26 @@ export default function TrainingPlanScreen() {
           <View style={styles.summaryStats}>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>{totalWorkouts}</Text>
-              <Text style={styles.summaryStatLabel}>Sessions/week</Text>
+              <Text style={styles.summaryStatLabel}>Sessions</Text>
             </View>
             <View style={styles.summaryStatDivider} />
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>{completedWorkouts}</Text>
-              <Text style={styles.summaryStatLabel}>Completed</Text>
+              <Text style={styles.summaryStatLabel}>Done</Text>
             </View>
             <View style={styles.summaryStatDivider} />
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
                 {selectedDay ? `${selectedDay.estimatedDuration}m` : '—'}
               </Text>
-              <Text style={styles.summaryStatLabel}>Est. Duration</Text>
+              <Text style={styles.summaryStatLabel}>Duration</Text>
             </View>
           </View>
         </View>
 
         {/* ── Equipment Mode Selector ── */}
         <View style={styles.equipSection}>
-          <SectionHeader label="EQUIPMENT MODE" />
+          <SectionHeader label="EQUIPMENT" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.equipRow}>
             {EQUIPMENT_MODES.map(({ mode, icon_ios, icon_android }) => (
               <EquipmentModeCard
@@ -532,7 +532,7 @@ export default function TrainingPlanScreen() {
             <View style={styles.substitutionBanner}>
               <IconSymbol ios_icon_name="arrow.2.squarepath" android_material_icon_name="swap-horiz" size={13} color={TEAL} />
               <Text style={styles.substitutionBannerText}>
-                Plan adapted for {equipLabel}. {selectedDaySubCount} exercise{selectedDaySubCount !== 1 ? 's' : ''} substituted.
+                {selectedDaySubCount} exercise{selectedDaySubCount !== 1 ? 's' : ''} substituted for {equipLabel}.
               </Text>
             </View>
           )}
@@ -599,7 +599,7 @@ export default function TrainingPlanScreen() {
                 <Text style={styles.dayDetailName}>{selectedDay.name}</Text>
                 <Text style={styles.dayDetailMeta}>
                   {selectedDay.isRestDay
-                    ? 'Recovery & Mobility'
+                    ? 'Recovery'
                     : `${selectedDay.exercises.length} exercises · ${selectedDay.estimatedDuration} min`}
                 </Text>
               </View>
@@ -618,8 +618,8 @@ export default function TrainingPlanScreen() {
             {selectedDay.isRestDay ? (
               <View style={styles.restDayCard}>
                 <IconSymbol ios_icon_name="bed.double.fill" android_material_icon_name="hotel" size={32} color="#444" />
-                <Text style={styles.restDayText}>Rest & Recovery</Text>
-                <Text style={styles.restDaySubtext}>Mobility, hydration, and sleep are training too.</Text>
+                <Text style={styles.restDayText}>Rest</Text>
+                <Text style={styles.restDaySubtext}>Recovery is part of the programme. Prioritise sleep and mobility.</Text>
               </View>
             ) : (
               <View style={styles.exerciseList}>
@@ -652,7 +652,7 @@ export default function TrainingPlanScreen() {
         {/* ── Program Packs ── */}
         <View style={styles.packsSection}>
           <View style={styles.packsSectionHeader}>
-            <Text style={styles.packsSectionTitle}>Program Packs</Text>
+            <Text style={styles.packsSectionTitle}>Programmes</Text>
             <TouchableOpacity
               onPress={() => {
                 console.log('[TrainingPlan] User tapped Browse all program packs');
@@ -660,7 +660,7 @@ export default function TrainingPlanScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.packsBrowseLink}>Browse all →</Text>
+              <Text style={styles.packsBrowseLink}>Browse →</Text>
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -687,7 +687,7 @@ export default function TrainingPlanScreen() {
             activeOpacity={0.7}
           >
             <IconSymbol ios_icon_name="play.fill" android_material_icon_name="play-arrow" size={20} color="#000" />
-            <Text style={styles.startButtonText}>Start Session</Text>
+            <Text style={styles.startButtonText}>Begin Session</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -698,12 +698,12 @@ export default function TrainingPlanScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Short on Time?</Text>
+              <Text style={styles.modalTitle}>Short on time?</Text>
               <TouchableOpacity onPress={() => setShowTimeModal(false)} activeOpacity={0.7}>
                 <IconSymbol ios_icon_name="xmark" android_material_icon_name="close" size={22} color="#888" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>How many minutes do you have?</Text>
+            <Text style={styles.modalSubtitle}>Available time:</Text>
 
             <View style={styles.timeOptions}>
               {TIME_OPTIONS.map(t => (
@@ -745,7 +745,7 @@ export default function TrainingPlanScreen() {
 
                 {compressed.cutExercises.length > 0 && (
                   <View style={styles.compressSection}>
-                    <Text style={styles.compressSectionLabel}>CUTTING</Text>
+                    <Text style={styles.compressSectionLabel}>REMOVING</Text>
                     {compressed.cutExercises.map((name, i) => (
                       <View key={i} style={styles.compressItem}>
                         <View style={[styles.compressItemDot, { backgroundColor: '#444' }]} />
@@ -758,7 +758,7 @@ export default function TrainingPlanScreen() {
             )}
 
             <TouchableOpacity style={styles.modalPrimaryBtn} onPress={handleStartCompressed} activeOpacity={0.7}>
-              <Text style={styles.modalPrimaryBtnText}>Start Compressed Session</Text>
+              <Text style={styles.modalPrimaryBtnText}>Begin Compressed Session</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -778,13 +778,13 @@ export default function TrainingPlanScreen() {
 
             <View style={styles.missedSupportCard}>
               <Text style={styles.missedSupportText}>
-                {missedResolution?.supportMessage ?? "Life happens. Here's how we keep you on track."}
+                {missedResolution?.supportMessage ?? "Here's how we adjust your programme."}
               </Text>
             </View>
 
             {selectedDay && !selectedDay.isRestDay && (
               <View style={styles.missedSessionInfo}>
-                <Text style={styles.missedSessionLabel}>MISSED SESSION</Text>
+                <Text style={styles.missedSessionLabel}>MISSED</Text>
                 <Text style={styles.missedSessionName}>{selectedDay.name}</Text>
                 <Text style={styles.missedSessionMeta}>{selectedDay.exercises.length} exercises · {selectedDay.estimatedDuration} min</Text>
               </View>
@@ -810,7 +810,7 @@ export default function TrainingPlanScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.missedAcceptBtnText}>Accept Recommendation</Text>
+                <Text style={styles.missedAcceptBtnText}>Apply</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.missedSkipBtn}
@@ -820,7 +820,7 @@ export default function TrainingPlanScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.missedSkipBtnText}>Skip It</Text>
+                <Text style={styles.missedSkipBtnText}>Skip</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -57,7 +57,7 @@ function getWeekLabel(isoString: string): string {
   startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
   if (date >= startOfThisWeek) return 'This week';
   if (date >= startOfLastWeek) return 'Last week';
-  return 'Earlier';
+  return 'Earlier'; // labels unchanged per spec
 }
 
 function groupByWeek(changes: CoachChange[]): Array<{ label: string; items: CoachChange[] }> {
@@ -67,7 +67,7 @@ function groupByWeek(changes: CoachChange[]): Array<{ label: string; items: Coac
     if (!groups[label]) groups[label] = [];
     groups[label].push(change);
   }
-  const order = ['This week', 'Last week', 'Earlier'];
+  const order = ['This week', 'Last week', 'Earlier']; // group labels unchanged per spec
   return order
     .filter(label => groups[label]?.length > 0)
     .map(label => ({ label, items: groups[label] }));
@@ -173,9 +173,9 @@ export default function CoachInsightsScreen() {
   const dismissedCount = allChanges.filter(c => c.dismissed).length;
 
   const emptyMessages: Record<FilterTab, { title: string; subtitle: string }> = {
-    active: { title: 'No active insights', subtitle: 'Your plan is running smoothly' },
-    all: { title: 'No insights yet', subtitle: 'Coach insights will appear here as your plan adapts' },
-    dismissed: { title: 'Nothing dismissed', subtitle: 'Dismissed insights will appear here' },
+    active: { title: 'No active insights', subtitle: 'Your programme is on track.' },
+    all: { title: 'No insights yet', subtitle: 'Insights will appear as your programme adapts.' },
+    dismissed: { title: 'Nothing dismissed', subtitle: 'Dismissed insights appear here.' },
   };
   const emptyMsg = emptyMessages[filter];
 
@@ -194,7 +194,7 @@ export default function CoachInsightsScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Brain size={18} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Coach Insights</Text>
+          <Text style={styles.headerTitle}>Insights</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -203,9 +203,9 @@ export default function CoachInsightsScreen() {
       {onboardingComplete === false && (
         <View style={styles.emptyState}>
           <AlertCircle size={40} color={COLORS.amber} />
-          <Text style={styles.emptyTitle}>Complete your profile</Text>
+          <Text style={styles.emptyTitle}>Profile incomplete</Text>
           <Text style={styles.emptySubtitle}>
-            Complete your profile to get personalized insights from your AI coach.
+            Complete your profile to receive personalised coaching insights.
           </Text>
           <TouchableOpacity
             style={styles.ctaButton}
@@ -223,7 +223,7 @@ export default function CoachInsightsScreen() {
       {onboardingComplete === true && loading && (
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading your insights...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
 

@@ -81,7 +81,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
 function IntensityBadge({ intensity }: { intensity: 'low' | 'medium' | 'high' }) {
   const colorMap = { low: C.success, medium: C.warning, high: C.danger };
   const bgMap = { low: C.successMuted, medium: C.warningMuted, high: 'rgba(248,113,113,0.12)' };
-  const labelMap = { low: 'Low', medium: 'Medium', high: 'High' };
+  const labelMap = { low: 'Low', medium: 'Moderate', high: 'High' };
   return (
     <View style={[styles.badge, { backgroundColor: bgMap[intensity] }]}>
       <Text style={[styles.badgeText, { color: colorMap[intensity] }]}>{labelMap[intensity]}</Text>
@@ -113,7 +113,7 @@ function CategoryIcon({ category }: { category: string }) {
 
 const EQUIPMENT_OPTIONS: Array<{ value: TravelSession['equipmentAvailable']; label: string }> = [
   { value: 'none', label: 'None' },
-  { value: 'bands', label: 'Bands' },
+  { value: 'bands', label: 'Resistance bands' },
   { value: 'dumbbells', label: 'Dumbbells' },
   { value: 'full_gym', label: 'Full gym' },
 ];
@@ -265,7 +265,7 @@ export default function TravelModeScreen() {
   const recommendedWorkout = session ? getRecommendedWorkout(session, dayNumber) : null;
   const completedCount = priorities.filter(p => p.completed).length;
   const totalCount = priorities.length;
-  const daysRemainingText = daysRemaining !== null ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left` : 'Open-ended';
+  const daysRemainingText = daysRemaining !== null ? `${daysRemaining} days remaining` : 'Open-ended';
   const dayNumberText = `Day ${dayNumber}`;
 
   if (loading) {
@@ -307,13 +307,13 @@ export default function TravelModeScreen() {
                 <View style={styles.heroText}>
                   <Text style={styles.heroTitle}>Travel Mode</Text>
                   <Text style={styles.heroSubtitle}>
-                    {session ? `${session.destination} · ${dayNumberText}` : 'Maintain momentum anywhere'}
+                    {session ? `${session.destination} · ${dayNumberText}` : 'Train anywhere. Stay on track.'}
                   </Text>
                 </View>
               </View>
               <View style={[styles.statusBadge, session ? styles.statusBadgeActive : styles.statusBadgeInactive]}>
                 <Text style={[styles.statusBadgeText, session ? styles.statusBadgeTextActive : styles.statusBadgeTextInactive]}>
-                  {session ? 'Active' : 'Set up'}
+                  {session ? 'Active' : 'Set Up'}
                 </Text>
               </View>
             </View>
@@ -331,7 +331,7 @@ export default function TravelModeScreen() {
                 </View>
                 <AnimatedPressable onPress={handleEndTrip} style={styles.endTripButton}>
                   <X size={14} color={C.danger} />
-                  <Text style={styles.endTripText}>End trip</Text>
+                  <Text style={styles.endTripText}>End Trip</Text>
                 </AnimatedPressable>
               </View>
               <View style={styles.sessionMeta}>
@@ -365,13 +365,13 @@ export default function TravelModeScreen() {
           <AnimatedItem index={1}>
             <View style={styles.setupCard}>
               <Text style={styles.setupTitle}>Start a trip</Text>
-              <Text style={styles.setupSubtitle}>Set up your travel context for personalised workouts and nutrition.</Text>
+              <Text style={styles.setupSubtitle}>Define your travel context. We adapt your training and nutrition accordingly.</Text>
 
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Destination</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. London, Business trip"
+                  placeholder="e.g. Dubai, Business trip"
                   placeholderTextColor={C.textTertiary}
                   value={destination}
                   onChangeText={setDestination}
@@ -382,8 +382,8 @@ export default function TravelModeScreen() {
 
               <View style={styles.formRow}>
                 <View style={styles.formRowLeft}>
-                  <Text style={styles.formLabel}>Hotel has a gym?</Text>
-                  <Text style={styles.formHint}>Unlocks gym-based workouts</Text>
+                  <Text style={styles.formLabel}>Hotel gym available?</Text>
+                  <Text style={styles.formHint}>Enables gym-based sessions</Text>
                 </View>
                 <Switch
                   value={hotelHasGym}
@@ -398,8 +398,8 @@ export default function TravelModeScreen() {
 
               <View style={styles.formRow}>
                 <View style={styles.formRowLeft}>
-                  <Text style={styles.formLabel}>Long flight?</Text>
-                  <Text style={styles.formHint}>Adjusts day 1 priorities</Text>
+                  <Text style={styles.formLabel}>Long-haul flight?</Text>
+                  <Text style={styles.formHint}>Adjusts day-one recovery priorities</Text>
                 </View>
                 <Switch
                   value={isLongFlight}
@@ -413,7 +413,7 @@ export default function TravelModeScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Equipment available</Text>
+                <Text style={styles.formLabel}>Available equipment</Text>
                 <View style={styles.segmentedControl}>
                   {EQUIPMENT_OPTIONS.map(opt => {
                     const isSelected = equipment === opt.value;
@@ -442,7 +442,7 @@ export default function TravelModeScreen() {
               >
                 <Plane size={18} color="#fff" />
                 <Text style={styles.startButtonText}>
-                  {saving ? 'Starting...' : 'Start travel mode'}
+                  {saving ? 'Activating...' : 'Activate'}
                 </Text>
               </AnimatedPressable>
             </View>
@@ -454,8 +454,8 @@ export default function TravelModeScreen() {
           <AnimatedItem index={2}>
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Today's priorities</Text>
-                <Text style={styles.sectionMeta}>{completedCount}/{totalCount} done</Text>
+                <Text style={styles.sectionTitle}>Today</Text>
+                <Text style={styles.sectionMeta}>{completedCount} of {totalCount}</Text>
               </View>
               <View style={styles.prioritiesList}>
                 {priorities.map((p, i) => {
@@ -490,7 +490,7 @@ export default function TravelModeScreen() {
         {session && recommendedWorkout && (
           <AnimatedItem index={3}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Today's workout</Text>
+              <Text style={styles.sectionTitle}>Session</Text>
               <AnimatedPressable
                 style={styles.featuredWorkoutCard}
                 onPress={() => handleWorkoutPress(recommendedWorkout.id)}
@@ -525,7 +525,7 @@ export default function TravelModeScreen() {
         {/* ── Nutrition guide ── */}
         <AnimatedItem index={4}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nutrition guide</Text>
+            <Text style={styles.sectionTitle}>Nutrition</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -568,7 +568,7 @@ export default function TravelModeScreen() {
                       </View>
                     )}
                     <View style={styles.nutritionCardFooter}>
-                      <Text style={styles.nutritionTapHint}>{isExpanded ? 'Tap to collapse' : 'Tap to expand'}</Text>
+                      <Text style={styles.nutritionTapHint}>{isExpanded ? 'Collapse' : 'Expand'}</Text>
                     </View>
                   </AnimatedPressable>
                 );
@@ -583,7 +583,7 @@ export default function TravelModeScreen() {
             <AnimatedPressable style={styles.jetLagHeader} onPress={handleJetLagToggle}>
               <View style={styles.jetLagHeaderLeft}>
                 <Moon size={18} color='#A78BFA' />
-                <Text style={styles.sectionTitle}>Jet lag & recovery</Text>
+                <Text style={styles.sectionTitle}>Jet lag and recovery</Text>
               </View>
               {jetLagExpanded ? <ChevronUp size={18} color={C.textSecondary} /> : <ChevronDown size={18} color={C.textSecondary} />}
             </AnimatedPressable>
@@ -606,7 +606,7 @@ export default function TravelModeScreen() {
         {/* ── All travel workouts ── */}
         <AnimatedItem index={6}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>All travel workouts</Text>
+            <Text style={styles.sectionTitle}>All sessions</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

@@ -101,7 +101,7 @@ function getTodayWorkout(profile: FitnessProfile): WorkoutInfo | null {
     'lose-fat': { name: 'Fat Burn Circuit', type: 'HIIT', focus: 'Full Body', color: '#FF6B6B' },
     'build-muscle': { name: 'Hypertrophy Session', type: 'Strength', focus: 'Progressive Overload', color: '#00D4AA' },
     'get-stronger': { name: 'Strength Block', type: 'Powerlifting', focus: 'Compound Lifts', color: '#FFB347' },
-    'improve-endurance': { name: 'Conditioning Work', type: 'Cardio', focus: 'Stamina', color: '#87CEEB' },
+    'improve-endurance': { name: 'Conditioning', type: 'Cardio', focus: 'Stamina', color: '#87CEEB' },
     'increase-flexibility': { name: 'Mobility Flow', type: 'Flexibility', focus: 'Range of Motion', color: '#DDA0DD' },
   };
 
@@ -147,10 +147,10 @@ function getWeekSchedule(profile: FitnessProfile): WeekDay[] {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function getGreeting(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'Good morning';
-  if (hour >= 12 && hour < 17) return 'Good afternoon';
-  if (hour >= 17 && hour < 21) return 'Good evening';
-  return 'Good night';
+  if (hour >= 5 && hour < 12) return 'Morning,';
+  if (hour >= 12 && hour < 17) return 'Afternoon,';
+  if (hour >= 17 && hour < 21) return 'Evening,';
+  return 'Late session,';
 }
 
 const GOAL_LABELS: Record<string, string> = {
@@ -158,15 +158,15 @@ const GOAL_LABELS: Record<string, string> = {
   'build-muscle': 'Build Muscle',
   'get-stronger': 'Get Stronger',
   'improve-endurance': 'Endurance',
-  'increase-flexibility': 'Flexibility',
+  'increase-flexibility': 'Mobility',
 };
 
 const GOAL_DESCRIPTIONS: Record<string, string> = {
-  'lose-fat': 'Your plan is optimised for fat loss with high-intensity circuits and calorie-burning sessions.',
-  'build-muscle': 'Your plan focuses on progressive overload and hypertrophy to maximise muscle growth.',
-  'get-stronger': 'Your plan is built around compound lifts and strength progression.',
-  'improve-endurance': 'Your plan builds cardiovascular capacity and stamina over time.',
-  'increase-flexibility': 'Your plan incorporates mobility work and flexibility training.',
+  'lose-fat': 'Calibrated for fat loss. High-intensity circuits and structured caloric deficit.',
+  'build-muscle': 'Built for hypertrophy. Progressive overload across every session.',
+  'get-stronger': 'Compound lifts. Linear strength progression.',
+  'improve-endurance': 'Cardiovascular development. Stamina built over time.',
+  'increase-flexibility': 'Mobility-focused. Flexibility and joint range prioritised.',
 };
 
 // ─── Skeleton ──────────────────────────────────────────────────────────────────
@@ -243,21 +243,21 @@ function SectionLabel({ title }: { title: string }) {
 // ─── Tour overlay ──────────────────────────────────────────────────────────────
 const TOUR_STEPS = [
   {
-    title: "Your workout, personalised",
-    body: "Every session is tailored to your goals, equipment, and experience level. Tap Start Workout to begin.",
-    cta: "See Training →",
+    title: "Built for you.",
+    body: "Every session is calibrated to your goals, equipment, and level. Tap Begin Session to start.",
+    cta: "Training →",
     route: "/(tabs)/training",
   },
   {
-    title: "Track your momentum",
-    body: "Your streaks, habits, and weekly progress all live in Momentum. Stay consistent and watch it grow.",
-    cta: "See Momentum →",
+    title: "Track your consistency.",
+    body: "Streaks, habits, and weekly progress — all in one place.",
+    cta: "Momentum →",
     route: "/(tabs)/momentum",
   },
   {
-    title: "Your AI Coach",
-    body: "Get personalised advice, workout tips, and motivation from your AI coach anytime.",
-    cta: "Let's go →",
+    title: "AI Coach.",
+    body: "Plan-aware coaching, available at any time.",
+    cta: "Open →",
     route: null,
   },
 ];
@@ -490,8 +490,8 @@ export default function HomeScreen() {
   const todayWorkout = getTodayWorkout(profile);
   const weekSchedule = getWeekSchedule(profile);
 
-  const goalLabel = GOAL_LABELS[profile.primaryGoal || ''] || 'Your Goal';
-  const goalDescription = GOAL_DESCRIPTIONS[profile.primaryGoal || ''] || 'Complete your onboarding to personalise your plan.';
+  const goalLabel = GOAL_LABELS[profile.primaryGoal || ''] || 'Objective';
+  const goalDescription = GOAL_DESCRIPTIONS[profile.primaryGoal || ''] || 'Complete your profile to activate your programme.';
 
   const workoutColor = todayWorkout?.color || C.teal;
   const workoutColorMuted = workoutColor + '18';
@@ -520,7 +520,7 @@ export default function HomeScreen() {
           <FadeSection index={0}>
             <View style={styles.header}>
               <View style={styles.headerGreetingRow}>
-                <Text style={styles.greetingText}>{greetingText},</Text>
+                <Text style={styles.greetingText}>{greetingText}</Text>
                 <Text style={styles.greetingEmoji}>{greetingEmoji}</Text>
               </View>
               <Text style={styles.headerName}>{displayName}</Text>
@@ -533,7 +533,7 @@ export default function HomeScreen() {
                 ) : null}
                 <View style={styles.dayChip}>
                   <Text style={styles.dayChipText}>
-                    {todayWorkout ? 'Training day' : 'Rest day'}
+                    {todayWorkout ? 'Training' : 'Rest'}
                   </Text>
                 </View>
               </View>
@@ -556,15 +556,15 @@ export default function HomeScreen() {
                   <Brain size={24} color={C.teal} strokeWidth={2} />
                 </View>
                 <View style={styles.aiCoachBadge}>
-                  <Text style={styles.aiCoachBadgeText}>AI POWERED</Text>
+                  <Text style={styles.aiCoachBadgeText}>AI</Text>
                 </View>
               </View>
-              <Text style={styles.aiCoachTitle}>Your AI Coach</Text>
+              <Text style={styles.aiCoachTitle}>AI Coach</Text>
               <Text style={styles.aiCoachSubtitle}>
-                Get personalised advice, workout tips, and motivation
+                Plan-aware coaching. Available at any time.
               </Text>
               <View style={styles.aiCoachCta}>
-                <Text style={styles.aiCoachCtaText}>Chat Now</Text>
+                <Text style={styles.aiCoachCtaText}>Open</Text>
                 <ChevronRight size={16} color="#000" strokeWidth={2.5} />
               </View>
             </AnimatedPressable>
@@ -572,7 +572,7 @@ export default function HomeScreen() {
 
           {/* ── 3. Today's Workout ── */}
           <FadeSection index={2}>
-            <SectionLabel title="TODAY'S WORKOUT" />
+            <SectionLabel title="TODAY" />
             {todayWorkout ? (
               <View
                 style={[
@@ -618,21 +618,21 @@ export default function HomeScreen() {
                 <AnimatedPressable
                   scaleValue={0.97}
                   onPress={() => {
-                    console.log('[Home] User tapped Start Workout → navigating to /workout-session');
+                    console.log('[Home] User tapped Begin Session → navigating to /workout-session');
                     router.push('/workout-session');
                   }}
                   style={[styles.startBtn, { backgroundColor: workoutColor }]}
                 >
                   <Play size={16} color="#000" strokeWidth={2.5} fill="#000" />
-                  <Text style={styles.startBtnText}>Start Workout</Text>
+                  <Text style={styles.startBtnText}>Begin Session</Text>
                 </AnimatedPressable>
               </View>
             ) : (
               <View style={[styles.card, styles.restCard]}>
                 <Moon size={28} color={C.textSecondary} strokeWidth={1.5} />
-                <Text style={styles.restTitle}>Rest Day</Text>
+                <Text style={styles.restTitle}>Rest</Text>
                 <Text style={styles.restSubtitle}>
-                  Recovery is part of the plan. Come back tomorrow.
+                  Recovery is structured into your programme. Return tomorrow.
                 </Text>
               </View>
             )}
@@ -696,11 +696,11 @@ export default function HomeScreen() {
 
           {/* ── 5. Today's Tasks ── */}
           <FadeSection index={4}>
-            <SectionLabel title="TODAY'S TASKS" />
+            <SectionLabel title="PRIORITIES" />
             <View style={[styles.card, styles.tasksCard]}>
               {tasks.length === 0 ? (
                 <View style={styles.tasksEmpty}>
-                  <Text style={styles.tasksEmptyText}>No tasks yet — add one below</Text>
+                  <Text style={styles.tasksEmptyText}>No priorities set.</Text>
                 </View>
               ) : (
                 <View style={styles.tasksList}>
@@ -719,7 +719,7 @@ export default function HomeScreen() {
               <View style={styles.taskAddRow}>
                 <TextInput
                   style={styles.taskInput}
-                  placeholder="Add a task..."
+                  placeholder="Add a priority..."
                   placeholderTextColor={C.textSecondary}
                   value={taskInput}
                   onChangeText={setTaskInput}
@@ -746,7 +746,7 @@ export default function HomeScreen() {
 
           {/* ── 6. Your Goal ── */}
           <FadeSection index={5}>
-            <SectionLabel title="YOUR GOAL" />
+            <SectionLabel title="OBJECTIVE" />
             <View style={[styles.card, styles.goalCard]}>
               <View style={styles.goalTopRow}>
                 <View style={styles.goalIconCircle}>

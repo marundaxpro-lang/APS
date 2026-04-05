@@ -26,7 +26,7 @@ export default function HelpSupportScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Help & Support',
+          title: 'Support',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
@@ -46,9 +46,9 @@ export default function HelpSupportScreen() {
             size={64}
             color={colors.primary}
           />
-          <Text style={styles.title}>Help & Support</Text>
+          <Text style={styles.title}>Support</Text>
           <Text style={styles.description}>
-            We&apos;re here to help! Browse our FAQs or contact our support team.
+            Browse the guides below or reach out directly.
           </Text>
         </View>
 
@@ -115,7 +115,7 @@ export default function HelpSupportScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>Report a Problem</Text>
+              <Text style={styles.settingText}>Report an Issue</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
