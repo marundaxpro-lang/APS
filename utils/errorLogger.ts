@@ -53,20 +53,8 @@ const getLogServerUrl = (): string | null => {
 
   try {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      // Only send logs when running on localhost (Metro dev server).
-      // On deployed/preview origins the /natively-logs endpoint does not exist,
-      // so attempting to POST there causes a "Network request failed" error that
-      // gets caught by the overridden console.error, re-queues a log, and creates
-      // an infinite feedback loop that blocks the app (including login).
-      const origin = window.location.origin;
-      const isLocalhost =
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('0.0.0.0');
-      if (isLocalhost) {
-        cachedLogServerUrl = `${origin}/natively-logs`;
-      }
-      // Otherwise leave cachedLogServerUrl as null — logs are silently skipped.
+      // For web, use the current origin
+      cachedLogServerUrl = `${window.location.origin}/natively-logs`;
     } else {
       // For native, try to get the Expo dev server URL
       // experienceUrl format: exp://xxx.ngrok.io/... or exp://192.168.1.1:8081/...
