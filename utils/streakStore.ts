@@ -7,7 +7,11 @@ import {
   calculateDayScore,
 } from './streakEngine';
 
-const STREAK_KEY = 'apex_streak_state';
+const STREAK_KEY_BASE = 'apex_streak_state';
+
+function getStreakKey(userId?: string): string {
+  return userId ? `${STREAK_KEY_BASE}_${userId}` : STREAK_KEY_BASE;
+}
 
 function getISODate(date: Date): string {
   return date.toISOString().split('T')[0];
@@ -25,12 +29,13 @@ const DEFAULT_STATE: StreakState = {
   history: [],
 };
 
-export async function getStreakState(): Promise<StreakState> {
+export async function getStreakState(userId?: string): Promise<StreakState> {
   try {
-    const raw = await AsyncStorage.getItem(STREAK_KEY);
+    const key = getStreakKey(userId);
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(raw) as StreakState;
-    console.log('[StreakStore] Loaded streak state, currentStreak:', parsed.currentStreak);
+    console.log('[StreakStore] Loaded streak state for user:', userId ?? 'anonymous', 'currentStreak:', parsed.currentStreak);
     return parsed;
   } catch (e) {
     console.error('[StreakStore] Error loading streak state:', e);
@@ -38,19 +43,21 @@ export async function getStreakState(): Promise<StreakState> {
   }
 }
 
-export async function saveStreakState(state: StreakState): Promise<void> {
+export async function saveStreakState(state: StreakState, userId?: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(STREAK_KEY, JSON.stringify(state));
-    console.log('[StreakStore] Saved streak state, currentStreak:', state.currentStreak);
+    const key = getStreakKey(userId);
+    await AsyncStorage.setItem(key, JSON.stringify(state));
+    console.log('[StreakStore] Saved streak state for user:', userId ?? 'anonymous', 'currentStreak:', state.currentStreak);
   } catch (e) {
     console.error('[StreakStore] Error saving streak state:', e);
   }
 }
 
 export async function logTodayActivity(
-  activity: Partial<DayActivity>
+  activity: Partial<DayActivity>,
+  userId?: string
 ): Promise<StreakState> {
-  const state = await getStreakState();
+  const state = await getStreakState(userId);
   const todayStr = getISODate(new Date());
 
   // Merge with existing today record if any
@@ -69,18 +76,19 @@ export async function logTodayActivity(
   console.log('[StreakStore] logTodayActivity:', merged, 'score:', calculateDayScore(merged));
 
   const newState = updateStreak(merged, state);
-  await saveStreakState(newState);
+  await saveStreakState(newState, userId);
   return newState;
 }
 
-export async function seedDemoStreak(): Promise<void> {
-  const existing = await AsyncStorage.getItem(STREAK_KEY);
+export async function seedDemoStreak(userId?: string): Promise<void> {
+  const key = getStreakKey(userId);
+  const existing = await AsyncStorage.getItem(key);
   if (existing) {
     console.log('[StreakStore] Demo streak already seeded, skipping');
     return;
   }
 
-  console.log('[StreakStore] Seeding demo streak...');
+  console.log('[StreakStore] Seeding demo streak for user:', userId ?? 'anonymous');
 
   const today = new Date();
   const days: DayActivity[] = [];
@@ -124,6 +132,6 @@ export async function seedDemoStreak(): Promise<void> {
     }
   }
 
-  await saveStreakState(state);
+  await saveStreakState(state, userId);
   console.log('[StreakStore] Demo streak seeded, currentStreak:', state.currentStreak);
 }

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { isOnboardingComplete } from '@/utils/onboardingStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   id: string;
@@ -39,6 +40,41 @@ function mapSupabaseUser(supabaseUser: SupabaseUser): User {
   };
 }
 
+/**
+ * Clear all local app data. Called on logout and before a new login
+ * to prevent data bleeding between accounts.
+ */
+async function clearAllLocalData(userId?: string): Promise<void> {
+  console.log('[AuthContext] Clearing local data for user:', userId ?? 'all');
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    // Remove all app-specific keys. Keep nothing between sessions.
+    const appKeys = allKeys.filter(k =>
+      k.startsWith('apex_') ||
+      k.startsWith('adherence_') ||
+      k.startsWith('fitnessProfile') ||
+      k.startsWith('hasCompletedOnboarding') ||
+      k.startsWith('caloricGoal') ||
+      k.startsWith('weeklyWorkouts') ||
+      k.startsWith('guest_mode') ||
+      k.startsWith('isGuestUser') ||
+      k.startsWith('onboarding_') ||
+      k.startsWith('coach_') ||
+      k.startsWith('student_mode') ||
+      k.startsWith('travel_mode') ||
+      k.startsWith('active_pack') ||
+      k.startsWith('momentum_') ||
+      k.startsWith('next_action_')
+    );
+    if (appKeys.length > 0) {
+      await AsyncStorage.multiRemove(appKeys);
+      console.log('[AuthContext] Cleared', appKeys.length, 'local storage keys');
+    }
+  } catch (e) {
+    console.error('[AuthContext] Error clearing local data:', e);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -48,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Load initial session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      console.log('[AuthContext] Initial session loaded:', s ? 'authenticated' : 'no session');
+      console.log('[AuthContext] Initial session loaded:', s ? `authenticated uid=${s.user.id}` : 'no session');
       setSession(s);
       if (s?.user) {
         setUser(mapSupabaseUser(s.user));
@@ -62,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      console.log('[AuthContext] Auth state changed:', _event);
+      console.log('[AuthContext] Auth state changed:', _event, s ? `uid=${s.user.id}` : 'no session');
       setSession(s);
       if (s?.user) {
         setUser(mapSupabaseUser(s.user));
@@ -83,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const { data: { session: s } } = await supabase.auth.getSession();
-      console.log('[AuthContext] fetchUser:', s ? 'session found' : 'no session');
+      console.log('[AuthContext] fetchUser:', s ? `session found uid=${s.user.id}` : 'no session');
       setSession(s);
       if (s?.user) {
         setUser(mapSupabaseUser(s.user));
@@ -104,6 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     console.log('[AuthContext] signInWithPassword:', email);
+    // Clear any existing session/data before logging in a new user
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    if (existingSession) {
+      console.log('[AuthContext] Existing session found — signing out first to enforce single account');
+      await supabase.auth.signOut();
+      await clearAllLocalData(existingSession.user.id);
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       console.error('[AuthContext] signIn error:', error.message);
@@ -128,6 +171,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
     console.log('[AuthContext] signUpWithEmail:', email, 'name:', name);
+    // Clear any existing session/data before creating a new account
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    if (existingSession) {
+      console.log('[AuthContext] Existing session found — signing out first before sign up');
+      await supabase.auth.signOut();
+      await clearAllLocalData(existingSession.user.id);
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -159,15 +209,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log('[AuthContext] signOut');
+    // Guard: only call signOut if there is an active authenticated session
+    if (!user) {
+      console.log('[AuthContext] signOut skipped — no authenticated user');
+      return;
+    }
+    console.log('[AuthContext] signOut for user:', user.id);
     try {
+      // Clear local data first so it's gone even if signOut errors
+      await clearAllLocalData(user.id);
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('[AuthContext] signOut error:', error.message);
+      } else {
+        console.log('[AuthContext] signOut successful');
       }
     } finally {
       setUser(null);
       setSession(null);
+      setOnboardingCompleted(null);
     }
   };
 

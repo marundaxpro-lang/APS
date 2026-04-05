@@ -2,7 +2,6 @@
 import { authenticatedGet } from '@/utils/api';
 import { IconSymbol } from '@/components/IconSymbol';
 import CustomModal from '@/components/ui/Modal';
-import { setGuestMode } from '@/utils/onboardingStorage';
 import {
   View,
   Text,
@@ -429,17 +428,17 @@ export default function ProfileScreen() {
   const confirmLogout = async () => {
     console.log('ProfileScreen: User confirmed logout');
     setShowLogoutModal(false);
+    // Guard: only call signOut if there is an authenticated user
+    if (!user) {
+      console.log('ProfileScreen: No authenticated user — skipping signOut, redirecting to auth');
+      router.replace('/auth');
+      return;
+    }
     try {
-      if (isGuest) {
-        await AsyncStorage.removeItem('isGuestUser');
-        await setGuestMode(false);
-        console.log('ProfileScreen: Guest logged out, redirecting to auth');
-        router.replace('/auth');
-      } else {
-        await signOut();
-        console.log('ProfileScreen: Sign out successful, redirecting to auth');
-        router.replace('/auth');
-      }
+      console.log('ProfileScreen: Signing out user:', user.id);
+      await signOut();
+      console.log('ProfileScreen: Sign out successful, redirecting to auth');
+      router.replace('/auth');
     } catch (error) {
       console.error('ProfileScreen: Error during logout:', error);
     }

@@ -6,8 +6,16 @@ import {
   calculateWeekAdherence,
 } from './adherenceEngine';
 
-const CURRENT_WEEK_KEY = 'adherence_current_week';
-const WEEK_HISTORY_KEY = 'adherence_week_history';
+const CURRENT_WEEK_KEY_BASE = 'adherence_current_week';
+const WEEK_HISTORY_KEY_BASE = 'adherence_week_history';
+
+function getCurrentWeekKey(userId?: string): string {
+  return userId ? `${CURRENT_WEEK_KEY_BASE}_${userId}` : CURRENT_WEEK_KEY_BASE;
+}
+
+function getWeekHistoryKey(userId?: string): string {
+  return userId ? `${WEEK_HISTORY_KEY_BASE}_${userId}` : WEEK_HISTORY_KEY_BASE;
+}
 
 function getMonday(date: Date): Date {
   const d = new Date(date);
@@ -41,9 +49,10 @@ function buildEmptyWeek(): DayAdherence[] {
   return days;
 }
 
-export async function getCurrentWeek(): Promise<WeekAdherence> {
+export async function getCurrentWeek(userId?: string): Promise<WeekAdherence> {
   try {
-    const raw = await AsyncStorage.getItem(CURRENT_WEEK_KEY);
+    const key = getCurrentWeekKey(userId);
+    const raw = await AsyncStorage.getItem(key);
     if (raw) {
       const parsed: WeekAdherence = JSON.parse(raw);
       // Recalculate scores in case engine logic changed
@@ -56,10 +65,11 @@ export async function getCurrentWeek(): Promise<WeekAdherence> {
   return calculateWeekAdherence(emptyDays);
 }
 
-export async function saveCurrentWeek(week: WeekAdherence): Promise<void> {
+export async function saveCurrentWeek(week: WeekAdherence, userId?: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(CURRENT_WEEK_KEY, JSON.stringify(week));
-    console.log('[AdherenceStore] Saved current week, overall score:', week.scores.overall);
+    const key = getCurrentWeekKey(userId);
+    await AsyncStorage.setItem(key, JSON.stringify(week));
+    console.log('[AdherenceStore] Saved current week for user:', userId ?? 'anonymous', 'overall score:', week.scores.overall);
   } catch (e) {
     console.error('[AdherenceStore] Error saving current week:', e);
   }
@@ -67,22 +77,24 @@ export async function saveCurrentWeek(week: WeekAdherence): Promise<void> {
 
 export async function logDayAdherence(
   date: string,
-  partial: Partial<DayAdherence>
+  partial: Partial<DayAdherence>,
+  userId?: string
 ): Promise<WeekAdherence> {
-  console.log('[AdherenceStore] Logging day adherence for date:', date, partial);
-  const week = await getCurrentWeek();
+  console.log('[AdherenceStore] Logging day adherence for date:', date, 'user:', userId ?? 'anonymous', partial);
+  const week = await getCurrentWeek(userId);
   const dayIndex = week.days.findIndex(d => d.date === date);
   if (dayIndex >= 0) {
     week.days[dayIndex] = { ...week.days[dayIndex], ...partial };
   }
   const updated = calculateWeekAdherence(week.days);
-  await saveCurrentWeek(updated);
+  await saveCurrentWeek(updated, userId);
   return updated;
 }
 
-export async function getWeekHistory(): Promise<WeekAdherence[]> {
+export async function getWeekHistory(userId?: string): Promise<WeekAdherence[]> {
   try {
-    const raw = await AsyncStorage.getItem(WEEK_HISTORY_KEY);
+    const key = getWeekHistoryKey(userId);
+    const raw = await AsyncStorage.getItem(key);
     if (raw) {
       return JSON.parse(raw);
     }
@@ -92,15 +104,16 @@ export async function getWeekHistory(): Promise<WeekAdherence[]> {
   return [];
 }
 
-export async function seedDemoWeek(): Promise<void> {
+export async function seedDemoWeek(userId?: string): Promise<void> {
   try {
-    const existing = await AsyncStorage.getItem(CURRENT_WEEK_KEY);
+    const key = getCurrentWeekKey(userId);
+    const existing = await AsyncStorage.getItem(key);
     if (existing) {
       console.log('[AdherenceStore] Demo week already seeded, skipping');
       return;
     }
 
-    console.log('[AdherenceStore] Seeding demo week data');
+    console.log('[AdherenceStore] Seeding demo week data for user:', userId ?? 'anonymous');
 
     const monday = getMonday(new Date());
     const today = new Date();
@@ -200,9 +213,10 @@ export async function seedDemoWeek(): Promise<void> {
     }
 
     const week = calculateWeekAdherence(days);
-    await saveCurrentWeek(week);
+    await saveCurrentWeek(week, userId);
 
     // Seed 4 weeks of history
+    const historyKey = getWeekHistoryKey(userId);
     const history: WeekAdherence[] = [];
     const historyScores = [72, 81, 65, 88];
     for (let w = 1; w <= 4; w++) {
@@ -239,8 +253,8 @@ export async function seedDemoWeek(): Promise<void> {
       history.push(calculateWeekAdherence(histDays));
     }
 
-    await AsyncStorage.setItem(WEEK_HISTORY_KEY, JSON.stringify(history));
-    console.log('[AdherenceStore] Demo week seeded successfully');
+    await AsyncStorage.setItem(historyKey, JSON.stringify(history));
+    console.log('[AdherenceStore] Demo week seeded successfully for user:', userId ?? 'anonymous');
   } catch (e) {
     console.error('[AdherenceStore] Error seeding demo week:', e);
   }

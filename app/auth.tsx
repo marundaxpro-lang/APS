@@ -18,7 +18,6 @@ import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import ParticleBackground from "@/components/ParticleBackground";
 import { apiPost } from "@/utils/api";
-import { setGuestMode } from "@/utils/onboardingStorage";
 
 const TEAL = "#00D4AA";
 
@@ -163,12 +162,6 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleContinueAsGuest = async () => {
-    console.log('[AuthScreen] User tapped Continue as guest');
-    await setGuestMode(true);
-    router.replace('/(tabs)');
   };
 
   const handleCreateAccount = () => {
@@ -594,12 +587,8 @@ export default function AuthScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Guest + Create account */}
+              {/* Create account / switch mode */}
               <View style={styles.bottomLinks}>
-                <TouchableOpacity onPress={handleContinueAsGuest}>
-                  <Text style={styles.guestLink}>Continue as guest →</Text>
-                </TouchableOpacity>
-
                 {isSignIn && (
                   <View style={styles.createAccountRow}>
                     <Text style={styles.createAccountLabel}>New to Apex? </Text>

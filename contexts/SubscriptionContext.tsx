@@ -248,10 +248,24 @@ export function SubscriptionProvider({ children }: SubscriptionProviderProps) {
       try {
         if (user?.id) {
           // Log in with your app's user ID to sync subscriptions across devices
+          console.log('[RevenueCat] Linking subscription to user:', user.id);
           await Purchases.logIn(user.id);
         } else {
-          // Anonymous user - only log out once auth has fully resolved
-          await Purchases.logOut();
+          // Only call logOut if RevenueCat currently has a logged-in user (not anonymous).
+          // Calling logOut on an anonymous RC user throws "logout was called but user is anonymous".
+          try {
+            const info = await Purchases.getCustomerInfo();
+            const isAnonymous = info.originalAppUserId?.startsWith('$RCAnonymousID:');
+            if (!isAnonymous) {
+              console.log('[RevenueCat] User signed out — logging out of RevenueCat');
+              await Purchases.logOut();
+            } else {
+              console.log('[RevenueCat] No authenticated user — RC already in anonymous mode, skipping logOut');
+            }
+          } catch (infoError) {
+            // If we can't get customer info, skip logOut to avoid the anonymous error
+            console.log('[RevenueCat] Could not get customer info, skipping logOut:', infoError);
+          }
         }
         await checkSubscription();
       } catch (error) {

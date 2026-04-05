@@ -2,7 +2,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Habit, HABIT_LIBRARY } from './habitEngine';
 
-const HABITS_KEY = 'apex_habits_v1';
+const HABITS_KEY_BASE = 'apex_habits_v1';
+
+function getHabitsKey(userId?: string): string {
+  return userId ? `${HABITS_KEY_BASE}_${userId}` : HABITS_KEY_BASE;
+}
 
 const DEFAULT_ACTIVE_IDS = [
   'morning_water',
@@ -81,9 +85,10 @@ function getActiveIdsForProfile(profile: FitnessProfileForHabits): string[] {
   return prioritized;
 }
 
-export async function getHabits(): Promise<Habit[]> {
+export async function getHabits(userId?: string): Promise<Habit[]> {
   try {
-    const raw = await AsyncStorage.getItem(HABITS_KEY);
+    const key = getHabitsKey(userId);
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) return [];
     const habits: Habit[] = JSON.parse(raw);
     // Refresh completedToday based on today's date
@@ -98,27 +103,28 @@ export async function getHabits(): Promise<Habit[]> {
   }
 }
 
-export async function saveHabits(habits: Habit[]): Promise<void> {
+export async function saveHabits(habits: Habit[], userId?: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(habits));
+    const key = getHabitsKey(userId);
+    await AsyncStorage.setItem(key, JSON.stringify(habits));
   } catch (e) {
     console.error('[HabitStore] saveHabits error:', e);
   }
 }
 
-export async function initializeHabits(fitnessProfile?: FitnessProfileForHabits): Promise<Habit[]> {
-  const existing = await getHabits();
+export async function initializeHabits(fitnessProfile?: FitnessProfileForHabits, userId?: string): Promise<Habit[]> {
+  const existing = await getHabits(userId);
   if (existing.length > 0) return existing;
 
   const activeIds = fitnessProfile
     ? getActiveIdsForProfile(fitnessProfile)
     : DEFAULT_ACTIVE_IDS;
 
-  console.log('[HabitStore] First-time init — creating habits for profile, active IDs:', activeIds);
+  console.log('[HabitStore] First-time init for user:', userId ?? 'anonymous', '— active IDs:', activeIds);
   const habits: Habit[] = HABIT_LIBRARY.map(lib =>
     buildHabitFromLibrary(lib, { isActive: activeIds.includes(lib.id) })
   );
-  await saveHabits(habits);
+  await saveHabits(habits, userId);
   return habits;
 }
 
@@ -126,17 +132,19 @@ export async function initializeHabits(fitnessProfile?: FitnessProfileForHabits)
  * Clear existing habits and re-initialize based on the given fitness profile.
  * Called after onboarding completes so habits are immediately personalized.
  */
-export async function resetHabitsForProfile(fitnessProfile: FitnessProfileForHabits): Promise<Habit[]> {
-  console.log('[HabitStore] resetHabitsForProfile called with goal:', fitnessProfile.primaryGoal || fitnessProfile.goal);
-  await AsyncStorage.removeItem(HABITS_KEY);
-  return initializeHabits(fitnessProfile);
+export async function resetHabitsForProfile(fitnessProfile: FitnessProfileForHabits, userId?: string): Promise<Habit[]> {
+  console.log('[HabitStore] resetHabitsForProfile for user:', userId ?? 'anonymous', 'goal:', fitnessProfile.primaryGoal || fitnessProfile.goal);
+  const key = getHabitsKey(userId);
+  await AsyncStorage.removeItem(key);
+  return initializeHabits(fitnessProfile, userId);
 }
 
 export async function completeHabit(
-  habitId: string
+  habitId: string,
+  userId?: string
 ): Promise<{ habit: Habit; xpEarned: number; newStreak: number }> {
-  console.log('[HabitStore] completeHabit called for:', habitId);
-  const habits = await getHabits();
+  console.log('[HabitStore] completeHabit called for:', habitId, 'user:', userId ?? 'anonymous');
+  const habits = await getHabits(userId);
   const today = todayISO();
 
   const idx = habits.findIndex(h => h.id === habitId);
@@ -162,24 +170,24 @@ export async function completeHabit(
   };
 
   habits[idx] = updatedHabit;
-  await saveHabits(habits);
+  await saveHabits(habits, userId);
 
   console.log('[HabitStore] Habit completed:', habitId, 'streak:', newStreak, 'xp:', habit.xpReward);
   return { habit: updatedHabit, xpEarned: habit.xpReward, newStreak };
 }
 
-export async function toggleHabit(habitId: string, active: boolean): Promise<void> {
-  console.log('[HabitStore] toggleHabit:', habitId, 'active:', active);
-  const habits = await getHabits();
+export async function toggleHabit(habitId: string, active: boolean, userId?: string): Promise<void> {
+  console.log('[HabitStore] toggleHabit:', habitId, 'active:', active, 'user:', userId ?? 'anonymous');
+  const habits = await getHabits(userId);
   const updated = habits.map(h => (h.id === habitId ? { ...h, isActive: active } : h));
-  await saveHabits(updated);
+  await saveHabits(updated, userId);
 }
 
-export async function seedDemoHabits(): Promise<void> {
-  const existing = await getHabits();
+export async function seedDemoHabits(userId?: string): Promise<void> {
+  const existing = await getHabits(userId);
   if (existing.length > 0) return;
 
-  console.log('[HabitStore] Seeding demo habits with realistic history');
+  console.log('[HabitStore] Seeding demo habits for user:', userId ?? 'anonymous');
 
   const today = new Date();
 
@@ -260,5 +268,5 @@ export async function seedDemoHabits(): Promise<void> {
     return buildHabitFromLibrary(lib);
   });
 
-  await saveHabits(habits);
+  await saveHabits(habits, userId);
 }

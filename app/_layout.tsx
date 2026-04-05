@@ -18,7 +18,6 @@ import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Modal from "@/components/ui/Modal";
-import { isGuestMode } from "@/utils/onboardingStorage";
 
 // Native-only imports — guarded for web
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
@@ -41,9 +40,10 @@ export const unstable_settings = {
  * Single navigation guard — the ONLY place that redirects to /auth.
  * Rules:
  *   1. Auth still loading → do nothing (show whatever is already rendered)
- *   2. No user AND not guest → redirect to /auth
- *   3. User exists OR guest mode → let the app render normally
+ *   2. No authenticated user → redirect to /auth
+ *   3. User exists → let the app render normally
  *   4. NEVER redirects to /paywall — paywall is opened explicitly by the user
+ * Guest mode is intentionally NOT supported — all users must authenticate.
  */
 function AuthGuard() {
   const { user, loading: authLoading } = useAuth();
@@ -51,23 +51,10 @@ function AuthGuard() {
 
   useEffect(() => {
     if (authLoading) return;
-
-    let cancelled = false;
-    isGuestMode().then((isGuest) => {
-      if (cancelled) return;
-      if (!user && !isGuest) {
-        console.log('[AuthGuard] No user and not guest — redirecting to /auth');
-        router.replace("/auth");
-      }
-    }).catch(() => {
-      if (cancelled) return;
-      if (!user) {
-        console.log('[AuthGuard] Guest check failed, no user — redirecting to /auth');
-        router.replace("/auth");
-      }
-    });
-
-    return () => { cancelled = true; };
+    if (!user) {
+      console.log('[AuthGuard] No authenticated user — redirecting to /auth');
+      router.replace("/auth");
+    }
   }, [user, authLoading, router]);
 
   return null;
