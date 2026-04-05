@@ -18,6 +18,7 @@ import { I18nextProvider } from "react-i18next";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import Modal from "@/components/ui/Modal";
 import i18n, { initI18n } from "@/lib/i18n";
 
@@ -121,6 +122,7 @@ export default function RootLayout() {
   return (
     <I18nextProvider i18n={i18n}>
       <StatusBar style="auto" animated />
+      <SettingsProvider>
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
       >
@@ -152,6 +154,7 @@ export default function RootLayout() {
                 <Stack.Screen name="travel-workout/[id]" options={{ headerShown: true }} />
                 <Stack.Screen name="student-mode" options={{ headerShown: true }} />
                 <Stack.Screen name="student-workout/[id]" options={{ headerShown: true }} />
+                <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
 
                 {/* Modal Demo Screens */}
                 <Stack.Screen
@@ -185,6 +188,7 @@ export default function RootLayout() {
         </SubscriptionProvider>
         </AuthProvider>
       </ThemeProvider>
+      </SettingsProvider>
 
       <Modal
         visible={showOfflineModal}

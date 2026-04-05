@@ -1,7 +1,6 @@
 
 import { authenticatedGet } from '@/utils/api';
 import { IconSymbol } from '@/components/IconSymbol';
-import CustomModal from '@/components/ui/Modal';
 import {
   View,
   Text,
@@ -19,8 +18,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
-import { useTranslation } from 'react-i18next';
-import { SUPPORTED_LANGUAGES } from '@/lib/i18n';
+
 
 interface SubscriptionStatus {
   planType: string;
@@ -340,11 +338,8 @@ const styles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, authLoading, isPremium } = useAuth();
+  const { user, signOut, authLoading } = useAuth();
   const { isSubscribed } = useSubscription();
-  const { i18n } = useTranslation();
-  const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === i18n.language);
-  const currentLangLabel = currentLang?.nativeLabel ?? 'English';
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -673,34 +668,19 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => {
-              console.log('ProfileScreen: User tapped Language button');
-              router.push('/language-select?from=settings');
+              console.log('ProfileScreen: User tapped Settings button');
+              router.push('/settings');
             }}
           >
             <View style={styles.secondaryButtonInner}>
-              <Text style={styles.secondaryButtonText}>Language</Text>
-              <Text style={styles.secondaryButtonValue}>{currentLangLabel}</Text>
+              <Text style={styles.secondaryButtonText}>Settings</Text>
+              <IconSymbol
+                ios_icon_name="gearshape"
+                android_material_icon_name="settings"
+                size={16}
+                color={colors.textSecondary}
+              />
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => {
-              console.log('ProfileScreen: User tapped Help & Support button');
-              router.push('/help-support');
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>Help & Support</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => {
-              console.log('ProfileScreen: User tapped Privacy & Security button');
-              router.push('/privacy-security');
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>Privacy & Security</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
