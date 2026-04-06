@@ -17,6 +17,8 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
+import { useSettings } from '@/contexts/SettingsContext';
+import { calculateBMI } from '@/utils/nutritionEngine';
 
 
 interface SubscriptionStatus {
@@ -339,6 +341,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, authLoading } = useAuth();
   const { isSubscribed } = useSubscription();
+  const { formatWeight, formatHeight } = useSettings();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -488,9 +491,11 @@ export default function ProfileScreen() {
   const trainingDaysCount = profile?.trainingDays || profile?.trainingFrequency || (profile as any)?.selectedDays?.length || 0;
   const trainingDaysDisplay = trainingDaysCount > 0 ? `${trainingDaysCount} days/week` : 'Not set';
   
-  const weightDisplay = profile?.weight ? `${profile.weight} kg` : 'Not set';
-  const heightDisplay = profile?.height ? `${profile.height} cm` : 'Not set';
+  const weightDisplay = profile?.weight ? formatWeight(profile.weight) : 'Not set';
+  const heightDisplay = profile?.height ? formatHeight(profile.height) : 'Not set';
   const ageDisplay = profile?.age ? `${profile.age} years` : 'Not set';
+  const bmiRaw = profile?.weight && profile?.height ? calculateBMI(profile.weight, profile.height) : 0;
+  const bmiDisplay = bmiRaw > 0 ? bmiRaw.toFixed(1) : 'Not set';
 
   return (
     <View style={styles.container}>
@@ -605,9 +610,13 @@ export default function ProfileScreen() {
               <Text style={styles.label}>Weight</Text>
               <Text style={styles.value}>{weightDisplay}</Text>
             </View>
-            <View style={[styles.row, styles.lastRow]}>
+            <View style={styles.row}>
               <Text style={styles.label}>Height</Text>
               <Text style={styles.value}>{heightDisplay}</Text>
+            </View>
+            <View style={[styles.row, styles.lastRow]}>
+              <Text style={styles.label}>BMI</Text>
+              <Text style={styles.value}>{bmiDisplay}</Text>
             </View>
           </View>
         </View>

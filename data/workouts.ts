@@ -1,6 +1,11 @@
 
 import { FitnessProfile, WorkoutDay, Exercise } from '@/types/fitness';
 
+// UNIT STANDARD: All distance values in this file are stored in km, all weight/load
+// values are stored in kg. Never change these stored values. Convert to the user's
+// preferred unit system at display time using formatDistance(km) and formatWeight(kg)
+// from useSettings() (contexts/SettingsContext.tsx).
+
 // Exercise database organized by muscle group and equipment
 const exerciseDatabase = {
   chest: {

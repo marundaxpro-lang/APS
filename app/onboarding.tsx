@@ -21,6 +21,7 @@ import { colors } from '@/styles/commonStyles';
 import { authenticatedPost, authenticatedPut } from '@/utils/api';
 import { resetHabitsForProfile } from '@/utils/habitStore';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 
 const { height } = Dimensions.get('window');
 
@@ -113,6 +114,7 @@ const calculateCaloricGoal = (
 export default function OnboardingScreen() {
   const router = useRouter();
   const { setOnboardingCompleted } = useAuth();
+  const { isMetric, lbsToKg } = useSettings();
   const [step, setStep] = useState(1);
   const [nameSkipped, setNameSkipped] = useState(false);
   const [profile, setProfile] = useState<Partial<FitnessProfile & { 
@@ -129,8 +131,9 @@ export default function OnboardingScreen() {
     nutritionPreference?: string;
   }>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
-  const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
+  // Unit toggles default to the user's current settings unit system
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>(isMetric ? 'kg' : 'lbs');
+  const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>(isMetric ? 'cm' : 'ft');
   const [heightFt, setHeightFt] = useState('');
   const [heightIn, setHeightIn] = useState('');
 
@@ -171,8 +174,9 @@ export default function OnboardingScreen() {
     const trainingDaysCount = profile.selectedDays?.length || 3;
     const age = profile.age || 25;
     const gender = profile.gender || 'male';
-    const weight = profile.weight || 70;
-    const height = profile.height || 175;
+    // profile.weight is always stored in metric (kg) — convert if user entered lbs
+    const weight = profile.weight || 70;  // already metric (converted on input)
+    const height = profile.height || 175; // already metric (converted on input)
     const goal = profile.primaryGoal || 'build-muscle';
     
     const nutritionGoals = calculateCaloricGoal(
@@ -375,18 +379,10 @@ export default function OnboardingScreen() {
       if (!profile.gender || !profile.age || !profile.weight || !profile.height) return false;
       const age = profile.age;
       if (age < 13 || age > 100) return false;
-      if (weightUnit === 'kg') {
-        if (profile.weight < 30 || profile.weight > 300) return false;
-      } else {
-        if (profile.weight < 66 || profile.weight > 660) return false;
-      }
-      if (heightUnit === 'cm') {
-        if (profile.height < 100 || profile.height > 250) return false;
-      } else {
-        const ft = parseInt(heightFt) || 0;
-        const inches = parseInt(heightIn) || 0;
-        if (ft < 3 || ft > 8 || inches < 0 || inches > 11) return false;
-      }
+      // profile.weight is always stored in kg (metric)
+      if (profile.weight < 30 || profile.weight > 300) return false;
+      // profile.height is always stored in cm (metric)
+      if (profile.height < 100 || profile.height > 250) return false;
       return true;
     }
     if (step === 10) {
@@ -1003,20 +999,15 @@ export default function OnboardingScreen() {
 
     const ageError = age > 0 && (age < 13 || age > 100)
       ? 'Enter a valid age (13–100).' : '';
-    const weightErrorKg = weightUnit === 'kg' && weight > 0 && (weight < 30 || weight > 300)
-      ? 'Enter a valid weight (30–300 kg).' : '';
-    const weightErrorLbs = weightUnit === 'lbs' && weight > 0 && (weight < 66 || weight > 660)
-      ? 'Enter a valid weight (66–660 lbs).' : '';
-    const weightError = weightErrorKg || weightErrorLbs;
+    // weight is always stored in kg; validate in kg range
+    const weightError = weight > 0 && (weight < 30 || weight > 300)
+      ? (weightUnit === 'kg' ? 'Enter a valid weight (30–300 kg).' : 'Enter a valid weight (66–660 lbs).')
+      : '';
 
-    const ft = parseInt(heightFt) || 0;
-    const inches = parseInt(heightIn) || 0;
-    const heightErrorCm = heightUnit === 'cm' && height > 0 && (height < 100 || height > 250)
-      ? 'Enter a valid height (100–250 cm).' : '';
-    const heightErrorFt = heightUnit === 'ft' && (heightFt || heightIn)
-      && (ft < 3 || ft > 8 || inches < 0 || inches > 11)
-      ? 'Enter a valid height (3–8 ft, 0–11 in).' : '';
-    const heightError = heightErrorCm || heightErrorFt;
+    // height is always stored in cm; validate in cm range
+    const heightError = height > 0 && (height < 100 || height > 250)
+      ? (heightUnit === 'cm' ? 'Enter a valid height (100–250 cm).' : 'Enter a valid height (3–8 ft, 0–11 in).')
+      : '';
 
     const genderLabel = (g: string) => {
       if (g === 'prefer-not-to-say') return 'Prefer not to say';
@@ -1098,10 +1089,13 @@ export default function OnboardingScreen() {
             keyboardType="numeric"
             placeholder={weightUnit === 'kg' ? '70' : '154'}
             placeholderTextColor={colors.grey}
-            value={profile.weight ? profile.weight.toString() : ''}
+            value={profile.weight ? (weightUnit === 'kg' ? profile.weight.toString() : Math.round(profile.weight * 2.20462).toString()) : ''}
             onChangeText={(text) => {
               console.log('[Onboarding] Weight entered:', text, weightUnit);
-              setProfile({ ...profile, weight: parseFloat(text) || 0 });
+              const raw = parseFloat(text) || 0;
+              // Always store in kg (metric) internally
+              const kg = weightUnit === 'lbs' ? lbsToKg(raw) : raw;
+              setProfile({ ...profile, weight: kg });
             }}
           />
           {weightError ? <Text style={styles.fieldError}>{weightError}</Text> : null}

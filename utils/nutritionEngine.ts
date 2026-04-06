@@ -1,5 +1,7 @@
 
 // ─── Nutrition Engine ─────────────────────────────────────────────────────────
+// IMPORTANT: All calculations use metric units internally (kg, cm).
+// Weight must be in kg, height must be in cm. Convert at UI boundaries only.
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,17 @@ export interface DailyNutrition {
   proteinTarget: number;
   carbsTarget: number;
   fatTarget: number;
+}
+
+// ── BMI calculation ────────────────────────────────────────────────────────────
+// Both params must be metric: weightKg in kg, heightCm in cm.
+
+export function calculateBMI(weightKg: number, heightCm: number): number {
+  const w = Number(weightKg);
+  const h = Number(heightCm);
+  if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return 0;
+  const heightM = h / 100;
+  return w / (heightM * heightM);
 }
 
 // ── Default food database ──────────────────────────────────────────────────────

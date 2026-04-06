@@ -17,13 +17,22 @@ import { FitnessProfile } from '@/types/fitness';
 import { authenticatedPost } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
 import { generateWorkoutSplit } from '@/data/workouts';
+import { useSettings } from '@/contexts/SettingsContext';
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const { isMetric, formatWeightValue, formatHeightValue, lbsToKg, ftInToCm } = useSettings();
+
   const [profile, setProfile] = useState<Partial<FitnessProfile>>({});
   const [loading, setLoading] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+
+  // Display-unit input state (always converted from stored metric on load)
+  const [weightInput, setWeightInput] = useState('');
+  const [heightCmInput, setHeightCmInput] = useState('');
+  const [heightFtInput, setHeightFtInput] = useState('');
+  const [heightInInput, setHeightInInput] = useState('');
 
   useEffect(() => {
     loadProfile();
@@ -33,7 +42,23 @@ export default function EditProfileScreen() {
     try {
       const stored = await AsyncStorage.getItem('fitnessProfile');
       if (stored) {
-        setProfile(JSON.parse(stored));
+        const parsed: Partial<FitnessProfile> = JSON.parse(stored);
+        setProfile(parsed);
+
+        // Populate display-unit inputs from stored metric values
+        if (parsed.weight) {
+          const wVal = formatWeightValue(parsed.weight);
+          setWeightInput(wVal > 0 ? String(wVal) : '');
+        }
+        if (parsed.height) {
+          const hVal = formatHeightValue(parsed.height);
+          if (isMetric) {
+            setHeightCmInput(hVal.primary > 0 ? String(hVal.primary) : '');
+          } else {
+            setHeightFtInput(hVal.primary > 0 ? String(hVal.primary) : '');
+            setHeightInInput(hVal.secondary !== undefined ? String(hVal.secondary) : '0');
+          }
+        }
       }
     } catch (error) {
       console.error('[EditProfile] Error loading profile:', error);
@@ -42,89 +67,123 @@ export default function EditProfileScreen() {
     }
   };
 
+  // Convert display inputs back to metric before saving
+  const getMetricWeight = (): number => {
+    const raw = parseFloat(weightInput) || 0;
+    if (raw <= 0) return profile.weight || 0;
+    if (isMetric) return raw;
+    return lbsToKg(raw);
+  };
+
+  const getMetricHeight = (): number => {
+    if (isMetric) {
+      return parseFloat(heightCmInput) || profile.height || 0;
+    }
+    const ft = parseFloat(heightFtInput) || 0;
+    const inches = parseFloat(heightInInput) || 0;
+    if (ft <= 0 && inches <= 0) return profile.height || 0;
+    return ftInToCm(ft, inches);
+  };
+
   const saveProfile = async () => {
+    console.log('[EditProfile] User tapped Save button');
+
+    const metricWeight = getMetricWeight();
+    const metricHeight = getMetricHeight();
+
+    console.log('[EditProfile] Converted to metric — weight:', metricWeight, 'kg, height:', metricHeight, 'cm');
+
+    const updatedProfile: Partial<FitnessProfile> = {
+      ...profile,
+      weight: metricWeight,
+      height: metricHeight,
+    };
+
     try {
-      console.log('[EditProfile] Saving profile:', profile);
-      
+      console.log('[EditProfile] Saving profile:', updatedProfile);
+
       // Save to local storage first
-      await AsyncStorage.setItem('fitnessProfile', JSON.stringify(profile));
-      
+      await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
+
       // Regenerate weekly workout plan with new training days
-      if (profile.trainingDays && profile.equipmentType && profile.focusAreas && profile.goal) {
+      if (updatedProfile.trainingDays && updatedProfile.equipmentType && updatedProfile.focusAreas && updatedProfile.goal) {
         console.log('[EditProfile] Regenerating weekly workout plan...');
-        const newWorkoutSplit = generateWorkoutSplit(profile as FitnessProfile);
+        const newWorkoutSplit = generateWorkoutSplit(updatedProfile as FitnessProfile);
         console.log('[EditProfile] New workout split generated:', newWorkoutSplit);
-        // The plan.tsx screen will automatically load the new profile and regenerate
       }
-      
+
       try {
         // Calculate activity level based on training days
-        const activityLevel = (profile.trainingDays || 3) >= 5 ? 'active' : 
-                             (profile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
-        
-        // Save complete profile to backend with ALL fields
+        const activityLevel = (updatedProfile.trainingDays || 3) >= 5 ? 'active' :
+                             (updatedProfile.trainingDays || 3) >= 3 ? 'moderate' : 'light';
+
+        // Save complete profile to backend with ALL fields (always metric)
         const profilePayload = {
           experienceLevel: 'beginner',
-          goal: profile.goal || 'muscle',
-          trainingFrequency: profile.trainingDays || 3,
-          gender: profile.gender || 'male',
-          age: profile.age || 25,
-          weight: profile.weight || 70,
-          height: profile.height || 175,
+          goal: updatedProfile.goal || 'muscle',
+          trainingFrequency: updatedProfile.trainingDays || 3,
+          gender: updatedProfile.gender || 'male',
+          age: updatedProfile.age || 25,
+          weight: metricWeight,   // always kg
+          height: metricHeight,   // always cm
           activityLevel,
-          focusAreas: profile.focusAreas || [],
-          equipmentType: profile.equipmentType || 'gym',
-          name: profile.name || undefined,
+          focusAreas: updatedProfile.focusAreas || [],
+          equipmentType: updatedProfile.equipmentType || 'gym',
+          name: updatedProfile.name || undefined,
         };
-        
-        console.log('[EditProfile] Saving complete profile payload:', profilePayload);
+
+        console.log('[EditProfile] Saving complete profile payload (metric):', profilePayload);
         await authenticatedPost('/api/fitness-profile', profilePayload);
         console.log('[EditProfile] Complete fitness profile saved to backend');
-        
+
         // Recalculate calorie goal if weight/height/age changed
-        if (profile.weight && profile.height && profile.age && profile.gender) {
+        if (metricWeight && metricHeight && updatedProfile.age && updatedProfile.gender) {
           console.log('[EditProfile] Recalculating caloric goal based on updated profile...');
-          
+
           let backendGoal: 'weight_loss' | 'maintenance' | 'weight_gain' = 'maintenance';
-          if (profile.goal === 'weight-loss') {
+          if (updatedProfile.goal === 'weight-loss') {
             backendGoal = 'weight_loss';
-          } else if (profile.goal === 'muscle' || profile.goal === 'strength') {
+          } else if (updatedProfile.goal === 'muscle' || updatedProfile.goal === 'strength') {
             backendGoal = 'weight_gain';
           }
-          
+
           const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
-            age: profile.age,
-            gender: profile.gender,
-            weight: profile.weight,
-            height: profile.height,
+            age: updatedProfile.age,
+            gender: updatedProfile.gender,
+            weight: metricWeight,   // always kg
+            height: metricHeight,   // always cm
             activityLevel,
             goal: backendGoal,
           });
-          
+
           console.log('[EditProfile] Caloric goal recalculated:', caloricGoalResponse?.dailyCalorieGoal || 'unknown');
-          
+
           // Update local profile with new caloric goal
           if (caloricGoalResponse?.dailyCalorieGoal) {
-            const updatedProfile = {
-              ...profile,
+            const withCalories = {
+              ...updatedProfile,
               caloricGoal: caloricGoalResponse.dailyCalorieGoal,
             };
-            await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
-            setProfile(updatedProfile);
+            await AsyncStorage.setItem('fitnessProfile', JSON.stringify(withCalories));
+            setProfile(withCalories);
           }
         }
-        
+
         console.log('[EditProfile] Profile, caloric goal, and workout plan updated successfully');
       } catch (error) {
         console.error('[EditProfile] Error saving to backend:', error);
       }
-      
+
+      setProfile(updatedProfile);
       setShowSuccessModal(true);
     } catch (error) {
       console.error('[EditProfile] Error saving profile:', error);
       setShowErrorModal(true);
     }
   };
+
+  const weightLabel = isMetric ? 'Weight (kg)' : 'Weight (lbs)';
+  const weightPlaceholder = isMetric ? '70' : '154';
 
   if (loading) {
     return (
@@ -146,7 +205,7 @@ export default function EditProfileScreen() {
         }}
       />
       <ParticleBackground />
-      
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -154,7 +213,7 @@ export default function EditProfileScreen() {
       >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Name</Text>
             <TextInput
@@ -162,7 +221,10 @@ export default function EditProfileScreen() {
               placeholder="Full name"
               placeholderTextColor={colors.grey}
               value={profile.name || ''}
-              onChangeText={(text) => setProfile({ ...profile, name: text })}
+              onChangeText={(text) => {
+                console.log('[EditProfile] Name changed:', text);
+                setProfile({ ...profile, name: text });
+              }}
             />
           </View>
 
@@ -174,14 +236,17 @@ export default function EditProfileScreen() {
               placeholderTextColor={colors.grey}
               keyboardType="numeric"
               value={profile.age?.toString() || ''}
-              onChangeText={(text) => setProfile({ ...profile, age: parseInt(text) || 0 })}
+              onChangeText={(text) => {
+                console.log('[EditProfile] Age changed:', text);
+                setProfile({ ...profile, age: parseInt(text) || 0 });
+              }}
             />
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Body Stats</Text>
-          
+
           <View style={styles.infoCard}>
             <IconSymbol
               ios_icon_name="info.circle.fill"
@@ -193,35 +258,77 @@ export default function EditProfileScreen() {
               Updating body stats recalculates your daily caloric target.
             </Text>
           </View>
-          
+
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Weight (kg)</Text>
+            <Text style={styles.inputLabel}>{weightLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="70"
+              placeholder={weightPlaceholder}
               placeholderTextColor={colors.grey}
               keyboardType="numeric"
-              value={profile.weight?.toString() || ''}
-              onChangeText={(text) => setProfile({ ...profile, weight: parseFloat(text) || 0 })}
+              value={weightInput}
+              onChangeText={(text) => {
+                console.log('[EditProfile] Weight input changed:', text, isMetric ? 'kg' : 'lbs');
+                setWeightInput(text);
+              }}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Height (cm)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="175"
-              placeholderTextColor={colors.grey}
-              keyboardType="numeric"
-              value={profile.height?.toString() || ''}
-              onChangeText={(text) => setProfile({ ...profile, height: parseFloat(text) || 0 })}
-            />
-          </View>
+          {isMetric ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Height (cm)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="175"
+                placeholderTextColor={colors.grey}
+                keyboardType="numeric"
+                value={heightCmInput}
+                onChangeText={(text) => {
+                  console.log('[EditProfile] Height cm changed:', text);
+                  setHeightCmInput(text);
+                }}
+              />
+            </View>
+          ) : (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Height</Text>
+              <View style={styles.ftInRow}>
+                <View style={styles.ftInField}>
+                  <TextInput
+                    style={[styles.input, styles.ftInInput]}
+                    placeholder="5"
+                    placeholderTextColor={colors.grey}
+                    keyboardType="numeric"
+                    value={heightFtInput}
+                    onChangeText={(text) => {
+                      console.log('[EditProfile] Height ft changed:', text);
+                      setHeightFtInput(text);
+                    }}
+                  />
+                  <Text style={styles.ftInLabel}>ft</Text>
+                </View>
+                <View style={styles.ftInField}>
+                  <TextInput
+                    style={[styles.input, styles.ftInInput]}
+                    placeholder="10"
+                    placeholderTextColor={colors.grey}
+                    keyboardType="numeric"
+                    value={heightInInput}
+                    onChangeText={(text) => {
+                      console.log('[EditProfile] Height in changed:', text);
+                      setHeightInInput(text);
+                    }}
+                  />
+                  <Text style={styles.ftInLabel}>in</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Training Frequency</Text>
-          
+
           <View style={styles.infoCard}>
             <IconSymbol
               ios_icon_name="info.circle.fill"
@@ -233,7 +340,7 @@ export default function EditProfileScreen() {
               Changing training days regenerates your weekly programme.
             </Text>
           </View>
-          
+
           <View style={styles.frequencyGrid}>
             {[2, 3, 4, 5, 6].map((days) => (
               <TouchableOpacity
@@ -242,7 +349,10 @@ export default function EditProfileScreen() {
                   styles.frequencyCard,
                   profile.trainingDays === days && styles.frequencyCardSelected,
                 ]}
-                onPress={() => setProfile({ ...profile, trainingDays: days })}
+                onPress={() => {
+                  console.log('[EditProfile] Training days selected:', days);
+                  setProfile({ ...profile, trainingDays: days });
+                }}
               >
                 <Text style={[
                   styles.frequencyNumber,
@@ -345,6 +455,25 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: colors.text,
+  },
+  ftInRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  ftInField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ftInInput: {
+    flex: 1,
+  },
+  ftInLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    minWidth: 20,
   },
   frequencyGrid: {
     flexDirection: 'row',
