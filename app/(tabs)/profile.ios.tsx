@@ -19,6 +19,7 @@ import { FitnessProfile } from '@/types/fitness';
 import { colors } from '@/styles/commonStyles';
 import { useSettings } from '@/contexts/SettingsContext';
 import { calculateBMI } from '@/utils/nutritionEngine';
+import { useTranslation } from 'react-i18next';
 
 
 interface SubscriptionStatus {
@@ -464,6 +465,21 @@ export default function ProfileScreen() {
     }
   };
 
+  const { t } = useTranslation();
+
+  // Map goal values from onboarding to display text
+  const goalMap: Record<string, string> = {
+    'strength': t('profile.goalStrength'),
+    'muscle': t('profile.goalMuscle'),
+    'endurance': t('profile.goalEndurance'),
+    'weight-loss': t('profile.goalWeightLoss'),
+    'weight_loss': t('profile.goalWeightLoss'),
+    'weightLoss': t('profile.goalWeightLoss'),
+    'muscleGain': t('profile.goalMuscle'),
+    'muscle_gain': t('profile.goalMuscle'),
+    'maintenance': t('profile.goalMaintenance'),
+  };
+
   if (authLoading || loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -472,37 +488,32 @@ export default function ProfileScreen() {
     );
   }
 
-  // Map goal values from onboarding to display text
-  const goalMap: Record<string, string> = {
-    'strength': 'Get Stronger',
-    'muscle': 'Build Muscle',
-    'endurance': 'Boost Endurance',
-    'weight-loss': 'Lose Weight',
-    'weightLoss': 'Lose Weight',
-    'muscleGain': 'Build Muscle',
-    'maintenance': 'Maintenance',
-  };
+  const genderDisplay = profile?.gender === 'male' ? t('profile.genderMale') : profile?.gender === 'female' ? t('profile.genderFemale') : profile?.gender === 'other' ? t('profile.genderOther') : t('common.notSet');
+  const experienceDisplay = profile?.experienceLevel === 'beginner' ? t('profile.expBeginner') : profile?.experienceLevel === 'intermediate' ? t('profile.expIntermediate') : profile?.experienceLevel === 'advanced' ? t('profile.expAdvanced') : t('profile.expBeginner');
+  const goalDisplay = profile?.goal ? (goalMap[profile.goal] || profile.goal) : t('common.notSet');
 
-  const genderDisplay = profile?.gender === 'male' ? 'Male' : profile?.gender === 'female' ? 'Female' : profile?.gender || 'Not set';
-  const experienceDisplay = profile?.experienceLevel === 'beginner' ? 'Beginner' : profile?.experienceLevel === 'intermediate' ? 'Intermediate' : profile?.experienceLevel === 'advanced' ? 'Advanced' : 'Beginner';
-  const goalDisplay = profile?.goal ? (goalMap[profile.goal] || profile.goal) : 'Not set';
-  
-  // Training days can come from trainingDays, trainingFrequency, or selectedDays
   const trainingDaysCount = profile?.trainingDays || profile?.trainingFrequency || (profile as any)?.selectedDays?.length || 0;
-  const trainingDaysDisplay = trainingDaysCount > 0 ? `${trainingDaysCount} days/week` : 'Not set';
-  
-  const weightDisplay = profile?.weight ? formatWeight(profile.weight) : 'Not set';
-  const heightDisplay = profile?.height ? formatHeight(profile.height) : 'Not set';
-  const ageDisplay = profile?.age ? `${profile.age} years` : 'Not set';
+  const trainingDaysDisplay = trainingDaysCount > 0 ? `${trainingDaysCount} ${t('common.daysPerWeek', { count: trainingDaysCount }).replace(/^\d+ /, '')}` : t('common.notSet');
+
+  const weightDisplay = profile?.weight ? formatWeight(profile.weight) : t('common.notSet');
+  const heightDisplay = profile?.height ? formatHeight(profile.height) : t('common.notSet');
+  const ageDisplay = profile?.age ? `${profile.age} ${t('common.years', { count: profile.age }).replace(/^\d+ /, '')}` : t('common.notSet');
   const bmiRaw = profile?.weight && profile?.height ? calculateBMI(profile.weight, profile.height) : 0;
-  const bmiDisplay = bmiRaw > 0 ? bmiRaw.toFixed(1) : 'Not set';
+  const bmiDisplay = bmiRaw > 0 ? bmiRaw.toFixed(1) : t('common.notSet');
+
+  const nameDisplay = profile?.name || user?.name || t('common.notSet');
+  const emailDisplay = user?.email || t('common.notSet');
+  const logoutTitle = isGuest ? t('profile.exitGuestTitle') : t('profile.logoutTitle');
+  const logoutMessage = isGuest ? t('profile.exitGuestMessage') : t('profile.logoutMessage');
+  const logoutConfirmText = isGuest ? t('profile.exit') : t('profile.signOut');
+  const signOutButtonText = isGuest ? t('profile.exitGuestMode') : t('profile.signOut');
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Manage your fitness profile</Text>
+          <Text style={styles.title}>{t('profile.title')}</Text>
+          <Text style={styles.subtitle}>{t('profile.subtitle')}</Text>
         </View>
 
         {(isGuest || !user) && (
@@ -513,15 +524,15 @@ export default function ProfileScreen() {
               size={32}
               color={colors.primary}
             />
-            <Text style={styles.guestBannerTitle}>You&apos;re using Guest Mode</Text>
+            <Text style={styles.guestBannerTitle}>{t('profile.guestTitle')}</Text>
             <Text style={styles.guestBannerText}>
-              Sign in to sync your progress across devices and never lose your data.
+              {t('profile.guestText')}
             </Text>
             <TouchableOpacity
               style={styles.guestBannerButton}
               onPress={handleCreateAccount}
             >
-              <Text style={styles.guestBannerButtonText}>Sign In</Text>
+              <Text style={styles.guestBannerButtonText}>{t('profile.signIn')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -537,13 +548,13 @@ export default function ProfileScreen() {
                   size={28}
                   color="#FFD700"
                 />
-                <Text style={styles.premiumCardTitle}>Pro Plan Active</Text>
+                <Text style={styles.premiumCardTitle}>{t('profile.proPlanActive')}</Text>
                 <View style={styles.premiumCardBadge}>
-                  <Text style={styles.premiumCardBadgeText}>✨ PRO</Text>
+                  <Text style={styles.premiumCardBadgeText}>PRO</Text>
                 </View>
               </View>
               <Text style={styles.premiumCardSubtitle}>
-                You have access to all premium features including AI coaching, advanced analytics, and unlimited programs.
+                {t('profile.proPlanSubtitle')}
               </Text>
               <TouchableOpacity
                 style={styles.premiumUpgradeButton}
@@ -552,7 +563,7 @@ export default function ProfileScreen() {
                   router.push('/paywall');
                 }}
               >
-                <Text style={styles.premiumUpgradeButtonText}>Manage Subscription</Text>
+                <Text style={styles.premiumUpgradeButtonText}>{t('profile.manageSubscription')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -564,13 +575,13 @@ export default function ProfileScreen() {
                   size={24}
                   color={colors.primary}
                 />
-                <Text style={styles.freePlanTitle}>Free Plan</Text>
+                <Text style={styles.freePlanTitle}>{t('profile.freePlan')}</Text>
                 <View style={styles.freePlanBadge}>
                   <Text style={styles.freePlanBadgeText}>FREE</Text>
                 </View>
               </View>
               <Text style={styles.freePlanSubtitle}>
-                Unlock AI coaching, unlimited programs, advanced analytics, and travel &amp; student modes with APS Pro.
+                {t('profile.freePlanSubtitle')}
               </Text>
               <TouchableOpacity
                 style={styles.upgradeButton}
@@ -579,68 +590,68 @@ export default function ProfileScreen() {
                   router.push('/paywall');
                 }}
               >
-                <Text style={styles.upgradeButtonText}>⚡ Go Pro</Text>
+                <Text style={styles.upgradeButtonText}>{t('profile.goPro')}</Text>
               </TouchableOpacity>
             </View>
           )
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>{t('profile.personalInfo')}</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <Text style={styles.label}>Name</Text>
-              <Text style={styles.value}>{profile?.name || user?.name || 'Not set'}</Text>
+              <Text style={styles.label}>{t('profile.name')}</Text>
+              <Text style={styles.value}>{nameDisplay}</Text>
             </View>
             {!isGuest && (
               <View style={styles.row}>
-                <Text style={styles.label}>Email</Text>
-                <Text style={styles.value}>{user?.email || 'Not set'}</Text>
+                <Text style={styles.label}>{t('profile.email')}</Text>
+                <Text style={styles.value}>{emailDisplay}</Text>
               </View>
             )}
             <View style={styles.row}>
-              <Text style={styles.label}>Gender</Text>
+              <Text style={styles.label}>{t('profile.gender')}</Text>
               <Text style={styles.value}>{genderDisplay}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Age</Text>
+              <Text style={styles.label}>{t('profile.age')}</Text>
               <Text style={styles.value}>{ageDisplay}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Weight</Text>
+              <Text style={styles.label}>{t('profile.weight')}</Text>
               <Text style={styles.value}>{weightDisplay}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Height</Text>
+              <Text style={styles.label}>{t('profile.height')}</Text>
               <Text style={styles.value}>{heightDisplay}</Text>
             </View>
             <View style={[styles.row, styles.lastRow]}>
-              <Text style={styles.label}>BMI</Text>
+              <Text style={styles.label}>{t('profile.bmi')}</Text>
               <Text style={styles.value}>{bmiDisplay}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fitness Profile</Text>
+          <Text style={styles.sectionTitle}>{t('profile.fitnessProfile')}</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <Text style={styles.label}>Experience Level</Text>
+              <Text style={styles.label}>{t('profile.experienceLevel')}</Text>
               <Text style={styles.value}>{experienceDisplay}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Goal</Text>
+              <Text style={styles.label}>{t('profile.goal')}</Text>
               <Text style={styles.value}>{goalDisplay}</Text>
             </View>
             <View style={[styles.row, styles.lastRow]}>
-              <Text style={styles.label}>Training Days</Text>
+              <Text style={styles.label}>{t('profile.trainingDays')}</Text>
               <Text style={styles.value}>{trainingDaysDisplay}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
+          <Text style={styles.sectionTitle}>{t('profile.actions')}</Text>
           <TouchableOpacity
             style={styles.button}
             onPress={() => {
@@ -648,7 +659,7 @@ export default function ProfileScreen() {
               router.push('/edit-profile');
             }}
           >
-            <Text style={styles.buttonText}>Edit Profile</Text>
+            <Text style={styles.buttonText}>{t('profile.editProfile')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -659,7 +670,7 @@ export default function ProfileScreen() {
             }}
           >
             <View style={styles.secondaryButtonInner}>
-              <Text style={styles.secondaryButtonText}>Settings</Text>
+              <Text style={styles.secondaryButtonText}>{t('profile.settings')}</Text>
               <IconSymbol
                 ios_icon_name="gearshape"
                 android_material_icon_name="settings"
@@ -673,12 +684,12 @@ export default function ProfileScreen() {
             style={styles.dangerButton}
             onPress={handleResetOnboarding}
           >
-            <Text style={styles.buttonText}>Reset Onboarding</Text>
+            <Text style={styles.buttonText}>{t('profile.resetOnboarding')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>
-              {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
+              {signOutButtonText}
             </Text>
           </TouchableOpacity>
         </View>
@@ -692,14 +703,8 @@ export default function ProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
-            </Text>
-            <Text style={styles.modalMessage}>
-              {isGuest 
-                ? 'Are you sure you want to exit guest mode? Your local data will remain on this device.'
-                : 'Are you sure you want to sign out?'}
-            </Text>
+            <Text style={styles.modalTitle}>{logoutTitle}</Text>
+            <Text style={styles.modalMessage}>{logoutMessage}</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -708,14 +713,14 @@ export default function ProfileScreen() {
                   setShowLogoutModal(false);
                 }}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={confirmLogout}
               >
                 <Text style={[styles.modalButtonText, styles.modalButtonTextConfirm]}>
-                  {isGuest ? 'Exit' : 'Sign Out'}
+                  {logoutConfirmText}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -731,10 +736,8 @@ export default function ProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Reset Onboarding</Text>
-            <Text style={styles.modalMessage}>
-              This will clear your profile data and take you back to the onboarding flow. You'll need to set up your profile again. Are you sure?
-            </Text>
+            <Text style={styles.modalTitle}>{t('profile.resetTitle')}</Text>
+            <Text style={styles.modalMessage}>{t('profile.resetMessage')}</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -743,14 +746,14 @@ export default function ProfileScreen() {
                   setShowResetModal(false);
                 }}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={confirmResetOnboarding}
               >
                 <Text style={[styles.modalButtonText, styles.modalButtonTextConfirm]}>
-                  Reset
+                  {t('profile.reset')}
                 </Text>
               </TouchableOpacity>
             </View>

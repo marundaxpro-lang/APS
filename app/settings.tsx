@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -42,6 +42,7 @@ function SettingRow({
   comingSoon?: boolean;
   last?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity
       style={[styles.row, last && styles.rowLast, disabled && styles.rowDisabled]}
@@ -144,8 +145,9 @@ function UnitPicker({
   value: 'metric' | 'imperial';
   onChange: (v: 'metric' | 'imperial') => void;
 }) {
-  const metricLabel = 'Metric';
-  const imperialLabel = 'Imperial';
+  const { t } = useTranslation();
+  const metricLabel = t('settings.metric');
+  const imperialLabel = t('settings.imperial');
   const metricSub = 'kg · cm · km';
   const imperialSub = 'lbs · ft/in · mi';
 
@@ -229,6 +231,7 @@ function WeekStartPicker({
   value: 0 | 1;
   onChange: (v: 0 | 1) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.segmentRow}>
       <TouchableOpacity
@@ -237,7 +240,7 @@ function WeekStartPicker({
         activeOpacity={0.8}
       >
         <Text style={[styles.segmentText, value === 1 && styles.segmentTextActive]}>
-          Monday
+          {t('settings.monday')}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -246,7 +249,7 @@ function WeekStartPicker({
         activeOpacity={0.8}
       >
         <Text style={[styles.segmentText, value === 0 && styles.segmentTextActive]}>
-          Sunday
+          {t('settings.sunday')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -257,7 +260,7 @@ function WeekStartPicker({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, updateSetting } = useSettings();
 
   const [showUnitPicker, setShowUnitPicker] = useState(false);
@@ -266,23 +269,25 @@ export default function SettingsScreen() {
 
   const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === i18n.language);
   const currentLangLabel = currentLang?.nativeLabel ?? 'English';
-  const unitLabel = settings.unitSystem === 'metric' ? 'Metric' : 'Imperial';
-  const weekLabel = settings.firstDayOfWeek === 1 ? 'Monday' : 'Sunday';
+  const unitLabel = settings.unitSystem === 'metric' ? t('settings.metric') : t('settings.imperial');
+  const weekLabel = settings.firstDayOfWeek === 1 ? t('settings.monday') : t('settings.sunday');
+  const versionText = t('settings.version');
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <Stack.Screen options={{ title: t('settings.title') }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* ── LANGUAGE & REGION ── */}
-        <SectionHeader title="Language & Region" />
+        <SectionHeader title={t('settings.languageRegion')} />
         <Card>
           <SettingRow
             icon="language"
             iosIcon="globe"
-            label="Language"
+            label={t('settings.language')}
             value={currentLangLabel}
             onPress={() => {
               console.log('[Settings] User tapped Language row');
@@ -292,7 +297,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="straighten"
             iosIcon="ruler"
-            label="Units"
+            label={t('settings.units')}
             value={unitLabel}
             onPress={() => {
               console.log('[Settings] User tapped Units row, toggling picker');
@@ -313,7 +318,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="calendar_today"
             iosIcon="calendar"
-            label="Date format"
+            label={t('settings.dateFormat')}
             value={settings.dateFormat}
             onPress={() => {
               console.log('[Settings] User tapped Date Format row, toggling picker');
@@ -334,7 +339,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="view_week"
             iosIcon="calendar.badge.clock"
-            label="Week starts on"
+            label={t('settings.weekStartsOn')}
             value={weekLabel}
             onPress={() => {
               console.log('[Settings] User tapped Week Starts On row, toggling picker');
@@ -356,13 +361,13 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── APPEARANCE ── */}
-        <SectionHeader title="Appearance" />
+        <SectionHeader title={t('settings.appearance')} />
         <Card>
           <SettingRow
             icon="palette"
             iosIcon="paintbrush"
-            label="Theme"
-            value="Dark"
+            label={t('settings.theme')}
+            value={t('settings.themeDark')}
             onPress={() => {}}
             disabled
             comingSoon
@@ -371,12 +376,12 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── NOTIFICATIONS ── */}
-        <SectionHeader title="Notifications" />
+        <SectionHeader title={t('settings.notifications')} />
         <Card>
           <ToggleRow
             icon="notifications"
             iosIcon="bell"
-            label="Push notifications"
+            label={t('settings.pushNotifications')}
             value={settings.notificationsEnabled}
             onToggle={v => {
               console.log('[Settings] User toggled Push Notifications:', v);
@@ -386,7 +391,7 @@ export default function SettingsScreen() {
           <ToggleRow
             icon="email"
             iosIcon="envelope"
-            label="Marketing emails"
+            label={t('settings.marketingEmails')}
             value={settings.marketingEmailsEnabled}
             onToggle={v => {
               console.log('[Settings] User toggled Marketing Emails:', v);
@@ -397,12 +402,12 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── PRIVACY ── */}
-        <SectionHeader title="Privacy" />
+        <SectionHeader title={t('settings.privacy')} />
         <Card>
           <ToggleRow
             icon="bar_chart"
             iosIcon="chart.bar"
-            label="Analytics"
+            label={t('settings.analytics')}
             value={settings.analyticsEnabled}
             onToggle={v => {
               console.log('[Settings] User toggled Analytics:', v);
@@ -412,7 +417,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="lock"
             iosIcon="lock.shield"
-            label="Privacy & Security"
+            label={t('settings.privacySecurity')}
             onPress={() => {
               console.log('[Settings] User tapped Privacy & Security');
               router.push('/privacy-security');
@@ -421,7 +426,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="description"
             iosIcon="doc.text"
-            label="Terms of Service"
+            label={t('settings.termsOfService')}
             onPress={() => {}}
             disabled
             comingSoon
@@ -430,12 +435,12 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── SUPPORT ── */}
-        <SectionHeader title="Support" />
+        <SectionHeader title={t('settings.support')} />
         <Card>
           <SettingRow
             icon="help_outline"
             iosIcon="questionmark.circle"
-            label="Help & Support"
+            label={t('settings.helpSupport')}
             onPress={() => {
               console.log('[Settings] User tapped Help & Support');
               router.push('/help-support');
@@ -444,7 +449,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="info_outline"
             iosIcon="info.circle"
-            label="About"
+            label={t('settings.about')}
             onPress={() => {
               console.log('[Settings] User tapped About');
               router.push('/about');
@@ -454,12 +459,12 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── CURRENCY ── */}
-        <SectionHeader title="Currency" />
+        <SectionHeader title={t('settings.currency')} />
         <Card>
           <SettingRow
             icon="attach_money"
             iosIcon="dollarsign.circle"
-            label="Display currency"
+            label={t('settings.displayCurrency')}
             value={settings.currency}
             onPress={() => {}}
             disabled
@@ -468,7 +473,7 @@ export default function SettingsScreen() {
           />
         </Card>
 
-        <Text style={styles.versionText}>APS · v1.0.0</Text>
+        <Text style={styles.versionText}>{versionText}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -540,6 +545,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.text,
     flex: 1,
+    flexShrink: 1,
   },
   rowLabelDisabled: {
     color: 'rgba(255,255,255,0.35)',

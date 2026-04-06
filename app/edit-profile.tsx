@@ -18,6 +18,7 @@ import { authenticatedPost } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
 import { generateWorkoutSplit } from '@/data/workouts';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -182,13 +183,14 @@ export default function EditProfileScreen() {
     }
   };
 
-  const weightLabel = isMetric ? 'Weight (kg)' : 'Weight (lbs)';
+  const { t } = useTranslation();
+  const weightLabel = isMetric ? t('editProfile.weightKg') : t('editProfile.weightLbs');
   const weightPlaceholder = isMetric ? '70' : '154';
 
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -198,7 +200,7 @@ export default function EditProfileScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Profile',
+          title: t('editProfile.title'),
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
@@ -212,13 +214,13 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal</Text>
+          <Text style={styles.sectionTitle}>{t('editProfile.personal')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Name</Text>
+            <Text style={styles.inputLabel}>{t('editProfile.name')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Full name"
+              placeholder={t('editProfile.namePlaceholder')}
               placeholderTextColor={colors.grey}
               value={profile.name || ''}
               onChangeText={(text) => {
@@ -229,7 +231,7 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Age</Text>
+            <Text style={styles.inputLabel}>{t('editProfile.age')}</Text>
             <TextInput
               style={styles.input}
               placeholder="25"
@@ -245,7 +247,7 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Body Stats</Text>
+          <Text style={styles.sectionTitle}>{t('editProfile.bodyStats')}</Text>
 
           <View style={styles.infoCard}>
             <IconSymbol
@@ -255,7 +257,7 @@ export default function EditProfileScreen() {
               color={colors.primary}
             />
             <Text style={styles.infoText}>
-              Updating body stats recalculates your daily caloric target.
+              {t('editProfile.bodyStatsInfo')}
             </Text>
           </View>
 
@@ -276,7 +278,7 @@ export default function EditProfileScreen() {
 
           {isMetric ? (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Height (cm)</Text>
+              <Text style={styles.inputLabel}>{t('editProfile.heightCm')}</Text>
               <TextInput
                 style={styles.input}
                 placeholder="175"
@@ -291,7 +293,7 @@ export default function EditProfileScreen() {
             </View>
           ) : (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Height</Text>
+              <Text style={styles.inputLabel}>{t('editProfile.height')}</Text>
               <View style={styles.ftInRow}>
                 <View style={styles.ftInField}>
                   <TextInput
@@ -327,7 +329,7 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Training Frequency</Text>
+          <Text style={styles.sectionTitle}>{t('editProfile.trainingFrequency')}</Text>
 
           <View style={styles.infoCard}>
             <IconSymbol
@@ -337,7 +339,7 @@ export default function EditProfileScreen() {
               color={colors.primary}
             />
             <Text style={styles.infoText}>
-              Changing training days regenerates your weekly programme.
+              {t('editProfile.trainingFrequencyInfo')}
             </Text>
           </View>
 
@@ -364,7 +366,7 @@ export default function EditProfileScreen() {
                   styles.frequencyLabel,
                   profile.trainingDays === days && styles.frequencyTextSelected,
                 ]}>
-                  days
+                  {t('editProfile.days')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -372,7 +374,7 @@ export default function EditProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-          <Text style={styles.saveButtonText}>Save</Text>
+          <Text style={styles.saveButtonText}>{t('common.save')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -383,18 +385,18 @@ export default function EditProfileScreen() {
           router.back();
         }}
         type="success"
-        title="Saved"
-        message="Profile updated. Caloric target and weekly programme have been recalculated."
-        confirmText="OK"
+        title={t('editProfile.savedTitle')}
+        message={t('editProfile.savedMessage')}
+        confirmText={t('common.ok')}
       />
 
       <Modal
         visible={showErrorModal}
         onClose={() => setShowErrorModal(false)}
         type="error"
-        title="Error"
-        message="Failed to save. Please try again."
-        confirmText="OK"
+        title={t('editProfile.errorTitle')}
+        message={t('editProfile.errorMessage')}
+        confirmText={t('common.ok')}
       />
     </View>
   );

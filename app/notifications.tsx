@@ -1,21 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Platform,
   Switch,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import ParticleBackground from '@/components/ParticleBackground';
 
 export default function NotificationsScreen() {
-  const router = useRouter();
+  const { t } = useTranslation();
   const [workoutReminders, setWorkoutReminders] = useState(true);
   const [mealReminders, setMealReminders] = useState(true);
   const [progressUpdates, setProgressUpdates] = useState(false);
@@ -27,22 +26,22 @@ export default function NotificationsScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Notifications',
+          title: t('notifications.title'),
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
         }}
       />
       <ParticleBackground />
-      
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Training</Text>
-          
+          <Text style={styles.sectionTitle}>{t('notifications.training')}</Text>
+
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <IconSymbol
@@ -52,15 +51,18 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Session reminders</Text>
+                <Text style={styles.settingTitle}>{t('notifications.sessionReminders')}</Text>
                 <Text style={styles.settingDescription}>
-                  Alerts when your next session is due.
+                  {t('notifications.sessionRemindersDesc')}
                 </Text>
               </View>
             </View>
             <Switch
               value={workoutReminders}
-              onValueChange={setWorkoutReminders}
+              onValueChange={(v) => {
+                console.log('[Notifications] User toggled session reminders:', v);
+                setWorkoutReminders(v);
+              }}
               trackColor={{ false: colors.grey, true: colors.primary }}
               thumbColor="#ffffff"
             />
@@ -68,8 +70,8 @@ export default function NotificationsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nutrition</Text>
-          
+          <Text style={styles.sectionTitle}>{t('notifications.nutritionSection')}</Text>
+
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <IconSymbol
@@ -79,15 +81,18 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Meal reminders</Text>
+                <Text style={styles.settingTitle}>{t('notifications.mealReminders')}</Text>
                 <Text style={styles.settingDescription}>
-                  Prompts to log meals throughout the day.
+                  {t('notifications.mealRemindersDesc')}
                 </Text>
               </View>
             </View>
             <Switch
               value={mealReminders}
-              onValueChange={setMealReminders}
+              onValueChange={(v) => {
+                console.log('[Notifications] User toggled meal reminders:', v);
+                setMealReminders(v);
+              }}
               trackColor={{ false: colors.grey, true: colors.primary }}
               thumbColor="#ffffff"
             />
@@ -95,8 +100,8 @@ export default function NotificationsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Progress</Text>
-          
+          <Text style={styles.sectionTitle}>{t('notifications.progress')}</Text>
+
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <IconSymbol
@@ -106,15 +111,18 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Weekly summaries</Text>
+                <Text style={styles.settingTitle}>{t('notifications.weeklySummaries')}</Text>
                 <Text style={styles.settingDescription}>
-                  A weekly overview of your training and nutrition.
+                  {t('notifications.weeklySummariesDesc')}
                 </Text>
               </View>
             </View>
             <Switch
               value={progressUpdates}
-              onValueChange={setProgressUpdates}
+              onValueChange={(v) => {
+                console.log('[Notifications] User toggled weekly summaries:', v);
+                setProgressUpdates(v);
+              }}
               trackColor={{ false: colors.grey, true: colors.primary }}
               thumbColor="#ffffff"
             />
@@ -129,15 +137,18 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Social</Text>
+                <Text style={styles.settingTitle}>{t('notifications.social')}</Text>
                 <Text style={styles.settingDescription}>
-                  Activity from your network.
+                  {t('notifications.socialDesc')}
                 </Text>
               </View>
             </View>
             <Switch
               value={socialNotifications}
-              onValueChange={setSocialNotifications}
+              onValueChange={(v) => {
+                console.log('[Notifications] User toggled social notifications:', v);
+                setSocialNotifications(v);
+              }}
               trackColor={{ false: colors.grey, true: colors.primary }}
               thumbColor="#ffffff"
             />
@@ -152,15 +163,18 @@ export default function NotificationsScreen() {
                 color={colors.primary}
               />
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Milestones</Text>
+                <Text style={styles.settingTitle}>{t('notifications.milestones')}</Text>
                 <Text style={styles.settingDescription}>
-                  Alerts when you hit a new milestone.
+                  {t('notifications.milestonesDesc')}
                 </Text>
               </View>
             </View>
             <Switch
               value={achievementAlerts}
-              onValueChange={setAchievementAlerts}
+              onValueChange={(v) => {
+                console.log('[Notifications] User toggled milestone alerts:', v);
+                setAchievementAlerts(v);
+              }}
               trackColor={{ false: colors.grey, true: colors.primary }}
               thumbColor="#ffffff"
             />

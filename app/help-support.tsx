@@ -8,13 +8,14 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@/styles/commonStyles';
 import ParticleBackground from '@/components/ParticleBackground';
 import { IconSymbol } from '@/components/IconSymbol';
 
 export default function HelpSupportScreen() {
-  const router = useRouter();
+  const { t } = useTranslation();
 
   const handleContactSupport = () => {
     console.log('[HelpSupport] User tapped contact support');
@@ -26,14 +27,14 @@ export default function HelpSupportScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Support',
+          title: t('helpSupport.title'),
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerShadowVisible: false,
         }}
       />
       <ParticleBackground />
-      
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -46,14 +47,17 @@ export default function HelpSupportScreen() {
             size={64}
             color={colors.primary}
           />
-          <Text style={styles.title}>Support</Text>
+          <Text style={styles.title}>{t('helpSupport.title')}</Text>
           <Text style={styles.description}>
-            Browse the guides below or reach out directly.
+            {t('helpSupport.description')}
           </Text>
         </View>
 
         <View style={styles.settingsList}>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => console.log('[HelpSupport] User tapped User Guide')}
+          >
             <View style={styles.settingLeft}>
               <IconSymbol
                 ios_icon_name="book.fill"
@@ -61,7 +65,7 @@ export default function HelpSupportScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>User Guide</Text>
+              <Text style={styles.settingText}>{t('helpSupport.userGuide')}</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
@@ -71,7 +75,10 @@ export default function HelpSupportScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => console.log('[HelpSupport] User tapped FAQs')}
+          >
             <View style={styles.settingLeft}>
               <IconSymbol
                 ios_icon_name="questionmark.circle.fill"
@@ -79,7 +86,7 @@ export default function HelpSupportScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>FAQs</Text>
+              <Text style={styles.settingText}>{t('helpSupport.faqs')}</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
@@ -97,7 +104,7 @@ export default function HelpSupportScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>Contact Support</Text>
+              <Text style={styles.settingText}>{t('helpSupport.contactSupport')}</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
@@ -107,7 +114,10 @@ export default function HelpSupportScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => console.log('[HelpSupport] User tapped Report an Issue')}
+          >
             <View style={styles.settingLeft}>
               <IconSymbol
                 ios_icon_name="exclamationmark.bubble.fill"
@@ -115,7 +125,7 @@ export default function HelpSupportScreen() {
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.settingText}>Report an Issue</Text>
+              <Text style={styles.settingText}>{t('helpSupport.reportIssue')}</Text>
             </View>
             <IconSymbol
               ios_icon_name="chevron.right"
@@ -181,5 +191,6 @@ const styles = StyleSheet.create({
   settingText: {
     fontSize: 16,
     color: colors.text,
+    flexShrink: 1,
   },
 });
