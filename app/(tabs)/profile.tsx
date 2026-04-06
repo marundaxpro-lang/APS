@@ -346,7 +346,6 @@ export default function ProfileScreen() {
   const { formatWeight, formatHeight } = useSettings();
   const [profile, setProfile] = useState<FitnessProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
@@ -356,12 +355,6 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
 
-      const guestStatus = await AsyncStorage.getItem('isGuestUser');
-      const guestModeStatus = await AsyncStorage.getItem('guest_mode');
-      const isGuestUser = guestStatus === 'true' || guestModeStatus === 'true';
-      setIsGuest(isGuestUser);
-      console.log('ProfileScreen: Guest status:', { isGuestUser, guestStatus, guestModeStatus });
-
       let parsedProfile: any = null;
       const localProfile = await AsyncStorage.getItem('fitnessProfile');
       if (localProfile) {
@@ -370,7 +363,7 @@ export default function ProfileScreen() {
         setProfile(parsedProfile);
       }
 
-      if (user && !isGuestUser) {
+      if (user) {
         console.log('ProfileScreen: Fetching profile from backend for user:', user.id);
         try {
           const backendProfile = await authenticatedGet<any>('/api/fitness-profile');
@@ -413,8 +406,6 @@ export default function ProfileScreen() {
         } catch (error) {
           console.log('ProfileScreen: Could not fetch subscription status');
         }
-      } else {
-        console.log('ProfileScreen: Guest user — skipping backend fetch, using local data only');
       }
     } catch (error) {
       console.log('ProfileScreen: Error loading profile (non-fatal):', error);
@@ -429,11 +420,6 @@ export default function ProfileScreen() {
       loadProfile();
     }
   }, [user, authLoading, loadProfile]);
-
-  const handleCreateAccount = () => {
-    console.log('ProfileScreen: User tapped Create Account');
-    router.push('/auth');
-  };
 
   const handleLogout = async () => {
     console.log('ProfileScreen: User tapped Logout button');
@@ -460,23 +446,28 @@ export default function ProfileScreen() {
   };
 
   const handleResetOnboarding = () => {
-    console.log('ProfileScreen: User tapped Reset Onboarding button');
+    console.log('ProfileScreen: User tapped Reset Profile button');
     setShowResetModal(true);
   };
 
   const confirmResetOnboarding = async () => {
-    console.log('ProfileScreen: User confirmed reset onboarding');
+    console.log('ProfileScreen: User confirmed reset profile');
     setShowResetModal(false);
     try {
-      console.log('ProfileScreen: Clearing AsyncStorage data');
-      await AsyncStorage.removeItem('fitnessProfile');
-      await AsyncStorage.removeItem('hasCompletedOnboarding');
-      await AsyncStorage.removeItem('caloricGoal');
-      await AsyncStorage.removeItem('weeklyWorkouts');
-      console.log('ProfileScreen: AsyncStorage cleared, redirecting to onboarding');
-      router.replace('/onboarding');
+      console.log('ProfileScreen: Clearing profile data from AsyncStorage');
+      await AsyncStorage.multiRemove([
+        'fitnessProfile',
+        'hasCompletedOnboarding',
+        'caloricGoal',
+        'weeklyWorkouts',
+        'onboardingJustCompleted',
+      ]);
+      console.log('ProfileScreen: Profile data cleared — signing out to restart flow');
+      // Sign out so the user goes through auth → onboarding fresh
+      await signOut();
+      router.replace('/auth');
     } catch (error) {
-      console.error('ProfileScreen: Error resetting onboarding:', error);
+      console.error('ProfileScreen: Error resetting profile:', error);
     }
   };
 
@@ -525,10 +516,10 @@ export default function ProfileScreen() {
 
   const nameDisplay = profile?.name || user?.name || t('common.notSet');
   const emailDisplay = user?.email || t('common.notSet');
-  const logoutTitle = isGuest ? t('profile.exitGuestTitle') : t('profile.logoutTitle');
-  const logoutMessage = isGuest ? t('profile.exitGuestMessage') : t('profile.logoutMessage');
-  const logoutConfirmText = isGuest ? t('profile.exit') : t('profile.signOut');
-  const signOutButtonText = isGuest ? t('profile.exitGuestMode') : t('profile.signOut');
+  const logoutTitle = t('profile.logoutTitle');
+  const logoutMessage = t('profile.logoutMessage');
+  const logoutConfirmText = t('profile.signOut');
+  const signOutButtonText = t('profile.signOut');
 
   return (
     <View style={styles.container}>
@@ -538,29 +529,8 @@ export default function ProfileScreen() {
           <Text style={styles.subtitle}>{t('profile.subtitle')}</Text>
         </View>
 
-        {(isGuest || !user) && (
-          <View style={styles.guestBanner}>
-            <IconSymbol
-              ios_icon_name="person.crop.circle.badge.exclamationmark"
-              android_material_icon_name="person-add"
-              size={32}
-              color={colors.primary}
-            />
-            <Text style={styles.guestBannerTitle}>{t('profile.guestTitle')}</Text>
-            <Text style={styles.guestBannerText}>
-              {t('profile.guestText')}
-            </Text>
-            <TouchableOpacity
-              style={styles.guestBannerButton}
-              onPress={handleCreateAccount}
-            >
-              <Text style={styles.guestBannerButtonText}>{t('profile.signIn')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Premium / Subscription Status */}
-        {!isGuest && user && (
+        {user && (
           isSubscribed ? (
             <View style={styles.premiumCard}>
               <View style={styles.premiumCardHeader}>
@@ -625,12 +595,10 @@ export default function ProfileScreen() {
               <Text style={styles.label}>{t('profile.name')}</Text>
               <Text style={styles.value}>{nameDisplay}</Text>
             </View>
-            {!isGuest && (
-              <View style={styles.row}>
-                <Text style={styles.label}>{t('profile.email')}</Text>
-                <Text style={styles.value}>{emailDisplay}</Text>
-              </View>
-            )}
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.email')}</Text>
+              <Text style={styles.value}>{emailDisplay}</Text>
+            </View>
             <View style={styles.row}>
               <Text style={styles.label}>{t('profile.gender')}</Text>
               <Text style={styles.value}>{genderDisplay}</Text>

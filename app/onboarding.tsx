@@ -145,14 +145,13 @@ export default function OnboardingScreen() {
         return;
       }
 
-      // Resolve a pre-existing name from any source: signupName, userName, or guestName
-      const [signupName, storedUserName, guestName] = await Promise.all([
+      // Resolve a pre-existing name from signupName or userName
+      const [signupName, storedUserName] = await Promise.all([
         AsyncStorage.getItem('signupName'),
         AsyncStorage.getItem('userName'),
-        AsyncStorage.getItem('guestName'),
       ]);
 
-      const resolvedName = signupName || storedUserName || guestName || null;
+      const resolvedName = signupName || storedUserName || null;
 
       if (resolvedName) {
         console.log('[Onboarding] Name already exists, skipping name step:', resolvedName);

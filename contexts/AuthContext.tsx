@@ -58,13 +58,19 @@ async function clearAllLocalData(userId?: string): Promise<void> {
       k.startsWith('weeklyWorkouts') ||
       k.startsWith('guest_mode') ||
       k.startsWith('isGuestUser') ||
+      k.startsWith('guestName') ||
       k.startsWith('onboarding_') ||
       k.startsWith('coach_') ||
       k.startsWith('student_mode') ||
       k.startsWith('travel_mode') ||
       k.startsWith('active_pack') ||
       k.startsWith('momentum_') ||
-      k.startsWith('next_action_')
+      k.startsWith('next_action_') ||
+      k.startsWith('signupName') ||
+      k.startsWith('userName') ||
+      k.startsWith('userMotivation') ||
+      k.startsWith('onboardingJustCompleted') ||
+      k.startsWith('language_selection_done')
     );
     if (appKeys.length > 0) {
       await AsyncStorage.multiRemove(appKeys);
@@ -82,19 +88,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Load initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      console.log('[AuthContext] Initial session loaded:', s ? `authenticated uid=${s.user.id}` : 'no session');
-      setSession(s);
-      if (s?.user) {
-        setUser(mapSupabaseUser(s.user));
-        isOnboardingComplete().then(setOnboardingCompleted);
-      } else {
+    // Load initial session — wrapped in try/catch so a corrupt/expired token
+    // never leaves the app in a stuck loading state.
+    const restoreSession = async () => {
+      try {
+        console.log('[AuthContext] Restoring session...');
+        const { data: { session: s }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.warn('[AuthContext] Session restore error:', error.message);
+          // Token is invalid/expired — clear it so the user is sent to /auth
+          await supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setSession(null);
+          setOnboardingCompleted(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('[AuthContext] Initial session loaded:', s ? `authenticated uid=${s.user.id}` : 'no session');
+        setSession(s);
+
+        if (s?.user) {
+          setUser(mapSupabaseUser(s.user));
+          const done = await isOnboardingComplete();
+          setOnboardingCompleted(done);
+        } else {
+          setUser(null);
+          setOnboardingCompleted(null);
+        }
+      } catch (err) {
+        // Unexpected error — fail cleanly, never leave user on a blank screen
+        console.error('[AuthContext] Unexpected error during session restore:', err);
         setUser(null);
+        setSession(null);
         setOnboardingCompleted(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    restoreSession();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -107,7 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setOnboardingCompleted(null);
       }
-      setLoading(false);
+      // Only set loading false here if we're past the initial restore
+      // (the restoreSession finally block handles the initial case)
     });
 
     return () => {
@@ -118,7 +153,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const { data: { session: s } } = await supabase.auth.getSession();
+      const { data: { session: s }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn('[AuthContext] fetchUser session error:', error.message);
+        setUser(null);
+        setSession(null);
+        setOnboardingCompleted(null);
+        return;
+      }
       console.log('[AuthContext] fetchUser:', s ? `session found uid=${s.user.id}` : 'no session');
       setSession(s);
       if (s?.user) {
@@ -132,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('[AuthContext] Failed to fetch user:', error);
       setUser(null);
+      setSession(null);
       setOnboardingCompleted(null);
     } finally {
       setLoading(false);

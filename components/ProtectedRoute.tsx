@@ -1,8 +1,9 @@
 /**
- * Protected Route Component Template
+ * Protected Route Component
  *
- * A wrapper component that ensures a user is authenticated before
- * allowing access to a screen. Redirects to login if not authenticated.
+ * Ensures a user is authenticated before allowing access to a screen.
+ * Redirects to /auth using replace (not push) so there is no swipe-back bypass.
+ * Shows a full-screen dark loading indicator while auth state is being resolved.
  *
  * Usage:
  * ```tsx
@@ -10,27 +11,16 @@
  *   <ProfileScreen />
  * </ProtectedRoute>
  * ```
- *
- * Or wrap route in _layout.tsx:
- * ```tsx
- * <Stack.Screen name="profile" options={{ title: "Profile" }}>
- *   {() => (
- *     <ProtectedRoute>
- *       <ProfileScreen />
- *     </ProtectedRoute>
- *   )}
- * </Stack.Screen>
- * ```
  */
 
 import React, { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuth } from "@/contexts/AuthContext"; // TODO: Update import path
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  redirectTo?: string; // Default is "/auth"
+  redirectTo?: string;
   loadingComponent?: React.ReactNode;
 }
 
@@ -39,31 +29,31 @@ export function ProtectedRoute({
   redirectTo = "/auth",
   loadingComponent,
 }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      // User is not authenticated, redirect to login
+    if (!authLoading && !user) {
+      console.log('[ProtectedRoute] No authenticated user — redirecting to', redirectTo);
+      // Use replace so the user cannot swipe back to the protected screen
       router.replace(redirectTo as any);
     }
-  }, [user, loading, router, redirectTo]);
+  }, [user, authLoading, router, redirectTo]);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  // Show loading state while auth is being resolved
+  if (authLoading) {
     return loadingComponent || (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#ffffff" />
       </View>
     );
   }
 
-  // User not authenticated, will redirect (show nothing)
+  // Not authenticated — will redirect via useEffect; render nothing in the meantime
   if (!user) {
     return null;
   }
 
-  // User is authenticated, render children
   return <>{children}</>;
 }
 
@@ -72,6 +62,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    // Dark background matches the app theme — no white flash
+    backgroundColor: "#0a0a0a",
   },
 });

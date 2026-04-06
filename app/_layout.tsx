@@ -2,9 +2,9 @@
 import "react-native-reanimated";
 import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { Platform } from "react-native";
+import { Platform, View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useColorScheme } from "react-native";
 import {
@@ -36,31 +36,53 @@ if (Platform.OS !== 'web') {
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)", // Ensure any route can link back to `/`
+  initialRouteName: "(tabs)",
 };
+
+/**
+ * Full-screen loading indicator shown while auth state is being restored.
+ * Uses the app's dark background so there is no flash of white.
+ */
+function AuthLoadingScreen() {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#ffffff" />
+    </View>
+  );
+}
 
 /**
  * Single navigation guard — the ONLY place that redirects to /auth.
  * Rules:
- *   1. Auth still loading → do nothing (show whatever is already rendered)
- *   2. No authenticated user → redirect to /auth
+ *   1. Auth still loading → render full-screen loading indicator (no blank screen)
+ *   2. No authenticated user → redirect to /auth using replace (no swipe-back)
  *   3. User exists → let the app render normally
  *   4. NEVER redirects to /paywall — paywall is opened explicitly by the user
  * Guest mode is intentionally NOT supported — all users must authenticate.
  */
-function AuthGuard() {
+function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      console.log('[AuthGuard] No authenticated user — redirecting to /auth');
-      router.replace("/auth");
-    }
-  }, [user, authLoading, router]);
 
-  return null;
+    const inAuthGroup = segments[0] === 'auth' || segments[0] === 'onboarding' || segments[0] === 'language-select';
+
+    if (!user && !inAuthGroup) {
+      console.log('[AuthGuard] No authenticated user — redirecting to /auth');
+      router.replace('/auth');
+    }
+  }, [user, authLoading, segments, router]);
+
+  // While auth is resolving, show a full-screen dark loading indicator.
+  // Nothing renders until we know the auth state — prevents any screen flash.
+  if (authLoading) {
+    return <AuthLoadingScreen />;
+  }
+
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -98,96 +120,106 @@ export default function RootLayout() {
     ...DefaultTheme,
     dark: false,
     colors: {
-      primary: "rgb(0, 122, 255)", // System Blue
-      background: "rgb(242, 242, 247)", // Light mode background
-      card: "rgb(255, 255, 255)", // White cards/surfaces
-      text: "rgb(0, 0, 0)", // Black text for light mode
-      border: "rgb(216, 216, 220)", // Light gray for separators/borders
-      notification: "rgb(255, 59, 48)", // System Red
+      primary: "rgb(0, 122, 255)",
+      background: "rgb(242, 242, 247)",
+      card: "rgb(255, 255, 255)",
+      text: "rgb(0, 0, 0)",
+      border: "rgb(216, 216, 220)",
+      notification: "rgb(255, 59, 48)",
     },
   };
 
   const CustomDarkTheme: Theme = {
     ...DarkTheme,
     colors: {
-      primary: "rgb(10, 132, 255)", // System Blue (Dark Mode)
-      background: "rgb(1, 1, 1)", // True black background for OLED displays
-      card: "rgb(28, 28, 30)", // Dark card/surface color
-      text: "rgb(255, 255, 255)", // White text for dark mode
-      border: "rgb(44, 44, 46)", // Dark gray for separators/borders
-      notification: "rgb(255, 69, 58)", // System Red (Dark Mode)
+      primary: "rgb(10, 132, 255)",
+      background: "rgb(1, 1, 1)",
+      card: "rgb(28, 28, 30)",
+      text: "rgb(255, 255, 255)",
+      border: "rgb(44, 44, 46)",
+      notification: "rgb(255, 69, 58)",
     },
   };
-  
+
   return (
     <I18nextProvider i18n={i18n}>
       <StatusBar style="auto" animated />
       <SettingsProvider>
-      <ThemeProvider
-        value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
-      >
-        <AuthProvider>
-        <SubscriptionProvider>
-          <AuthGuard />
-          <WidgetProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <Stack>
-                {/* Auth and onboarding screens */}
-                <Stack.Screen name="auth" options={{ headerShown: false }} />
-                <Stack.Screen name="language-select" options={{ headerShown: false }} />
-                <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                
-                {/* Main app with tabs */}
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="workout-session" options={{ headerShown: false }} />
-                <Stack.Screen name="training-plan" options={{ headerShown: true }} />
-                <Stack.Screen name="workout-detail/[id]" options={{ headerShown: true }} />
-                <Stack.Screen name="nutrition" options={{ headerShown: false }} />
-                <Stack.Screen name="ai-coach" options={{ headerShown: false }} />
-                <Stack.Screen name="coach-insights" options={{ headerShown: false }} />
-                <Stack.Screen name="streak-detail" options={{ title: 'Your Streak', headerBackTitle: 'Back' }} />
-                <Stack.Screen name="weekly-adherence-detail" options={{ headerShown: false }} />
-                <Stack.Screen name="habits" options={{ title: 'My Habits', headerBackTitle: 'Back' }} />
-                <Stack.Screen name="program-packs" options={{ headerShown: true }} />
-                <Stack.Screen name="pack-detail/[id]" options={{ headerShown: true }} />
-                <Stack.Screen name="travel-mode" options={{ headerShown: true }} />
-                <Stack.Screen name="travel-workout/[id]" options={{ headerShown: true }} />
-                <Stack.Screen name="student-mode" options={{ headerShown: true }} />
-                <Stack.Screen name="student-workout/[id]" options={{ headerShown: true }} />
-                <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+        <ThemeProvider
+          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+        >
+          <AuthProvider>
+            <SubscriptionProvider>
+              <WidgetProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <AuthGuard>
+                    <Stack>
+                      {/* Auth screens — gestureEnabled: false prevents swipe-back bypass */}
+                      <Stack.Screen
+                        name="auth"
+                        options={{ headerShown: false, gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="language-select"
+                        options={{ headerShown: false, gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="onboarding"
+                        options={{ headerShown: false, gestureEnabled: false }}
+                      />
 
-                {/* Modal Demo Screens */}
-                <Stack.Screen
-                  name="modal"
-                  options={{
-                    presentation: "modal",
-                    title: "Standard Modal",
-                  }}
-                />
-                <Stack.Screen
-                  name="formsheet"
-                  options={{
-                    presentation: "formSheet",
-                    title: "Form Sheet Modal",
-                    sheetGrabberVisible: true,
-                    sheetAllowedDetents: [0.5, 0.8, 1.0],
-                    sheetCornerRadius: 20,
-                  }}
-                />
-                <Stack.Screen
-                  name="transparent-modal"
-                  options={{
-                    presentation: "transparentModal",
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
-              <SystemBars style={"auto"} />
-            </GestureHandlerRootView>
-          </WidgetProvider>
-        </SubscriptionProvider>
-        </AuthProvider>
-      </ThemeProvider>
+                      {/* Main app with tabs */}
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen name="workout-session" options={{ headerShown: false }} />
+                      <Stack.Screen name="training-plan" options={{ headerShown: true }} />
+                      <Stack.Screen name="workout-detail/[id]" options={{ headerShown: true }} />
+                      <Stack.Screen name="nutrition" options={{ headerShown: false }} />
+                      <Stack.Screen name="ai-coach" options={{ headerShown: false }} />
+                      <Stack.Screen name="coach-insights" options={{ headerShown: false }} />
+                      <Stack.Screen name="streak-detail" options={{ title: 'Your Streak', headerBackTitle: 'Back' }} />
+                      <Stack.Screen name="weekly-adherence-detail" options={{ headerShown: false }} />
+                      <Stack.Screen name="habits" options={{ title: 'My Habits', headerBackTitle: 'Back' }} />
+                      <Stack.Screen name="program-packs" options={{ headerShown: true }} />
+                      <Stack.Screen name="pack-detail/[id]" options={{ headerShown: true }} />
+                      <Stack.Screen name="travel-mode" options={{ headerShown: true }} />
+                      <Stack.Screen name="travel-workout/[id]" options={{ headerShown: true }} />
+                      <Stack.Screen name="student-mode" options={{ headerShown: true }} />
+                      <Stack.Screen name="student-workout/[id]" options={{ headerShown: true }} />
+                      <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
+
+                      {/* Modal Demo Screens */}
+                      <Stack.Screen
+                        name="modal"
+                        options={{
+                          presentation: "modal",
+                          title: "Standard Modal",
+                        }}
+                      />
+                      <Stack.Screen
+                        name="formsheet"
+                        options={{
+                          presentation: "formSheet",
+                          title: "Form Sheet Modal",
+                          sheetGrabberVisible: true,
+                          sheetAllowedDetents: [0.5, 0.8, 1.0],
+                          sheetCornerRadius: 20,
+                        }}
+                      />
+                      <Stack.Screen
+                        name="transparent-modal"
+                        options={{
+                          presentation: "transparentModal",
+                          headerShown: false,
+                        }}
+                      />
+                    </Stack>
+                  </AuthGuard>
+                  <SystemBars style={"auto"} />
+                </GestureHandlerRootView>
+              </WidgetProvider>
+            </SubscriptionProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </SettingsProvider>
 
       <Modal
