@@ -1,7 +1,9 @@
 import Constants from 'expo-constants';
-import { supabase } from '@/lib/supabase';
+import { authClient } from '@/lib/auth';
 
-export const BACKEND_URL = Constants.expoConfig?.extra?.backendUrl || '';
+export const BACKEND_URL: string =
+  (Constants.expoConfig?.extra?.backendUrl as string) ||
+  'https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev';
 
 export const isBackendConfigured = (): boolean => {
   return !!BACKEND_URL && BACKEND_URL.length > 0;
@@ -9,8 +11,8 @@ export const isBackendConfigured = (): boolean => {
 
 export const getBearerToken = async (): Promise<string | null> => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token ?? null;
+    const { data } = await authClient.getSession();
+    const token = (data as any)?.session?.token ?? null;
     console.log('[API] getBearerToken:', token ? 'token found' : 'no token');
     return token;
   } catch (error) {
@@ -23,10 +25,6 @@ export const apiCall = async <T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> => {
-  if (!isBackendConfigured()) {
-    throw new Error('Backend URL not configured. Please rebuild the app.');
-  }
-
   const url = `${BACKEND_URL}${endpoint}`;
   console.log('[API] Request:', options?.method ?? 'GET', url);
 

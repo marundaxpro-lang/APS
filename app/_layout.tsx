@@ -21,6 +21,35 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import Modal from "@/components/ui/Modal";
 import i18n, { initI18n } from "@/lib/i18n";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// One-time startup clear: removes stale Supabase/guest auth keys so they
+// don't interfere with the Better Auth session. Runs once per install.
+async function runAuthResetIfNeeded(): Promise<void> {
+  try {
+    const done = await AsyncStorage.getItem("auth_reset_v2");
+    if (done === "done") return;
+    console.log("[Layout] Running one-time auth storage reset (auth_reset_v2)");
+    await AsyncStorage.multiRemove([
+      "better-auth_session",
+      "better-auth_token",
+      "auth_token",
+      "session_token",
+      "guest_mode",
+      "isGuestUser",
+      "guestName",
+      "signupName",
+      "userName",
+      "userMotivation",
+      "onboardingJustCompleted",
+      "language_selection_done",
+    ]);
+    await AsyncStorage.setItem("auth_reset_v2", "done");
+    console.log("[Layout] Auth storage reset complete");
+  } catch (e) {
+    console.warn("[Layout] Auth storage reset failed (non-fatal):", e);
+  }
+}
 
 // Native-only imports — guarded for web
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
@@ -96,9 +125,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      initI18n().then(() => {
-        setI18nReady(true);
-        SplashScreen.hideAsync();
+      runAuthResetIfNeeded().finally(() => {
+        initI18n().then(() => {
+          setI18nReady(true);
+          SplashScreen.hideAsync();
+        });
       });
     }
   }, [loaded]);
