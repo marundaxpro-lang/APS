@@ -1,0 +1,90 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1767536001076,
+      "tag": "20260104141321_chubby_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767903337975,
+      "tag": "20260108201537_perfect_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768240771892,
+      "tag": "20260112175931_graceful_grim_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769867787001,
+      "tag": "20260131135626_nifty_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769949165293,
+      "tag": "20260201123245_giant_dark_phoenix",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770155879048,
+      "tag": "20260203215759_condemned_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771080821470,
+      "tag": "20260214145341_good_beyonder",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773789447776,
+      "tag": "20260317231727_slimy_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773862041786,
+      "tag": "20260318192721_past_true_believers",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774190889439,
+      "tag": "20260322144809_early_marvel_zombies",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774302792737,
+      "tag": "20260323215312_omniscient_jean_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775402503506,
+      "tag": "20260405152143_past_shadow_king",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+-- This migration has been superseded by 20260215000000_recreate_schema.sql
+-- Keeping empty to maintain migration history

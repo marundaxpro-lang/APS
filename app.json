@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "APS",
+    "slug": "aps",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/Logo APS.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/Logo APS.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.Natively",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/Logo APS.png",
+        "backgroundColor": "#000000"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.Natively"
+    },
+    "web": {
+      "favicon": "./assets/images/final_quest_240x240.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-apple-authentication",
+      "expo-localization"
+    ],
+    "scheme": "aps",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "backendUrl": "https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev",
+      "revenueCatTestApiKeyIos": "test_LVdaEIceAgCgfEVDmCKgeMKISTA",
+      "revenueCatTestApiKeyAndroid": "test_LVdaEIceAgCgfEVDmCKgeMKISTA",
+      "revenueCatEntitlementId": "pro",
+      "nativelyProjectId": "5950a233-af82-4b65-94cc-56b70b186c04"
+    }
+  },
+  "scheme": "Apex Fitness"
+}

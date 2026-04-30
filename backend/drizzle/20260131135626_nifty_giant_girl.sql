@@ -1,0 +1,1 @@
+-- This migration has been superseded by 20260215000000_recreate_schema.sql
