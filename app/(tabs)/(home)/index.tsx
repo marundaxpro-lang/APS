@@ -179,6 +179,7 @@ function SkeletonLine({ width, height = 14 }: { width: number | string; height?:
         Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <Animated.View
@@ -231,6 +232,7 @@ function FadeSection({ index, children }: { index: number; children: React.React
       Animated.timing(opacity, { toValue: 1, duration: 380, delay: index * 70, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 380, delay: index * 70, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
