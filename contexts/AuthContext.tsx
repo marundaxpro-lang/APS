@@ -76,23 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
-  const applySession = async (sessionData: { user: { id: string; email: string; name?: string; image?: string } } | null) => {
-    if (sessionData?.user) {
-      const u: User = {
-        id: sessionData.user.id,
-        email: sessionData.user.email ?? '',
-        name: sessionData.user.name,
-        image: sessionData.user.image,
-      };
-      setUser(u);
-      setSession(sessionData);
-      const done = await isOnboardingComplete();
-      setOnboardingCompleted(done);
-    } else {
-      setUser(null);
-      setSession(null);
-      setOnboardingCompleted(null);
-    }
+  const applySession = async (sessionData: any) => {
+    if (!sessionData?.user) return; // don't clear on null — only signOut clears
+    const u: User = {
+      id: sessionData.user.id,
+      email: sessionData.user.email ?? '',
+      name: sessionData.user.name,
+      image: sessionData.user.image,
+    };
+    setUser(u);
+    setSession(sessionData);
+    const done = await isOnboardingComplete();
+    setOnboardingCompleted(done);
   };
 
   useEffect(() => {
@@ -191,8 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (name) {
         await AsyncStorage.setItem('signupName', name);
       }
-      // Explicitly refresh session to ensure token is stored
-      await fetchUser();
+      // Apply session immediately from signup response to avoid SecureStore race condition
+      await applySession(data as any);
+      // Then refresh in background to ensure token is persisted
+      fetchUser().catch(() => null);
     } catch (err: any) {
       if (err.message) throw err;
       console.error('[AuthContext] signUpWithEmail network error:', err);
