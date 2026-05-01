@@ -102,9 +102,8 @@ app.withAuth({
     sendResetPassword: async ({ user, token }) => {
       app.logger.info({ email: user.email }, 'Sending password reset email');
       const deepLink = `aps://auth?token=${token}&mode=reset-password`;
-      const webFallback = `https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev/auth?token=${token}&mode=reset-password`;
       resend.emails.send({
-        from: 'noreply@aps-fitness.com',
+        from: 'APS Fitness <noreply@aps-fitness.com>',
         to: user.email,
         subject: 'Reset your APS password',
         html: `
@@ -116,12 +115,11 @@ app.withAuth({
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 .header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #e0e0e0; }
-                .header h1 { margin: 0; font-size: 24px; font-weight: 600; color: #333; }
+                .header h1 { margin: 0; font-size: 24px; font-weight: 600; color: #00D4AA; }
                 .content { padding: 30px 20px; }
                 .message { margin: 20px 0; font-size: 14px; line-height: 1.8; }
-                .button { display: inline-block; background-color: #FF6B35; color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; margin: 25px 0; font-weight: 600; font-size: 14px; }
-                .button:hover { background-color: #E55A28; }
-                .fallback-link { color: #FF6B35; word-break: break-all; font-size: 12px; margin: 20px 0; }
+                .button { display: inline-block; background-color: #00D4AA; color: #000000; padding: 14px 40px; text-decoration: none; border-radius: 6px; margin: 25px 0; font-weight: 600; font-size: 14px; }
+                .button:hover { background-color: #00BF99; }
                 .note { margin: 15px 0; font-size: 12px; color: #999; }
                 .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; }
               </style>
@@ -132,13 +130,11 @@ app.withAuth({
                   <h1>Reset your password</h1>
                 </div>
                 <div class="content">
-                  <p class="message">We received a request to reset your APS account password. Click the button below to choose a new password.</p>
+                  <p class="message">We received a request to reset your APS account password. Click the button below to set a new password. This link expires in 1 hour.</p>
                   <center>
                     <a href="${deepLink}" class="button">Reset Password</a>
                   </center>
-                  <p class="note"><strong>Can't click the button?</strong> Copy and paste this link into your browser:</p>
-                  <p class="fallback-link">${webFallback}</p>
-                  <p class="note"><strong>Link expires in 1 hour.</strong> If you didn't request a password reset, you can safely ignore this email.</p>
+                  <p class="note">If you didn't request a password reset, you can safely ignore this email.</p>
                 </div>
                 <div class="footer">
                   <p>&copy; 2024 APS Fitness. All rights reserved.</p>
@@ -150,6 +146,7 @@ app.withAuth({
       }).catch((error) => {
         app.logger.error({ err: error, email: user.email }, 'Failed to send password reset email');
       });
+      app.logger.info({ email: user.email }, 'Password reset email sent successfully');
     },
   },
 });

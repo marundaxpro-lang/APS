@@ -119,6 +119,17 @@ describe('API Integration Tests', () => {
         expect(data.total_minutes).toBeDefined();
         expect(data.total_calories).toBeDefined();
       });
+
+      it('should reject missing required fields on workout log creation', async () => {
+        const response = await authenticatedApi('/api/workout-logs', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            workout_name: 'Running',
+            // missing workout_id and duration_minutes
+          }),
+        });
+        await expectStatus(response, 400);
+      });
     });
 
     describe('Habit Logs', () => {
@@ -166,6 +177,17 @@ describe('API Integration Tests', () => {
           method: 'DELETE',
         });
         await expectStatus(response, 404);
+      });
+
+      it('should reject missing required fields on habit log creation', async () => {
+        const response = await authenticatedApi('/api/habit-logs', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            habit_name: 'Meditation',
+            // missing habit_id and date
+          }),
+        });
+        await expectStatus(response, 400);
       });
     });
 
@@ -451,6 +473,68 @@ describe('API Integration Tests', () => {
       });
     });
 
+    describe('Exercise Videos', () => {
+      let exerciseId: string;
+      let videoId: string;
+
+      it('should create exercise for video tests', async () => {
+        const response = await authenticatedApi('/api/exercises', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Squat',
+            category: 'legs',
+            difficulty: 'beginner',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        exerciseId = data.id;
+        expect(exerciseId).toBeDefined();
+      });
+
+      it('should add video to exercise', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos`, authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            url: 'https://example.com/video.mp4',
+            title: 'How to squat correctly',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        videoId = data.id;
+        expect(videoId).toBeDefined();
+      });
+
+      it('should update exercise video', async () => {
+        if (!exerciseId || !videoId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos/${videoId}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: 'Advanced squat technique',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should delete exercise video', async () => {
+        if (!exerciseId || !videoId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos/${videoId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should cleanup - delete exercise from video tests', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
     describe('Meal Plans', () => {
       it('should list meal plans', async () => {
         const response = await authenticatedApi('/api/meal-plans', authToken);
@@ -617,6 +701,53 @@ describe('API Integration Tests', () => {
             carbs: 0,
             fat: 3.6,
           }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('AI Endpoints', () => {
+      it('should request coaching', async () => {
+        const response = await authenticatedApi('/api/ai/coaching', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            query: 'How to improve my squat?',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should request meal suggestions', async () => {
+        const response = await authenticatedApi('/api/ai/meal-suggestions', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            calories: 2000,
+            preferences: 'vegetarian',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Payment Endpoints', () => {
+      it('should create checkout session', async () => {
+        const response = await authenticatedApi('/api/payments/create-checkout', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            plan: 'premium',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should get subscription status', async () => {
+        const response = await authenticatedApi('/api/payments/subscription-status', authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should cancel subscription', async () => {
+        const response = await authenticatedApi('/api/payments/cancel-subscription', authToken, {
+          method: 'POST',
         });
         await expectStatus(response, 200);
       });
