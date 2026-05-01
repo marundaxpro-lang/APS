@@ -17,7 +17,8 @@ import { useRouter } from "expo-router";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import ParticleBackground from "@/components/ParticleBackground";
-import { apiPost } from "@/utils/api";
+import { authClient } from "@/lib/auth";
+import * as Linking from "expo-linking";
 
 const TEAL = "#00D4AA";
 
@@ -68,7 +69,21 @@ export default function AuthScreen() {
       } catch (e) {
         // Not on web or URL parsing failed
       }
+      return;
     }
+
+    // Native: read from initial deep link URL
+    Linking.getInitialURL().then((url) => {
+      if (!url) return;
+      const parsed = Linking.parse(url);
+      const token = parsed.queryParams?.token as string | undefined;
+      const resetMode = parsed.queryParams?.mode as string | undefined;
+      if (token && resetMode === 'reset-password') {
+        console.log('[AuthScreen] Deep link reset token found');
+        setResetToken(token);
+        setMode('reset-password');
+      }
+    }).catch(() => {});
   }, []);
 
   const showError = (message: string) => {
@@ -181,8 +196,16 @@ export default function AuthScreen() {
     setForgotLoading(true);
     try {
       console.log('[AuthScreen] Sending forgot password request for:', forgotEmail);
-      await apiPost('/api/auth/forgot-password', { email: forgotEmail });
-      console.log('[AuthScreen] Forgot password email sent successfully');
+      const { error } = await authClient.requestPasswordReset({
+        email: forgotEmail,
+        redirectTo: 'aps://auth?mode=reset-password',
+      });
+      if (error) {
+        // Still show success to avoid email enumeration
+        console.warn('[AuthScreen] requestPasswordReset error:', error.message);
+      } else {
+        console.log('[AuthScreen] Forgot password email sent successfully');
+      }
       setForgotSuccess(true);
     } catch (error: any) {
       console.error('[AuthScreen] Forgot password error:', error);
@@ -221,18 +244,24 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       console.log('[AuthScreen] Sending reset password request');
-      await apiPost('/api/auth/reset-password', {
+      const { error } = await authClient.resetPassword({
         token: resetToken,
         newPassword,
       });
+      if (error) {
+        console.error('[AuthScreen] Reset password error:', error.message);
+        const lowerMsg = (error.message ?? '').toLowerCase();
+        const message = lowerMsg.includes('expired') || lowerMsg.includes('invalid')
+          ? 'This link has expired or is invalid. Request a new one.'
+          : error.message || 'Password reset failed. Please try again.';
+        showError(message);
+        return;
+      }
       console.log('[AuthScreen] Password reset successful');
       setResetSuccess(true);
     } catch (error: any) {
       console.error('[AuthScreen] Reset password error:', error);
-      const message = error.message?.includes('400')
-        ? "This link has expired or is invalid. Request a new one."
-        : error.message || "Password reset failed. Please try again.";
-      showError(message);
+      showError(error.message || 'Password reset failed. Please try again.');
     } finally {
       setLoading(false);
     }
