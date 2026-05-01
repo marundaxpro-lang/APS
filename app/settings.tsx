@@ -185,7 +185,7 @@ function UnitPicker({
 
 type DateFormatValue = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
 
-const DATE_FORMAT_OPTIONS: Array<{ value: DateFormatValue; label: string }> = [
+const DATE_FORMAT_OPTIONS: { value: DateFormatValue; label: string }[] = [
   { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
   { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
   { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },

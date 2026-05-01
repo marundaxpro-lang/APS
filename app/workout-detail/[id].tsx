@@ -59,6 +59,7 @@ export default function WorkoutDetailScreen() {
 
   useEffect(() => {
     loadWorkout();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadWorkout = async () => {

@@ -44,6 +44,7 @@ export function HabitCard({ habit, onComplete, index = 0 }: HabitCardProps) {
       checkScale.setValue(0);
       cardOpacity.setValue(1);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [habit.completedToday]);
 
   const handlePress = useCallback(async () => {

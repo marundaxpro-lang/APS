@@ -22,6 +22,7 @@ import React, {
   ReactNode,
 } from "react";
 import { Platform } from "react-native";
+import { useAuth } from "./AuthContext";
 import Purchases, {
   PurchasesOfferings,
   PurchasesOffering,
@@ -43,11 +44,8 @@ const SecureStore = Platform.OS === 'web'
         try { if (typeof window !== 'undefined') localStorage.removeItem(key); } catch {}
       },
     }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   : require('expo-secure-store');
-
-// Import auth hook for user syncing (validated at setup time)
-import { useAuth } from "./AuthContext";
 
 // Read API keys from app.json (expo.extra)
 const extra = Constants.expoConfig?.extra || {};

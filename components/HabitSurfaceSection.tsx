@@ -68,7 +68,7 @@ export function HabitSurfaceSection({
 
   useEffect(() => {
     loadHabits();
-  }, []);
+  }, [loadHabits]);
 
   // Stagger entrance animations
   useEffect(() => {
@@ -93,6 +93,7 @@ export function HabitSurfaceSection({
       ])
     );
     Animated.stagger(60, anims).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surfaced.length]);
 
   const handleComplete = useCallback(async (habitId: string) => {

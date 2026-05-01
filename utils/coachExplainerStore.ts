@@ -57,7 +57,7 @@ function hoursAgo(n: number): string {
   return new Date(Date.now() - n * 60 * 60 * 1000).toISOString();
 }
 
-const DEMO_CHANGES: Array<{
+const DEMO_CHANGES: {
   id: string;
   type: ChangeType;
   timestamp: string;
@@ -65,7 +65,7 @@ const DEMO_CHANGES: Array<{
   confidence: CoachChange['confidence'];
   impact: CoachChange['impact'];
   seed: number;
-}> = [
+}[] = [
   {
     id: 'demo_1',
     type: 'intensity_drop',

@@ -40,6 +40,7 @@ export function WeekHistoryMini({ week, label, isCurrentWeek }: Props) {
       duration: 600,
       useNativeDriver: false,
     }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [score]);
 
   const borderColor = arcProgress.interpolate({

@@ -15,16 +15,16 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Shuffle } from 'lucide-react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 import { Exercise, WorkoutDay } from '@/types/fitness';
 import ParticleBackground from '@/components/ParticleBackground';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // Confetti component
 function ConfettiExplosion() {

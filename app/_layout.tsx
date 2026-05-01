@@ -55,9 +55,9 @@ async function runAuthResetIfNeeded(): Promise<void> {
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
 let useNetworkState: () => { isConnected?: boolean | null; isInternetReachable?: boolean | null } = () => ({});
 if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   SystemBars = require('react-native-edge-to-edge').SystemBars;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   useNetworkState = require('expo-network').useNetworkState;
 }
 

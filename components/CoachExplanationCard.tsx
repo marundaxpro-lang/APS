@@ -112,6 +112,7 @@ export function CoachExplanationCard({ change, onDismiss }: Props) {
       duration: 300,
       useNativeDriver: true,
     }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const impactColor = getImpactColor(change.impact);

@@ -46,6 +46,7 @@ function StaggeredItem({ index, children }: { index: number; children: React.Rea
         useNativeDriver: true,
       }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
