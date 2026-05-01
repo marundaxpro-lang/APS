@@ -139,12 +139,6 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     const init = async () => {
-      const existingProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (existingProfile) {
-        router.replace("/paywall");
-        return;
-      }
-
       // Resolve a pre-existing name from signupName or userName
       const [signupName, storedUserName] = await Promise.all([
         AsyncStorage.getItem('signupName'),
@@ -168,6 +162,7 @@ export default function OnboardingScreen() {
   }, [router]);
 
   const saveProfile = async () => {
+    try {
     console.log('[Onboarding] User tapped Get Started');
     
     const trainingDaysCount = profile.selectedDays?.length || 3;
@@ -212,9 +207,9 @@ export default function OnboardingScreen() {
     // Personalize habits based on onboarding profile
     console.log('[Onboarding] Resetting habits for profile goal:', finalProfile.goal);
     await resetHabitsForProfile({
-      primaryGoal: finalProfile.goal,
-      nutritionPreference: profile.nutritionPreference,
-      activityLevelOutsideTraining: profile.activityLevelOutsideTraining,
+      primaryGoal: finalProfile.primaryGoal || finalProfile.goal || 'build-muscle',
+      nutritionPreference: profile.nutritionPreference || 'balanced',
+      activityLevelOutsideTraining: profile.activityLevelOutsideTraining || 'moderate',
     });
     
     // Save motivation separately for later use
@@ -337,6 +332,14 @@ export default function OnboardingScreen() {
       await AsyncStorage.setItem('onboardingJustCompleted', 'true');
       router.replace('/(tabs)/(home)');
     }, 2000);
+    } catch (err) {
+      console.error('[Onboarding] Unexpected error in saveProfile:', err);
+      // Still navigate to home — don't leave user stuck
+      setOnboardingCompleted(true);
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      await AsyncStorage.setItem('onboardingJustCompleted', 'true');
+      router.replace('/(tabs)/(home)');
+    }
   };
 
   const canProceed = () => {
