@@ -152,6 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await authClient.signIn.email({ email, password });
       if (error) {
         console.error('[AuthContext] signInWithEmail error:', error.message);
+        const msg = (error.message ?? '').toLowerCase();
+        if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('password') || msg.includes('not found')) {
+          throw new Error('Incorrect email or password. Please try again.');
+        }
+        if (msg.includes('verified') || msg.includes('verification')) {
+          throw new Error('Please verify your email before signing in. Check your inbox.');
+        }
         throw new Error(error.message || 'Sign in failed. Please check your credentials.');
       }
       console.log('[AuthContext] signInWithEmail successful, uid:', (data as any)?.user?.id);
@@ -173,10 +180,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (error) {
         console.error('[AuthContext] signUpWithEmail error:', error.message);
-        throw new Error(error.message || 'Sign up failed. Please try again.');
+        const msg = error.message ?? '';
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists')) {
+          throw new Error('An account with this email already exists. Try signing in instead.');
+        }
+        throw new Error(msg || 'Sign up failed. Please try again.');
       }
       console.log('[AuthContext] signUpWithEmail successful, uid:', (data as any)?.user?.id);
-      await applySession(data as any);
+      // Store name for onboarding pre-fill
+      if (name) {
+        await AsyncStorage.setItem('signupName', name);
+      }
+      // Explicitly refresh session to ensure token is stored
+      await fetchUser();
     } catch (err: any) {
       if (err.message) throw err;
       console.error('[AuthContext] signUpWithEmail network error:', err);

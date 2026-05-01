@@ -154,7 +154,14 @@ export default function AuthScreen() {
       }
     } catch (error: any) {
       console.error('[AuthScreen] Email auth error:', error);
-      showError(error.message || "Authentication failed");
+      const msg = (error.message ?? '').toLowerCase();
+      if (mode === 'signup' && (msg.includes('already') || msg.includes('exists'))) {
+        // Switch to sign-in and show helpful message
+        setMode('signin');
+        showError('An account with this email already exists. Please sign in instead.');
+      } else {
+        showError(error.message || 'Authentication failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
