@@ -99,37 +99,46 @@ app.withAuth({
   },
   emailAndPassword: {
     requireEmailVerification: false,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, token }) => {
       app.logger.info({ email: user.email }, 'Sending password reset email');
+      const deepLink = `aps://auth?token=${token}&mode=reset-password`;
+      const webFallback = `https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev/auth?token=${token}&mode=reset-password`;
       resend.emails.send({
-        from: 'APS Fitness <noreply@apsfitness.com>',
+        from: 'noreply@aps-fitness.com',
         to: user.email,
-        subject: 'Reset your password',
+        subject: 'Reset your APS password',
         html: `
           <!DOCTYPE html>
           <html>
             <head>
               <meta charset="UTF-8">
               <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background-color: #459b9b; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
-                .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-                .button { display: inline-block; background-color: #459b9b; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-                .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #e0e0e0; }
+                .header h1 { margin: 0; font-size: 24px; font-weight: 600; color: #333; }
+                .content { padding: 30px 20px; }
+                .message { margin: 20px 0; font-size: 14px; line-height: 1.8; }
+                .button { display: inline-block; background-color: #FF6B35; color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; margin: 25px 0; font-weight: 600; font-size: 14px; }
+                .button:hover { background-color: #E55A28; }
+                .fallback-link { color: #FF6B35; word-break: break-all; font-size: 12px; margin: 20px 0; }
+                .note { margin: 15px 0; font-size: 12px; color: #999; }
+                .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>Reset Your Password</h1>
+                  <h1>Reset your password</h1>
                 </div>
                 <div class="content">
-                  <p>Hi ${user.name || 'there'},</p>
-                  <p>We received a request to reset your password. Click the button below to create a new password.</p>
-                  <a href="${url}" class="button">Reset Password</a>
-                  <p style="margin-top: 20px; font-size: 12px; color: #666;">This link expires in 1 hour. Or copy and paste this link: ${url}</p>
-                  <p style="margin-top: 20px; font-size: 12px; color: #666;">If you didn't request a password reset, you can ignore this email.</p>
+                  <p class="message">We received a request to reset your APS account password. Click the button below to choose a new password.</p>
+                  <center>
+                    <a href="${deepLink}" class="button">Reset Password</a>
+                  </center>
+                  <p class="note"><strong>Can't click the button?</strong> Copy and paste this link into your browser:</p>
+                  <p class="fallback-link">${webFallback}</p>
+                  <p class="note"><strong>Link expires in 1 hour.</strong> If you didn't request a password reset, you can safely ignore this email.</p>
                 </div>
                 <div class="footer">
                   <p>&copy; 2024 APS Fitness. All rights reserved.</p>
