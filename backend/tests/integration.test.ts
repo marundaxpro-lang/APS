@@ -776,4 +776,13 @@ describe('API Integration Tests', () => {
       });
     });
   });
+
+  describe('Payment Webhooks', () => {
+    it('should accept webhook post request', async () => {
+      const response = await api('/api/payments/webhook', {
+        method: 'POST',
+      });
+      await expectStatus(response, 200);
+    });
+  });
 });
