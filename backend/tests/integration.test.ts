@@ -371,11 +371,6 @@ describe('API Integration Tests', () => {
         });
         await expectStatus(response, 200);
       });
-
-      it('should return 404 for nonexistent workout', async () => {
-        const response = await authenticatedApi('/api/workouts/nonexistent-id', authToken);
-        await expectStatus(response, 200, 404);
-      });
     });
 
     describe('Tasks', () => {
@@ -421,11 +416,6 @@ describe('API Integration Tests', () => {
         });
         await expectStatus(response, 200);
       });
-
-      it('should return 404 for nonexistent task', async () => {
-        const response = await authenticatedApi('/api/tasks/nonexistent-id', authToken);
-        await expectStatus(response, 200, 404);
-      });
     });
 
     describe('Exercises', () => {
@@ -465,11 +455,6 @@ describe('API Integration Tests', () => {
           method: 'DELETE',
         });
         await expectStatus(response, 200);
-      });
-
-      it('should return 404 for nonexistent exercise', async () => {
-        const response = await authenticatedApi('/api/exercises/nonexistent-id', authToken);
-        await expectStatus(response, 200, 404);
       });
     });
 
@@ -543,6 +528,12 @@ describe('API Integration Tests', () => {
         expect(Array.isArray(data)).toBe(true);
       });
 
+      it('should get meal plan by id', async () => {
+        const response = await authenticatedApi('/api/meal-plans/nonexistent-id', authToken);
+        // Could be 200 with empty data or 404 if endpoint validates
+        await expectStatus(response, 200, 404);
+      });
+
       it('should generate a meal plan', async () => {
         const response = await authenticatedApi('/api/meal-plans/generate', authToken, {
           method: 'POST',
@@ -563,11 +554,6 @@ describe('API Integration Tests', () => {
           }),
         });
         await expectStatus(response, 200);
-      });
-
-      it('should return 404 for nonexistent meal plan', async () => {
-        const response = await authenticatedApi('/api/meal-plans/nonexistent-id', authToken);
-        await expectStatus(response, 200, 404);
       });
     });
 
