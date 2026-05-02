@@ -83,12 +83,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const current = segments[0];
     const inAuth = current === 'auth';
+    const inAuthCallback = current === 'auth-callback';
     const inOnboarding = current === 'onboarding';
     const inLanguageSelect = current === 'language-select';
     const inIndex = current === undefined || current === 'index';
 
     if (!user) {
-      if (!inAuth && !inLanguageSelect) {
+      if (!inAuth && !inAuthCallback && !inLanguageSelect) {
         console.log('[AuthGuard] No authenticated user -> /auth');
         router.replace('/auth');
       }
@@ -108,7 +109,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (inAuth || inOnboarding || inLanguageSelect || inIndex) {
+    if (inAuth || inAuthCallback || inOnboarding || inLanguageSelect || inIndex) {
       console.log('[AuthGuard] Authenticated and onboarded -> /(tabs)/(home)');
       router.replace('/(tabs)/(home)');
     }
@@ -194,6 +195,10 @@ export default function RootLayout() {
                     <Stack>
                       <Stack.Screen
                         name="auth"
+                        options={{ headerShown: false, gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="auth-callback"
                         options={{ headerShown: false, gestureEnabled: false }}
                       />
                       <Stack.Screen
