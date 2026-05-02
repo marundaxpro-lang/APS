@@ -23,6 +23,9 @@ import Modal from "@/components/ui/Modal";
 import i18n, { initI18n } from "@/lib/i18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const AUTH_BUILD_MARKER = "[APS Build] prod auth fixes active - 2026-05-02 / 4854e0a";
+console.log(AUTH_BUILD_MARKER);
+
 async function runAuthResetIfNeeded(): Promise<void> {
   try {
     const done = await AsyncStorage.getItem("auth_reset_v3");
