@@ -249,10 +249,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = signInWithEmail;
   const signUp = async (email: string, password: string) => signUpWithEmail(email, password);
 
-  const signInWithGoogle = async () => {
+ const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle');
     try {
-      // Wipe local cache and reset state before starting
+      // FIX: Wipe local cache and reset state before starting to prevent data bleeding
       await clearAllLocalData(); 
       setOnboardingCompleted(false);
 
@@ -265,34 +265,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthContext] Google OAuth error:', error.message);
         throw new Error(error.message || 'Google sign in failed.');
       }
+      // Session will be applied via deep link listener in useEffect
     } catch (err: any) {
       if (err.message) throw err;
+      console.error('[AuthContext] signInWithGoogle network error:', err);
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
   };
 
- const signInWithApple = async () => {
+  const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
     try {
-      // Wipe local cache and reset state before starting
+      // FIX: Wipe local cache and reset state before starting to prevent data bleeding
       await clearAllLocalData();
       setOnboardingCompleted(false);
 
       if (Platform.OS === 'ios') {
-        // ... (existing native Apple code stays here)
-      } else {
-        // ... (existing web OAuth code stays here)
-      }
-    } catch (err: any) {
-      // User cancelled — don't show error
-      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
-        console.log('[AuthContext] Apple Sign-In cancelled by user');
-        return;
-      }
-      if (err.message) throw err;
-      throw new Error('Unable to connect. Please check your connection and try again.');
-    }
-  };
+        // Use native Apple Sign-In on iOS
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        if (!credential.identityToken) {
+          throw new Error('Apple Sign-In failed: no identity token received.');
+        }
+
+        console.log('[AuthContext] Apple native credential received, exchanging with Better Auth...');
+        const { data, error } = await authClient.signIn.social({
+          provider: 'apple',
+          idToken: {
+            token: credential.identityToken,
+            nonce: credential.authorizationCode ?? undefined,
+          },
+        } as any);
+
+        if (error) {
+          console.error('[AuthContext] Apple OAuth error:', error.message);
+          throw new Error(error.message || 'Apple sign in failed.');
+        }
 
         await applySession(data as any);
       } else {
@@ -305,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('[AuthContext] Apple OAuth error:', error.message);
           throw new Error(error.message || 'Apple sign in failed.');
         }
-        // Session will be applied via deep link listener above
+        // Session will be applied via deep link listener in useEffect
       }
     } catch (err: any) {
       // User cancelled — don't show error
@@ -314,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (err.message) throw err;
+      console.error('[AuthContext] signInWithApple network error:', err);
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
   };
@@ -340,7 +354,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOnboardingCompleted(null);
     }
   };
-
   return (
     <AuthContext.Provider
       value={{
