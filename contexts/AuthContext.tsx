@@ -124,11 +124,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const subscription = Linking.addEventListener('url', ({ url }) => {
       if (url.includes('auth-callback') || url.includes('auth?')) {
-        console.log('[AuthContext] Deep link received, refreshing session:', url);
-        // Small delay to let expoClient write the token to SecureStore
-        setTimeout(() => {
-          fetchUser();
-        }, 500);
+        console.log('[AuthContext] Deep link received, polling for session:', url);
+
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        const pollForSession = async () => {
+          attempts++;
+          console.log(`[AuthContext] Polling for session, attempt ${attempts}/${maxAttempts}`);
+
+          try {
+            const { data } = await authClient.getSession();
+            if (data?.user) {
+              console.log('[AuthContext] Session found after OAuth, uid:', data.user.id);
+              await applySession(data as any);
+              setLoading(false);
+              return; // success — stop polling
+            }
+          } catch (e) {
+            console.warn('[AuthContext] Poll error:', e);
+          }
+
+          if (attempts < maxAttempts) {
+            setTimeout(pollForSession, 500);
+          } else {
+            console.warn('[AuthContext] Session not found after OAuth after max attempts');
+          }
+        };
+
+        // Start polling after a short initial delay
+        setTimeout(pollForSession, 300);
       }
     });
     return () => subscription.remove();

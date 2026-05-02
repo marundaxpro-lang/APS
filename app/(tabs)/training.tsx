@@ -26,104 +26,15 @@ export default function TrainingScreen() {
   const [isRestDay, setIsRestDay] = useState(false);
 
   const loadWorkout = useCallback(async () => {
-    try {
-      console.log('[Training] Loading workout data');
-      
-      try {
-        const { authenticatedGet, getBearerToken } = await import('@/utils/api');
-        const token = await getBearerToken();
-        if (!token) {
-          console.log('[Training] No auth token, skipping backend profile fetch');
-          // Not an error — unauthenticated users fall through to local storage
-          setLoading(false);
-          const storedProfile = await AsyncStorage.getItem('fitnessProfile');
-          if (!storedProfile) {
-            router.replace('/onboarding');
-            return;
-          }
-          const profileData: FitnessProfile = JSON.parse(storedProfile);
-          setProfile(profileData);
-          setWeeklyWorkouts(generateWorkoutSplit(profileData));
-          const workout = getTodaysWorkout(profileData);
-          if (workout) {
-            setTodaysWorkout(workout);
-            setIsRestDay(false);
-          } else {
-            setTodaysWorkout(null);
-            setIsRestDay(true);
-          }
-          return;
-        }
-        const backendProfile = await authenticatedGet('/api/fitness-profile');
-        
-        if (backendProfile) {
-          console.log('[Training] Raw backend profile:', backendProfile);
-          
-          const defaultFocusAreas = backendProfile.gender === 'female' 
-            ? ['Glutes', 'Legs', 'Core'] 
-            : ['Chest', 'Back', 'Arms'];
-          
-          const mappedProfile: FitnessProfile = {
-            name: backendProfile.name || undefined,
-            gender: backendProfile.gender || 'male',
-            age: backendProfile.age || 25,
-            trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays || 3,
-            focusAreas: Array.isArray(backendProfile.focusAreas) && backendProfile.focusAreas.length > 0
-              ? backendProfile.focusAreas 
-              : defaultFocusAreas,
-            equipmentType: backendProfile.equipmentType || 'gym',
-            goal: backendProfile.goal || 'muscle',
-            weight: backendProfile.weight || 70,
-            height: backendProfile.height || 175,
-            selectedDays: backendProfile.selectedDays || [],
-          };
-          
-          console.log('[Training] Mapped profile for workout generation:', mappedProfile);
-          
-          setProfile(mappedProfile);
-          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
-          
-          const weeklyWorkoutSplit = generateWorkoutSplit(mappedProfile);
-          console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
-          setWeeklyWorkouts(weeklyWorkoutSplit);
-          
-          const workout = getTodaysWorkout(mappedProfile);
-          console.log('[Training] Today\'s workout:', workout);
-          
-          if (workout) {
-            setTodaysWorkout(workout);
-            setIsRestDay(false);
-          } else {
-            setTodaysWorkout(null);
-            setIsRestDay(true);
-          }
-          
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        console.error('[Training] Error loading profile from backend:', error);
-        console.log('[Training] Falling back to local storage');
-      }
-      
-      const storedProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (!storedProfile) {
-        console.log('[Training] No profile found, redirecting to onboarding');
-        router.replace('/onboarding');
-        return;
-      }
+    console.log('[Training] Loading workout data');
 
-      const profileData: FitnessProfile = JSON.parse(storedProfile);
-      console.log('[Training] Profile from local storage:', profileData);
+    const applyProfile = (profileData: FitnessProfile) => {
       setProfile(profileData);
-
       const weeklyWorkoutSplit = generateWorkoutSplit(profileData);
       console.log('[Training] Generated weekly workout split:', weeklyWorkoutSplit);
       setWeeklyWorkouts(weeklyWorkoutSplit);
-
       const workout = getTodaysWorkout(profileData);
       console.log('[Training] Today\'s workout:', workout);
-      
       if (workout) {
         setTodaysWorkout(workout);
         setIsRestDay(false);
@@ -131,8 +42,64 @@ export default function TrainingScreen() {
         setTodaysWorkout(null);
         setIsRestDay(true);
       }
+    };
+
+    try {
+      // Step 1: Try backend if authenticated
+      let backendSucceeded = false;
+      try {
+        const { authenticatedGet, getBearerToken } = await import('@/utils/api');
+        const token = await getBearerToken();
+        if (token) {
+          console.log('[Training] Auth token found, fetching profile from backend');
+          const backendProfile = await authenticatedGet('/api/fitness-profile');
+          if (backendProfile) {
+            console.log('[Training] Raw backend profile:', backendProfile);
+            const defaultFocusAreas = backendProfile.gender === 'female'
+              ? ['Glutes', 'Legs', 'Core']
+              : ['Chest', 'Back', 'Arms'];
+            const mappedProfile: FitnessProfile = {
+              name: backendProfile.name || undefined,
+              gender: backendProfile.gender || 'male',
+              age: backendProfile.age || 25,
+              trainingDays: backendProfile.trainingFrequency || backendProfile.trainingDays || 3,
+              focusAreas: Array.isArray(backendProfile.focusAreas) && backendProfile.focusAreas.length > 0
+                ? backendProfile.focusAreas
+                : defaultFocusAreas,
+              equipmentType: backendProfile.equipmentType || 'gym',
+              goal: backendProfile.goal || 'muscle',
+              weight: backendProfile.weight || 70,
+              height: backendProfile.height || 175,
+              selectedDays: backendProfile.selectedDays || [],
+            };
+            console.log('[Training] Mapped profile for workout generation:', mappedProfile);
+            await AsyncStorage.setItem('fitnessProfile', JSON.stringify(mappedProfile));
+            applyProfile(mappedProfile);
+            backendSucceeded = true;
+          }
+        } else {
+          console.log('[Training] No auth token, skipping backend profile fetch');
+        }
+      } catch (backendError) {
+        console.error('[Training] Error loading profile from backend:', backendError);
+        console.log('[Training] Falling back to local storage');
+      }
+
+      if (backendSucceeded) return;
+
+      // Step 2: Fall back to local storage
+      const storedProfile = await AsyncStorage.getItem('fitnessProfile');
+      if (!storedProfile) {
+        console.log('[Training] No profile found, redirecting to onboarding');
+        router.replace('/onboarding');
+        return;
+      }
+      const profileData: FitnessProfile = JSON.parse(storedProfile);
+      console.log('[Training] Profile from local storage:', profileData);
+      applyProfile(profileData);
     } catch (error) {
-      console.error('[Training] Error loading workout:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Training] Unexpected error loading workout:', msg, error);
     } finally {
       setLoading(false);
     }
