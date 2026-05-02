@@ -139,12 +139,6 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     const init = async () => {
-      const existingProfile = await AsyncStorage.getItem('fitnessProfile');
-      if (existingProfile) {
-        router.replace("/paywall");
-        return;
-      }
-
       // Resolve a pre-existing name from signupName or userName
       const [signupName, storedUserName] = await Promise.all([
         AsyncStorage.getItem('signupName'),
@@ -168,6 +162,7 @@ export default function OnboardingScreen() {
   }, [router]);
 
   const saveProfile = async () => {
+    try {
     console.log('[Onboarding] User tapped Get Started');
     
     const trainingDaysCount = profile.selectedDays?.length || 3;
@@ -212,9 +207,9 @@ export default function OnboardingScreen() {
     // Personalize habits based on onboarding profile
     console.log('[Onboarding] Resetting habits for profile goal:', finalProfile.goal);
     await resetHabitsForProfile({
-      primaryGoal: finalProfile.goal,
-      nutritionPreference: profile.nutritionPreference,
-      activityLevelOutsideTraining: profile.activityLevelOutsideTraining,
+      primaryGoal: finalProfile.primaryGoal || finalProfile.goal || 'build-muscle',
+      nutritionPreference: profile.nutritionPreference || 'balanced',
+      activityLevelOutsideTraining: profile.activityLevelOutsideTraining || 'moderate',
     });
     
     // Save motivation separately for later use
@@ -228,15 +223,27 @@ export default function OnboardingScreen() {
       console.log('[Onboarding] Motivation saved for future use:', motivationData);
     }
     
+    const activityLevelMap: Record<string, string> = {
+      'regular': 'light',
+      'moderate': 'moderate',
+      'very-active': 'active',
+    };
+    const activityLevel = activityLevelMap[profile.activityLevelOutsideTraining || 'moderate'] || 'moderate';
+
+    // Map frontend goal values to backend expected values
+    let backendGoal: 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' = 'muscle_gain';
+    if (goal === 'lose-fat' || goal === 'weight-loss') {
+      backendGoal = 'weight_loss';
+    } else if (goal === 'build-muscle' || goal === 'muscle') {
+      backendGoal = 'muscle_gain';
+    } else if (goal === 'get-stronger' || goal === 'strength') {
+      backendGoal = 'strength';
+    } else if (goal === 'improve-endurance' || goal === 'endurance') {
+      backendGoal = 'endurance';
+    }
+
+    // 1. Save fitness profile to backend (non-blocking)
     try {
-      const activityLevelMap: Record<string, string> = {
-        'regular': 'light',
-        'moderate': 'moderate',
-        'very-active': 'active',
-      };
-      const activityLevel = activityLevelMap[profile.activityLevelOutsideTraining || 'moderate'] || 'moderate';
-      
-      console.log('[Onboarding] Saving complete fitness profile to backend...');
       const profilePayload = {
         experienceLevel: 'beginner',
         goal: goal,
@@ -250,25 +257,17 @@ export default function OnboardingScreen() {
         equipmentType: finalProfile.equipmentType || 'gym',
         name: finalProfile.name || null,
       };
-      
-      console.log('[Onboarding] Profile payload being sent to backend:', profilePayload);
+      console.log('[Onboarding] Saving fitness profile to backend:', profilePayload);
       const savedProfile = await authenticatedPost('/api/fitness-profile', profilePayload);
-      console.log('[Onboarding] Backend response:', savedProfile);
-      console.log('[Onboarding] Complete fitness profile saved successfully');
-      
-      // Map frontend goal values to backend expected values
-      let backendGoal: 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' = 'muscle_gain';
-      if (goal === 'lose-fat' || goal === 'weight-loss') {
-        backendGoal = 'weight_loss';
-      } else if (goal === 'build-muscle' || goal === 'muscle') {
-        backendGoal = 'muscle_gain';
-      } else if (goal === 'get-stronger' || goal === 'strength') {
-        backendGoal = 'strength';
-      } else if (goal === 'improve-endurance' || goal === 'endurance') {
-        backendGoal = 'endurance';
-      }
-      
-      console.log('[Onboarding] Calculating caloric goal on backend with:', {
+      console.log('[Onboarding] Fitness profile saved to backend:', savedProfile);
+    } catch (err) {
+      console.warn('[Onboarding] Could not save fitness profile to backend (non-fatal):', err);
+    }
+
+    // 2. Calculate caloric goal on backend (non-blocking)
+    try {
+      console.log('[Onboarding] Calculating caloric goal on backend with:', { age, gender, weight, height, activityLevel, goal: backendGoal });
+      const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
         age,
         gender,
         weight,
@@ -276,81 +275,68 @@ export default function OnboardingScreen() {
         activityLevel,
         goal: backendGoal,
       });
-      
-      try {
-        const caloricGoalResponse = await authenticatedPost('/api/dashboard/calculate-caloric-goal', {
-          age,
-          gender,
-          weight,
-          height,
-          activityLevel,
-          goal: backendGoal,
-        });
-        
-        console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
-        
-        if (caloricGoalResponse?.dailyCalorieGoal) {
-          const updatedProfile = {
-            ...finalProfile,
-            caloricGoal: caloricGoalResponse.dailyCalorieGoal,
-            protein: caloricGoalResponse.proteinGoal || nutritionGoals.protein,
-            carbs: caloricGoalResponse.carbsGoal || nutritionGoals.carbs,
-            fat: caloricGoalResponse.fatGoal || nutritionGoals.fat,
-          };
-          await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
-          console.log('[Onboarding] Updated profile with backend caloric goal:', updatedProfile.caloricGoal);
-        }
-      } catch (caloricError) {
-        console.error('[Onboarding] Error calculating caloric goal on backend:', caloricError);
-      }
-
-      // ── Call PUT /api/user/onboarding to mark onboarding complete ──
-      try {
-        console.log('[Onboarding] Calling PUT /api/user/onboarding to mark onboarding complete');
-        const onboardingPayload = {
-          name: finalProfile.name || null,
-          age,
-          gender,
-          weight,
-          height,
-          goal: backendGoal,
-          experienceLevel: profile.trainingExperience || 'beginner',
-          trainingFrequency: trainingDaysCount,
-          activityLevel,
-          equipmentType: finalProfile.equipmentType || 'gym',
-          focusAreas: finalProfile.focusAreas || [],
-          sessionLength: profile.sessionLength || '45-60',
-          nutritionPreference: profile.nutritionPreference || 'balanced',
-          motivation: profile.motivation || '',
-          motivationChips: profile.selectedMotivationChips || [],
-          trainingDays: profile.selectedDays || [],
-          caloricGoal: nutritionGoals.caloricGoal,
-          protein: nutritionGoals.protein,
-          carbs: nutritionGoals.carbs,
-          fat: nutritionGoals.fat,
+      console.log('[Onboarding] Backend caloric goal calculated:', caloricGoalResponse);
+      if (caloricGoalResponse?.dailyCalorieGoal) {
+        const updatedProfile = {
+          ...finalProfile,
+          caloricGoal: caloricGoalResponse.dailyCalorieGoal,
+          protein: caloricGoalResponse.proteinGoal || nutritionGoals.protein,
+          carbs: caloricGoalResponse.carbsGoal || nutritionGoals.carbs,
+          fat: caloricGoalResponse.fatGoal || nutritionGoals.fat,
         };
-        console.log('[Onboarding] PUT /api/user/onboarding payload:', onboardingPayload);
-        await authenticatedPut('/api/user/onboarding', onboardingPayload);
-        console.log('[Onboarding] Onboarding marked complete on backend');
-        // Update AuthContext so navigation guard knows onboarding is done
-        setOnboardingCompleted(true);
-      } catch (onboardingErr) {
-        console.warn('[Onboarding] Could not call PUT /api/user/onboarding:', onboardingErr);
-        // Still mark locally so the app can proceed
-        setOnboardingCompleted(true);
+        await AsyncStorage.setItem('fitnessProfile', JSON.stringify(updatedProfile));
+        console.log('[Onboarding] Updated profile with backend caloric goal:', updatedProfile.caloricGoal);
       }
-      
-      console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
-      
-      setShowSuccessModal(true);
-      setTimeout(async () => {
-        setShowSuccessModal(false);
-        await AsyncStorage.setItem('onboardingJustCompleted', 'true');
-        router.replace('/(tabs)/(home)');
-      }, 2000);
-    } catch (error) {
-      console.error('[Onboarding] Error saving profile to backend:', error);
+    } catch (err) {
+      console.warn('[Onboarding] Could not calculate caloric goal on backend (non-fatal):', err);
+    }
+
+    // 3. Mark onboarding complete on backend (non-blocking)
+    try {
+      const onboardingPayload = {
+        name: finalProfile.name || null,
+        age,
+        gender,
+        weight,
+        height,
+        goal: backendGoal,
+        experienceLevel: profile.trainingExperience || 'beginner',
+        trainingFrequency: trainingDaysCount,
+        activityLevel,
+        equipmentType: finalProfile.equipmentType || 'gym',
+        focusAreas: finalProfile.focusAreas || [],
+        sessionLength: profile.sessionLength || '45-60',
+        nutritionPreference: profile.nutritionPreference || 'balanced',
+        motivation: profile.motivation || '',
+        motivationChips: profile.selectedMotivationChips || [],
+        trainingDays: profile.selectedDays || [],
+        caloricGoal: nutritionGoals.caloricGoal,
+        protein: nutritionGoals.protein,
+        carbs: nutritionGoals.carbs,
+        fat: nutritionGoals.fat,
+      };
+      console.log('[Onboarding] PUT /api/user/onboarding payload:', onboardingPayload);
+      await authenticatedPut('/api/user/onboarding', onboardingPayload);
+      console.log('[Onboarding] Onboarding marked complete on backend');
+    } catch (err) {
+      console.warn('[Onboarding] Could not mark onboarding complete on backend (non-fatal):', err);
+    }
+
+    // Always mark complete locally and navigate
+    setOnboardingCompleted(true);
+    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    console.log('[Onboarding] Profile setup complete - daily calorie goal:', nutritionGoals.caloricGoal);
+    setShowSuccessModal(true);
+    setTimeout(async () => {
+      setShowSuccessModal(false);
+      await AsyncStorage.setItem('onboardingJustCompleted', 'true');
+      router.replace('/(tabs)/(home)');
+    }, 2000);
+    } catch (err) {
+      console.error('[Onboarding] Unexpected error in saveProfile:', err);
+      // Still navigate to home — don't leave user stuck
       setOnboardingCompleted(true);
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
       await AsyncStorage.setItem('onboardingJustCompleted', 'true');
       router.replace('/(tabs)/(home)');
     }

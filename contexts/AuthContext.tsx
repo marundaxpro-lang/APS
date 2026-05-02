@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { authClient } from '@/lib/auth';
 import { isOnboardingComplete } from '@/utils/onboardingStorage';
 
@@ -76,22 +79,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
-  const applySession = async (sessionData: { user: { id: string; email: string; name?: string; image?: string } } | null) => {
-    if (sessionData?.user) {
-      const u: User = {
-        id: sessionData.user.id,
-        email: sessionData.user.email ?? '',
-        name: sessionData.user.name,
-        image: sessionData.user.image,
-      };
-      setUser(u);
-      setSession(sessionData);
+  const applySession = async (sessionData: any) => {
+    if (!sessionData?.user) return;
+    
+    const u: User = {
+      id: sessionData.user.id,
+      email: sessionData.user.email ?? '',
+      name: sessionData.user.name,
+      image: sessionData.user.image,
+    };
+    setUser(u);
+    setSession(sessionData);
+
+    // FIX: If the account was created in the last 60 seconds, it's a new signup
+    const createdAt = (sessionData.user as any).createdAt;
+    const isNewSignup = createdAt && new Date(createdAt).getTime() > Date.now() - 60000;
+
+    if (isNewSignup) {
+      console.log('[AuthContext] New account detected — forcing onboarding');
+      setOnboardingCompleted(false);
+    } else {
       const done = await isOnboardingComplete();
       setOnboardingCompleted(done);
-    } else {
-      setUser(null);
-      setSession(null);
-      setOnboardingCompleted(null);
     }
   };
 
@@ -101,13 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Restoring session via Better Auth...');
         const { data, error } = await authClient.getSession();
         if (error) {
-          console.warn('[AuthContext] Session restore error:', error.message);
           setUser(null);
           setSession(null);
           setOnboardingCompleted(null);
           return;
         }
-        console.log('[AuthContext] Session restored:', data?.user ? `uid=${data.user.id}` : 'no session');
         await applySession(data as any);
       } catch (err) {
         console.error('[AuthContext] Unexpected error during session restore:', err);
@@ -122,66 +129,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
+  // Listen for deep links after OAuth (e.g. aps://auth-callback)
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', async ({ url }) => {
+      if (url.includes('auth-callback') || url.includes('auth?')) {
+        setLoading(true); 
+
+        let attempts = 0;
+        const maxAttempts = 15;
+
+        const pollForSession = async () => {
+          attempts++;
+          try {
+            const { data } = await authClient.getSession();
+            if (data?.user) {
+              await applySession(data as any);
+              setLoading(false); 
+              return; 
+            }
+          } catch (e) {
+            console.warn('[AuthContext] Poll error:', e);
+          }
+
+          if (attempts < maxAttempts) {
+            setTimeout(pollForSession, 500);
+          } else {
+            setLoading(false); 
+            console.warn('[AuthContext] Max attempts reached');
+          }
+        };
+
+        setTimeout(pollForSession, 300);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const fetchUser = async () => {
     try {
       setLoading(true);
-      console.log('[AuthContext] fetchUser: refreshing session...');
       const { data, error } = await authClient.getSession();
-      if (error) {
-        console.warn('[AuthContext] fetchUser session error:', error.message);
-        setUser(null);
-        setSession(null);
-        setOnboardingCompleted(null);
-        return;
-      }
-      console.log('[AuthContext] fetchUser:', data?.user ? `uid=${data.user.id}` : 'no session');
-      await applySession(data as any);
+      if (!error) await applySession(data as any);
     } catch (error) {
       console.error('[AuthContext] Failed to fetch user:', error);
-      setUser(null);
-      setSession(null);
-      setOnboardingCompleted(null);
     } finally {
       setLoading(false);
     }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    console.log('[AuthContext] signInWithEmail:', email);
-    try {
-      const { data, error } = await authClient.signIn.email({ email, password });
-      if (error) {
-        console.error('[AuthContext] signInWithEmail error:', error.message);
-        throw new Error(error.message || 'Sign in failed. Please check your credentials.');
-      }
-      console.log('[AuthContext] signInWithEmail successful, uid:', (data as any)?.user?.id);
-      await applySession(data as any);
-    } catch (err: any) {
-      if (err.message) throw err;
-      console.error('[AuthContext] signInWithEmail network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
-    }
+    const { data, error } = await authClient.signIn.email({ email, password });
+    if (error) throw new Error(error.message || 'Sign in failed.');
+    await applySession(data as any);
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    console.log('[AuthContext] signUpWithEmail:', email, 'name:', name);
-    try {
-      const { data, error } = await authClient.signUp.email({
-        email,
-        password,
-        name: name ?? '',
-      });
-      if (error) {
-        console.error('[AuthContext] signUpWithEmail error:', error.message);
-        throw new Error(error.message || 'Sign up failed. Please try again.');
-      }
-      console.log('[AuthContext] signUpWithEmail successful, uid:', (data as any)?.user?.id);
-      await applySession(data as any);
-    } catch (err: any) {
-      if (err.message) throw err;
-      console.error('[AuthContext] signUpWithEmail network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
-    }
+    const { data, error } = await authClient.signUp.email({ email, password, name: name ?? '' });
+    if (error) throw new Error(error.message || 'Sign up failed.');
+    if (name) await AsyncStorage.setItem('signupName', name);
+    await applySession(data as any);
   };
 
   const signIn = signInWithEmail;
@@ -194,11 +200,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         provider: 'google',
         callbackURL: 'aps://auth-callback',
       });
+
       if (error) {
         console.error('[AuthContext] Google OAuth error:', error.message);
         throw new Error(error.message || 'Google sign in failed.');
       }
-      await fetchUser();
+      // Session will be applied via the deep link listener polling loop
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
@@ -208,37 +215,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
     try {
-      const { error } = await authClient.signIn.social({
-        provider: 'apple',
-        callbackURL: 'aps://auth-callback',
-      });
-      if (error) {
-        console.error('[AuthContext] Apple OAuth error:', error.message);
-        throw new Error(error.message || 'Apple sign in failed.');
+      if (Platform.OS === 'ios') {
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        const { data, error } = await authClient.signIn.social({
+          provider: 'apple',
+          idToken: {
+            token: credential.identityToken!,
+            nonce: credential.authorizationCode ?? undefined,
+          },
+        } as any);
+
+        if (error) throw new Error(error.message || 'Apple sign in failed.');
+        await applySession(data as any);
+      } else {
+        const { error } = await authClient.signIn.social({
+          provider: 'apple',
+          callbackURL: 'aps://auth-callback',
+        });
+        if (error) throw new Error(error.message || 'Apple sign in failed.');
+        // Session will be applied via the deep link listener polling loop
       }
-      await fetchUser();
     } catch (err: any) {
-      if (err.message) throw err;
-      throw new Error('Unable to connect. Please check your connection and try again.');
+      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') return;
+      throw err;
     }
   };
 
   const signOut = async () => {
-    if (!user) {
-      console.log('[AuthContext] signOut skipped — no authenticated user');
-      return;
-    }
-    console.log('[AuthContext] signOut for user:', user.id);
+    if (!user) return;
     try {
       await clearAllLocalData(user.id);
-      const { error } = await authClient.signOut();
-      if (error) {
-        console.error('[AuthContext] signOut error:', error.message);
-      } else {
-        console.log('[AuthContext] signOut successful');
-      }
+      await authClient.signOut();
     } catch (err) {
-      console.error('[AuthContext] signOut unexpected error:', err);
+      console.error('[AuthContext] signOut error:', err);
     } finally {
       setUser(null);
       setSession(null);
@@ -273,8 +288,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

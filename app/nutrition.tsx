@@ -189,6 +189,7 @@ function SlimBar({ fraction, color }: { fraction: number; color: string }) {
       duration: 600,
       useNativeDriver: false,
     }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fraction]);
   return (
     <View style={barS.track}>
@@ -220,6 +221,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
       Animated.timing(opacity, { toValue: 1, duration: 300, delay: index * 50, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 300, delay: index * 50, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }

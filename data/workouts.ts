@@ -241,7 +241,11 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
   // Define workout templates based on number of days
   let workoutTemplates: { name: string; muscleGroups: string[] }[] = [];
   
-  if (numDays === 2) {
+  if (numDays <= 1) {
+    workoutTemplates = [
+      { name: 'Full Body', muscleGroups: ['chest', 'back', 'legs', 'glutes', 'shoulders', 'arms'] }
+    ];
+  } else if (numDays === 2) {
     workoutTemplates = [
       { name: 'Upper Body', muscleGroups: ['chest', 'back', 'shoulders', 'arms'] },
       { name: 'Lower Body', muscleGroups: ['legs', 'glutes'] }
@@ -292,7 +296,8 @@ export function generateWorkoutSplit(profile: FitnessProfile): WorkoutDay[] {
     });
   } else {
     // Fallback to default days if selectedDays is not available
-    const defaultDays = numDays === 2 ? [1, 4] :
+    const defaultDays = numDays <= 1 ? [1] :
+                       numDays === 2 ? [1, 4] :
                        numDays === 3 ? [1, 3, 5] :
                        numDays === 4 ? [1, 2, 4, 5] :
                        numDays === 5 ? [1, 2, 3, 4, 5] :

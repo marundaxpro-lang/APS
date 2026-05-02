@@ -6,6 +6,7 @@ polyfillGlobal('fetch', () => expoFetch);
 
 // Dynamic imports so missing packages don't break the bundle
 Promise.all([
+  // eslint-disable-next-line import/no-unresolved
   import('@stardazed/streams-text-encoding').catch(() => null),
   import('@ungap/structured-clone').catch(() => null),
 ]).then(([streamsModule, structuredCloneModule]) => {

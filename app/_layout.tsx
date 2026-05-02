@@ -55,9 +55,9 @@ async function runAuthResetIfNeeded(): Promise<void> {
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
 let useNetworkState: () => { isConnected?: boolean | null; isInternetReachable?: boolean | null } = () => ({});
 if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   SystemBars = require('react-native-edge-to-edge').SystemBars;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   useNetworkState = require('expo-network').useNetworkState;
 }
 
@@ -90,23 +90,39 @@ function AuthLoadingScreen() {
  * Guest mode is intentionally NOT supported — all users must authenticate.
  */
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  // We need to pull 'onboardingCompleted' from your AuthContext
+  const { user, loading: authLoading, onboardingCompleted } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (authLoading) return;
 
-    const inAuthGroup = segments[0] === 'auth' || segments[0] === 'onboarding' || segments[0] === 'language-select';
-
-    if (!user && !inAuthGroup) {
-      console.log('[AuthGuard] No authenticated user — redirecting to /auth');
+    const inAuthGroup = segments[0] === 'auth';
+    const inOnboardingGroup = segments[0] === 'onboarding';
+    
+    // 1. If NOT logged in and trying to access protected routes -> send to Auth
+    if (!user && !inAuthGroup && segments[0] !== 'language-select') {
+      console.log('[AuthGuard] No user -> redirecting to /auth');
       router.replace('/auth');
+      return;
     }
-  }, [user, authLoading, segments, router]);
 
-  // While auth is resolving, show a full-screen dark loading indicator.
-  // Nothing renders until we know the auth state — prevents any screen flash.
+    // 2. If logged in but ONBOARDING is not done -> force them to /onboarding
+    // This prevents the user from skipping to the tabs
+    if (user && !onboardingCompleted && !inOnboardingGroup) {
+      console.log('[AuthGuard] User exists but onboarding incomplete -> forcing /onboarding');
+      router.replace('/onboarding');
+      return;
+    }
+
+    // 3. If logged in AND onboarding is done, but still in auth/onboarding -> send to Home
+    if (user && onboardingCompleted && (inAuthGroup || inOnboardingGroup)) {
+      console.log('[AuthGuard] Authenticated & Onboarded -> redirecting to /(tabs)');
+      router.replace('/(tabs)');
+    }
+  }, [user, authLoading, onboardingCompleted, segments, router]);
+
   if (authLoading) {
     return <AuthLoadingScreen />;
   }

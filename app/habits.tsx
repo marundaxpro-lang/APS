@@ -116,6 +116,7 @@ function HabitRow({ habit, onToggle, onComplete, index }: HabitRowProps) {
       Animated.timing(opacity, { toValue: 1, duration: 300, delay: index * 40, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 300, delay: index * 40, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const IconComponent = ICON_MAP[habit.icon] || Flame;
@@ -235,7 +236,7 @@ export default function HabitsScreen() {
 
   useEffect(() => {
     loadHabits();
-  }, []);
+  }, [loadHabits]);
 
   const handleRefresh = useCallback(async () => {
     console.log('[Habits] User pulled to refresh');

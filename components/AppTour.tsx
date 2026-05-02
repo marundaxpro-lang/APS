@@ -50,40 +50,40 @@ interface TourStep {
 // Quick Links is near the bottom of the scroll so we spotlight the tab bar instead.
 const TOUR_STEPS: TourStep[] = [
   {
-    title: 'Welcome to Apex Fitness 👋',
-    description: "Your AI-powered personal trainer. Let's show you around in just a few seconds.",
+    title: 'Welcome to APS.',
+    description: "Your AI-powered training system. Here's a quick orientation.",
     fullScreen: true,
-    buttonLabel: "Let's Go!",
+    buttonLabel: 'Show me around',
   },
   {
-    title: "Today's Workout",
-    description: 'Your daily workout is right here. Tap it to start your training session.',
+    title: "Today's session",
+    description: 'Your daily workout is here. Tap it to begin.',
     spotlightY: 160,
     spotlightHeight: 180,
   },
   {
-    title: 'Programs',
-    description: 'Browse and activate training programs tailored to your goals.',
+    title: 'Programmes',
+    description: 'Browse and activate training programmes built for your goals.',
     spotlightY: 380,
     spotlightHeight: 220,
   },
   {
-    title: 'Quick Links',
-    description: 'Jump to Programs, Nutrition, AI Coach, and Habits from here.',
+    title: 'Quick access',
+    description: 'Jump to Programmes, Nutrition, AI Coach, and Habits from here.',
     spotlightY: 630,
     spotlightHeight: 100,
   },
   {
     title: 'Navigation',
-    description: 'Switch between Home, Train, Nutrition, Momentum, and Progress tabs.',
+    description: 'Home, Train, Nutrition, Momentum, and Progress — all here.',
     spotlightY: -1, // computed at render using screenHeight
     spotlightHeight: 80,
   },
   {
-    title: "You're all set! 💪",
-    description: "Your AI coach is ready. Let's crush your goals.",
+    title: "You're set.",
+    description: "Your programme is ready. Start when you are.",
     fullScreen: true,
-    buttonLabel: 'Start Training',
+    buttonLabel: 'Begin',
   },
 ];
 
@@ -116,6 +116,7 @@ export function AppTour({ visible, onComplete }: Props) {
     return () => {
       glowLoop.current?.stop();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, currentStep]);
 
   function animateIn() {

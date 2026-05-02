@@ -119,6 +119,17 @@ describe('API Integration Tests', () => {
         expect(data.total_minutes).toBeDefined();
         expect(data.total_calories).toBeDefined();
       });
+
+      it('should reject missing required fields on workout log creation', async () => {
+        const response = await authenticatedApi('/api/workout-logs', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            workout_name: 'Running',
+            // missing workout_id and duration_minutes
+          }),
+        });
+        await expectStatus(response, 400);
+      });
     });
 
     describe('Habit Logs', () => {
@@ -166,6 +177,17 @@ describe('API Integration Tests', () => {
           method: 'DELETE',
         });
         await expectStatus(response, 404);
+      });
+
+      it('should reject missing required fields on habit log creation', async () => {
+        const response = await authenticatedApi('/api/habit-logs', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            habit_name: 'Meditation',
+            // missing habit_id and date
+          }),
+        });
+        await expectStatus(response, 400);
       });
     });
 
@@ -295,6 +317,428 @@ describe('API Integration Tests', () => {
       });
     });
 
+    describe('Workouts', () => {
+      let workoutId: string;
+
+      it('should create a workout', async () => {
+        const response = await authenticatedApi('/api/workouts', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Full Body Workout',
+            duration: 45,
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        workoutId = data.id;
+        expect(data.name).toBeDefined();
+      });
+
+      it('should list workouts', async () => {
+        const response = await authenticatedApi('/api/workouts', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should get todays workouts', async () => {
+        const response = await authenticatedApi('/api/workouts/today', authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should update a workout', async () => {
+        if (!workoutId) {
+          // Skip if workout creation failed
+          return;
+        }
+        const response = await authenticatedApi(`/api/workouts/${workoutId}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: 'Updated Workout',
+            duration: 50,
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should delete a workout', async () => {
+        if (!workoutId) {
+          // Skip if workout creation failed
+          return;
+        }
+        const response = await authenticatedApi(`/api/workouts/${workoutId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Tasks', () => {
+      let taskId: string;
+
+      it('should create a task', async () => {
+        const response = await authenticatedApi('/api/tasks', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            title: 'Complete workout',
+            description: 'Do 30 min cardio',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        taskId = data.id;
+        expect(data.title).toBeDefined();
+      });
+
+      it('should list tasks', async () => {
+        const response = await authenticatedApi('/api/tasks', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should update a task', async () => {
+        if (!taskId) return;
+        const response = await authenticatedApi(`/api/tasks/${taskId}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: 'Updated task',
+            completed: true,
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should delete a task', async () => {
+        if (!taskId) return;
+        const response = await authenticatedApi(`/api/tasks/${taskId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Exercises', () => {
+      let exerciseId: string;
+
+      it('should create an exercise', async () => {
+        const response = await authenticatedApi('/api/exercises', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Bench Press',
+            category: 'chest',
+            difficulty: 'intermediate',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        exerciseId = data.id;
+        expect(data.name).toBeDefined();
+      });
+
+      it('should list exercises', async () => {
+        const response = await authenticatedApi('/api/exercises', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should get exercise by id', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}`, authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should delete an exercise', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Exercise Videos', () => {
+      let exerciseId: string;
+      let videoId: string;
+
+      it('should create exercise for video tests', async () => {
+        const response = await authenticatedApi('/api/exercises', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Squat',
+            category: 'legs',
+            difficulty: 'beginner',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        exerciseId = data.id;
+        expect(exerciseId).toBeDefined();
+      });
+
+      it('should add video to exercise', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos`, authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            url: 'https://example.com/video.mp4',
+            title: 'How to squat correctly',
+          }),
+        });
+        await expectStatus(response, 200);
+        const data = await response.json();
+        videoId = data.id;
+        expect(videoId).toBeDefined();
+      });
+
+      it('should update exercise video', async () => {
+        if (!exerciseId || !videoId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos/${videoId}`, authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: 'Advanced squat technique',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should delete exercise video', async () => {
+        if (!exerciseId || !videoId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}/videos/${videoId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should cleanup - delete exercise from video tests', async () => {
+        if (!exerciseId) return;
+        const response = await authenticatedApi(`/api/exercises/${exerciseId}`, authToken, {
+          method: 'DELETE',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Meal Plans', () => {
+      it('should list meal plans', async () => {
+        const response = await authenticatedApi('/api/meal-plans', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should get meal plan by id', async () => {
+        const response = await authenticatedApi('/api/meal-plans/nonexistent-id', authToken);
+        // Could be 200 with empty data or 404 if endpoint validates
+        await expectStatus(response, 200, 404);
+      });
+
+      it('should generate a meal plan', async () => {
+        const response = await authenticatedApi('/api/meal-plans/generate', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            calories: 2000,
+            preferences: 'vegetarian',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should save a meal plan', async () => {
+        const response = await authenticatedApi('/api/meal-plans/save', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Weekly Plan',
+            meals: [],
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('User Endpoints', () => {
+      it('should get coach insights', async () => {
+        const response = await authenticatedApi('/api/user/coach-insights', authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should get user profile from user endpoint', async () => {
+        const response = await authenticatedApi('/api/user/profile', authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should complete onboarding', async () => {
+        const response = await authenticatedApi('/api/user/onboarding', authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            onboarding_completed: true,
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Friends', () => {
+      it('should send friend request', async () => {
+        const response = await authenticatedApi('/api/friends/request', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: 'friend-user-id',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should list friends', async () => {
+        const response = await authenticatedApi('/api/friends', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should accept/reject friend request', async () => {
+        const response = await authenticatedApi('/api/friends/friend-id', authToken, {
+          method: 'PUT',
+          body: JSON.stringify({
+            status: 'accepted',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Progress Photos', () => {
+      it('should list progress photos', async () => {
+        const response = await authenticatedApi('/api/progress-photos', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should upload progress photo', async () => {
+        const response = await authenticatedApi('/api/progress-photos', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            date: '2026-05-01',
+            notes: 'Front view',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Measurements', () => {
+      it('should list measurements', async () => {
+        const response = await authenticatedApi('/api/measurements', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should add measurement', async () => {
+        const response = await authenticatedApi('/api/measurements', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'chest',
+            value: 100,
+            date: '2026-05-01',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Achievements', () => {
+      it('should list achievements', async () => {
+        const response = await authenticatedApi('/api/achievements', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should unlock achievement', async () => {
+        const response = await authenticatedApi('/api/achievements', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'First Workout',
+            description: 'Completed first workout',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Nutrition', () => {
+      it('should list nutrition logs', async () => {
+        const response = await authenticatedApi('/api/nutrition', authToken);
+        await expectStatus(response, 200);
+        const data = await response.json();
+        expect(Array.isArray(data)).toBe(true);
+      });
+
+      it('should log nutrition', async () => {
+        const response = await authenticatedApi('/api/nutrition', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            food: 'Chicken breast',
+            calories: 165,
+            protein: 31,
+            carbs: 0,
+            fat: 3.6,
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('AI Endpoints', () => {
+      it('should request coaching', async () => {
+        const response = await authenticatedApi('/api/ai/coaching', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            query: 'How to improve my squat?',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should request meal suggestions', async () => {
+        const response = await authenticatedApi('/api/ai/meal-suggestions', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            calories: 2000,
+            preferences: 'vegetarian',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
+    describe('Payment Endpoints', () => {
+      it('should create checkout session', async () => {
+        const response = await authenticatedApi('/api/payments/create-checkout', authToken, {
+          method: 'POST',
+          body: JSON.stringify({
+            plan: 'premium',
+          }),
+        });
+        await expectStatus(response, 200);
+      });
+
+      it('should get subscription status', async () => {
+        const response = await authenticatedApi('/api/payments/subscription-status', authToken);
+        await expectStatus(response, 200);
+      });
+
+      it('should cancel subscription', async () => {
+        const response = await authenticatedApi('/api/payments/cancel-subscription', authToken, {
+          method: 'POST',
+        });
+        await expectStatus(response, 200);
+      });
+    });
+
     describe('Dashboard', () => {
       it('should calculate caloric goal', async () => {
         const response = await api('/api/dashboard/calculate-caloric-goal', {
@@ -330,6 +774,15 @@ describe('API Integration Tests', () => {
         const response = await authenticatedApi('/api/auth/me', authToken);
         await expectStatus(response, 401);
       });
+    });
+  });
+
+  describe('Payment Webhooks', () => {
+    it('should accept webhook post request', async () => {
+      const response = await api('/api/payments/webhook', {
+        method: 'POST',
+      });
+      await expectStatus(response, 200);
     });
   });
 });

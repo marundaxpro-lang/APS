@@ -79,6 +79,7 @@ export function StreakCard({ state, pressable = true }: StreakCardProps) {
         useNativeDriver: true,
       }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentStreak]);
 
   // Build 7-day strip (Mon–Sun of current week)

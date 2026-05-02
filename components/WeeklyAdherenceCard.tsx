@@ -57,6 +57,7 @@ function AnimatedBar({ score, delay }: AnimatedBarProps) {
       delay,
       useNativeDriver: false,
     }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [score, delay]);
 
   const widthInterpolated = width.interpolate({

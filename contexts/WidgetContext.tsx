@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 let ExtensionStorage: { new(group: string): { set: (key: string, value: unknown) => void }; reloadWidget: () => void } | null = null;
 if (Platform.OS !== 'web') {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     ExtensionStorage = require('@bacons/apple-targets').ExtensionStorage;
   } catch {
     // Package not available in this build (e.g. Expo Go) — widget sync disabled

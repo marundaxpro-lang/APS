@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Pressable,
   TextInput,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
@@ -408,21 +408,25 @@ export default function HomeScreen() {
     load();
   }, []);
 
-  // Check if tour should be shown — only after onboarding
-  useEffect(() => {
-    if (loading) return;
-    const checkTour = async () => {
-      const justCompleted = await AsyncStorage.getItem(STORAGE_KEYS.onboardingJustCompleted);
-      if (justCompleted === 'true') {
-        console.log('[Home] First time after onboarding — starting app tour');
-        await AsyncStorage.removeItem(STORAGE_KEYS.onboardingJustCompleted);
-        setTourStep(1);
-      } else {
-        console.log('[Home] Tour skipped — justCompleted:', justCompleted);
-      }
-    };
-    checkTour();
-  }, [loading]);
+  // Check if tour should be shown — runs every time screen gains focus so the
+  // flag written by onboarding's setTimeout is always caught, even if it fires
+  // after the initial mount.
+  useFocusEffect(
+    useCallback(() => {
+      if (loading) return;
+      const checkTour = async () => {
+        const justCompleted = await AsyncStorage.getItem(STORAGE_KEYS.onboardingJustCompleted);
+        if (justCompleted === 'true') {
+          console.log('[Home] First time after onboarding — starting app tour');
+          await AsyncStorage.removeItem(STORAGE_KEYS.onboardingJustCompleted);
+          setTourStep(1);
+        } else {
+          console.log('[Home] Tour skipped — justCompleted:', justCompleted);
+        }
+      };
+      checkTour();
+    }, [loading])
+  );
 
   const handleTourNext = async () => {
     console.log('[Home] Tour step advanced from', tourStep);

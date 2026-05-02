@@ -128,6 +128,7 @@ function WorkoutHistoryRow({ workout, index }: { workout: typeof RECENT_WORKOUTS
       Animated.timing(opacity, { toValue: 1, duration: 300, delay: index * 50, useNativeDriver: true }),
       Animated.timing(translateX, { toValue: 0, duration: 300, delay: index * 50, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <Animated.View style={{ opacity, transform: [{ translateX }] }}>

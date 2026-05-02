@@ -74,6 +74,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
       Animated.timing(opacity, { toValue: 1, duration: 350, delay: index * 60, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 350, delay: index * 60, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
@@ -111,7 +112,7 @@ function CategoryIcon({ category }: { category: string }) {
   return <>{iconMap[category] || <Zap size={14} color={C.textSecondary} />}</>;
 }
 
-const EQUIPMENT_OPTIONS: Array<{ value: TravelSession['equipmentAvailable']; label: string }> = [
+const EQUIPMENT_OPTIONS: { value: TravelSession['equipmentAvailable']; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'bands', label: 'Resistance bands' },
   { value: 'dumbbells', label: 'Dumbbells' },
@@ -146,6 +147,7 @@ export default function TravelModeScreen() {
 
   useEffect(() => {
     loadSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSession = async () => {

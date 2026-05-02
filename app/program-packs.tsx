@@ -58,6 +58,7 @@ function AnimatedListItem({ index, children }: { index: number; children: React.
       Animated.timing(opacity, { toValue: 1, duration: 380, delay: index * 60, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 380, delay: index * 60, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
   return (
@@ -82,7 +83,7 @@ function FullWidthPackCard({ pack }: { pack: ProgramPack }) {
   const handlePress = useCallback(() => {
     console.log('[ProgramPacks] User tapped pack card:', pack.id, pack.title);
     router.push(`/pack-detail/${pack.id}` as any);
-  }, [pack.id, router]);
+  }, [pack.id, pack.title, router]);
 
   const difficultyLabel = pack.difficulty.charAt(0).toUpperCase() + pack.difficulty.slice(1);
   const workoutsText = pack.workoutsPerWeek + 'x / week';

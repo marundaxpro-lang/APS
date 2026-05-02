@@ -81,6 +81,7 @@ function AnimatedItem({ index, children }: { index: number; children: React.Reac
       Animated.timing(opacity, { toValue: 1, duration: 350, delay: index * 60, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 350, delay: index * 60, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
@@ -120,13 +121,13 @@ function TechniqueLabel({ technique }: { technique: StudyBlock['technique'] }) {
   );
 }
 
-const STRESS_OPTIONS: Array<{ value: StudentSession['stressLevel']; label: string }> = [
+const STRESS_OPTIONS: { value: StudentSession['stressLevel']; label: string }[] = [
   { value: 'moderate', label: 'Moderate' },
   { value: 'high', label: 'High' },
   { value: 'extreme', label: 'Extreme' },
 ];
 
-const STUDY_HOURS_OPTIONS: Array<{ value: number; label: string }> = [
+const STUDY_HOURS_OPTIONS: { value: number; label: string }[] = [
   { value: 4, label: '4h' },
   { value: 6, label: '6h' },
   { value: 8, label: '8h' },

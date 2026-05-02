@@ -258,7 +258,7 @@ export default function StreakDetailScreen() {
   }
 
   // 30-day grid (5 rows × 6 cols)
-  const gridDays: Array<{ dateStr: string; score: number; isRestDay: boolean; isToday: boolean; isEmpty: boolean }> = [];
+  const gridDays: { dateStr: string; score: number; isRestDay: boolean; isToday: boolean; isEmpty: boolean }[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);

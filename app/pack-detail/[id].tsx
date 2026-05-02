@@ -54,6 +54,7 @@ export default function PackDetailScreen() {
       Animated.timing(heroAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.timing(contentAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStartPack = useCallback(async () => {

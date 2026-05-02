@@ -60,7 +60,7 @@ function getWeekLabel(isoString: string): string {
   return 'Earlier'; // labels unchanged per spec
 }
 
-function groupByWeek(changes: CoachChange[]): Array<{ label: string; items: CoachChange[] }> {
+function groupByWeek(changes: CoachChange[]): { label: string; items: CoachChange[] }[] {
   const groups: Record<string, CoachChange[]> = {};
   for (const change of changes) {
     const label = getWeekLabel(change.timestamp);

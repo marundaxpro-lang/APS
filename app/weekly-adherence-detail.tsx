@@ -77,6 +77,7 @@ function CircularScore({ score }: { score: number }) {
       duration: 800,
       useNativeDriver: false,
     }).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [score]);
 
   const borderColor = progress.interpolate({
@@ -187,6 +188,7 @@ function RecommendationCard({ text, index }: { text: string; index: number }) {
       Animated.timing(opacity, { toValue: 1, duration: 350, delay: index * 80, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 350, delay: index * 80, useNativeDriver: true }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
