@@ -3,18 +3,32 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const ONBOARDING_KEY = 'hasCompletedOnboarding';
 export const GUEST_MODE_KEY = 'guest_mode';
 
-export async function isOnboardingComplete(): Promise<boolean> {
+function onboardingKey(userId?: string | null): string {
+  return userId ? `${ONBOARDING_KEY}:${userId}` : ONBOARDING_KEY;
+}
+
+export async function isOnboardingComplete(userId?: string | null): Promise<boolean> {
   try {
-    const value = await AsyncStorage.getItem(ONBOARDING_KEY);
-    return value === 'true';
+    if (userId) {
+      const userValue = await AsyncStorage.getItem(onboardingKey(userId));
+      if (userValue === 'true') return true;
+      if (userValue === 'false') return false;
+    }
+
+    const legacyValue = await AsyncStorage.getItem(ONBOARDING_KEY);
+    return legacyValue === 'true';
   } catch {
     return false;
   }
 }
 
-export async function setOnboardingComplete(): Promise<void> {
+export async function setOnboardingComplete(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    const key = onboardingKey(userId);
+    await AsyncStorage.setItem(key, 'true');
+    if (!userId) {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    }
   } catch {
     // ignore
   }
@@ -23,9 +37,9 @@ export async function setOnboardingComplete(): Promise<void> {
 /** Alias kept for callers that use the "Completed" spelling */
 export const setOnboardingCompleted = setOnboardingComplete;
 
-export async function clearOnboarding(): Promise<void> {
+export async function clearOnboarding(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.removeItem(ONBOARDING_KEY);
+    await AsyncStorage.removeItem(onboardingKey(userId));
   } catch {
     // ignore
   }
