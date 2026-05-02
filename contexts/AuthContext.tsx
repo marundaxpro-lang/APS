@@ -374,9 +374,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchUser,
       }}
     >
-      {children}
+     {children}
     </AuthContext.Provider>
-  );
+  ); 
 }
 
 export function useAuth() {
