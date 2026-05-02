@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { authClient } from '@/lib/auth';
 import { isOnboardingComplete } from '@/utils/onboardingStorage';
 
@@ -232,16 +234,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
     try {
-      const { error } = await authClient.signIn.social({
-        provider: 'apple',
-        callbackURL: 'aps://auth-callback',
-      });
-      if (error) {
-        console.error('[AuthContext] Apple OAuth error:', error.message);
-        throw new Error(error.message || 'Apple sign in failed.');
+      if (Platform.OS === 'ios') {
+        // Use native Apple Sign-In on iOS
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        if (!credential.identityToken) {
+          throw new Error('Apple Sign-In failed: no identity token received.');
+        }
+
+        console.log('[AuthContext] Apple native credential received, exchanging with Better Auth...');
+        const { data, error } = await authClient.signIn.social({
+          provider: 'apple',
+          idToken: {
+            token: credential.identityToken,
+            nonce: credential.authorizationCode ?? undefined,
+          },
+        } as any);
+
+        if (error) {
+          console.error('[AuthContext] Apple OAuth error:', error.message);
+          throw new Error(error.message || 'Apple sign in failed.');
+        }
+
+        await applySession(data as any);
+      } else {
+        // Non-iOS: fall back to web OAuth flow
+        const { error } = await authClient.signIn.social({
+          provider: 'apple',
+          callbackURL: 'aps://auth-callback',
+        });
+        if (error) {
+          console.error('[AuthContext] Apple OAuth error:', error.message);
+          throw new Error(error.message || 'Apple sign in failed.');
+        }
+        // Session will be applied via deep link listener above
       }
-      // Session will be applied via deep link listener above
     } catch (err: any) {
+      // User cancelled — don't show error
+      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
+        console.log('[AuthContext] Apple Sign-In cancelled by user');
+        return;
+      }
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
