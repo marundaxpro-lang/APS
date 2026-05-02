@@ -9,6 +9,17 @@ export const isBackendConfigured = (): boolean => {
   return !!BACKEND_URL && BACKEND_URL.length > 0;
 };
 
+export const getAuthCookie = (): string | null => {
+  try {
+    const cookie = authClient.getCookie();
+    console.log('[API] getAuthCookie:', cookie ? 'cookie found' : 'no cookie');
+    return cookie || null;
+  } catch (error) {
+    console.error('[API] Error retrieving auth cookie:', error);
+    return null;
+  }
+};
+
 export const getBearerToken = async (): Promise<string | null> => {
   try {
     const { data } = await authClient.getSession();
@@ -21,6 +32,21 @@ export const getBearerToken = async (): Promise<string | null> => {
   }
 };
 
+function buildHeaders(options?: RequestInit, requireAuth = false): HeadersInit {
+  const cookie = getAuthCookie();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(cookie ? { Cookie: cookie } : {}),
+    ...(options?.headers as Record<string, string> | undefined),
+  };
+
+  if (requireAuth && !cookie) {
+    throw new Error('Authentication session not found. Please sign in.');
+  }
+
+  return headers;
+}
+
 export const apiCall = async <T = any>(
   endpoint: string,
   options?: RequestInit
@@ -28,15 +54,10 @@ export const apiCall = async <T = any>(
   const url = `${BACKEND_URL}${endpoint}`;
   console.log('[API] Request:', options?.method ?? 'GET', url);
 
-  const token = await getBearerToken();
-
   const fetchOptions: RequestInit = {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
+    credentials: 'omit',
+    headers: buildHeaders(options),
   };
 
   const response = await fetch(url, fetchOptions);
@@ -47,7 +68,8 @@ export const apiCall = async <T = any>(
     throw new Error(`API error: ${response.status} - ${text}`);
   }
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : ({} as T);
 };
 
 export const apiGet = async <T = any>(endpoint: string): Promise<T> => {
@@ -86,19 +108,25 @@ export const authenticatedApiCall = async <T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> => {
-  const token = await getBearerToken();
+  const url = `${BACKEND_URL}${endpoint}`;
+  console.log('[API] Authenticated request:', options?.method ?? 'GET', url);
 
-  if (!token) {
-    throw new Error('Authentication token not found. Please sign in.');
+  const fetchOptions: RequestInit = {
+    ...options,
+    credentials: 'omit',
+    headers: buildHeaders(options, true),
+  };
+
+  const response = await fetch(url, fetchOptions);
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('[API] Error response:', response.status, url, text.slice(0, 200));
+    throw new Error(`API error: ${response.status} - ${text}`);
   }
 
-  return apiCall<T>(endpoint, {
-    ...options,
-    headers: {
-      ...options?.headers,
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const text = await response.text();
+  return text ? JSON.parse(text) : ({} as T);
 };
 
 export const authenticatedGet = async <T = any>(endpoint: string): Promise<T> => {
