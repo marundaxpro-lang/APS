@@ -23,13 +23,11 @@ import Modal from "@/components/ui/Modal";
 import i18n, { initI18n } from "@/lib/i18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// One-time startup clear: removes stale Supabase/guest auth keys so they
-// don't interfere with the Better Auth session. Runs once per install.
 async function runAuthResetIfNeeded(): Promise<void> {
   try {
-    const done = await AsyncStorage.getItem("auth_reset_v2");
+    const done = await AsyncStorage.getItem("auth_reset_v3");
     if (done === "done") return;
-    console.log("[Layout] Running one-time auth storage reset (auth_reset_v2)");
+    console.log("[Layout] Running one-time auth storage reset (auth_reset_v3)");
     await AsyncStorage.multiRemove([
       "better-auth_session",
       "better-auth_token",
@@ -43,15 +41,15 @@ async function runAuthResetIfNeeded(): Promise<void> {
       "userMotivation",
       "onboardingJustCompleted",
       "language_selection_done",
+      "auth_reset_v2",
     ]);
-    await AsyncStorage.setItem("auth_reset_v2", "done");
+    await AsyncStorage.setItem("auth_reset_v3", "done");
     console.log("[Layout] Auth storage reset complete");
   } catch (e) {
     console.warn("[Layout] Auth storage reset failed (non-fatal):", e);
   }
 }
 
-// Native-only imports — guarded for web
 let SystemBars: React.ComponentType<{ style?: string }> = () => null;
 let useNetworkState: () => { isConnected?: boolean | null; isInternetReachable?: boolean | null } = () => ({});
 if (Platform.OS !== 'web') {
@@ -61,17 +59,12 @@ if (Platform.OS !== 'web') {
   useNetworkState = require('expo-network').useNetworkState;
 }
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
-/**
- * Full-screen loading indicator shown while auth state is being restored.
- * Uses the app's dark background so there is no flash of white.
- */
 function AuthLoadingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' }}>
@@ -80,17 +73,7 @@ function AuthLoadingScreen() {
   );
 }
 
-/**
- * Single navigation guard — the ONLY place that redirects to /auth.
- * Rules:
- *   1. Auth still loading → render full-screen loading indicator (no blank screen)
- *   2. No authenticated user → redirect to /auth using replace (no swipe-back)
- *   3. User exists → let the app render normally
- *   4. NEVER redirects to /paywall — paywall is opened explicitly by the user
- * Guest mode is intentionally NOT supported — all users must authenticate.
- */
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  // We need to pull 'onboardingCompleted' from your AuthContext
   const { user, loading: authLoading, onboardingCompleted } = useAuth();
   const router = useRouter();
   const segments = useSegments();
@@ -98,32 +81,40 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
 
-    const inAuthGroup = segments[0] === 'auth';
-    const inOnboardingGroup = segments[0] === 'onboarding';
-    
-    // 1. If NOT logged in and trying to access protected routes -> send to Auth
-    if (!user && !inAuthGroup && segments[0] !== 'language-select') {
-      console.log('[AuthGuard] No user -> redirecting to /auth');
-      router.replace('/auth');
+    const current = segments[0];
+    const inAuth = current === 'auth';
+    const inOnboarding = current === 'onboarding';
+    const inLanguageSelect = current === 'language-select';
+    const inIndex = current === undefined || current === 'index';
+
+    if (!user) {
+      if (!inAuth && !inLanguageSelect) {
+        console.log('[AuthGuard] No authenticated user -> /auth');
+        router.replace('/auth');
+      }
       return;
     }
 
-    // 2. If logged in but ONBOARDING is not done -> force them to /onboarding
-    // This prevents the user from skipping to the tabs
-    if (user && !onboardingCompleted && !inOnboardingGroup) {
-      console.log('[AuthGuard] User exists but onboarding incomplete -> forcing /onboarding');
-      router.replace('/onboarding');
+    if (onboardingCompleted === null) {
+      console.log('[AuthGuard] Waiting for onboarding state');
       return;
     }
 
-    // 3. If logged in AND onboarding is done, but still in auth/onboarding -> send to Home
-    if (user && onboardingCompleted && (inAuthGroup || inOnboardingGroup)) {
-      console.log('[AuthGuard] Authenticated & Onboarded -> redirecting to /(tabs)');
-      router.replace('/(tabs)');
+    if (!onboardingCompleted) {
+      if (!inOnboarding) {
+        console.log('[AuthGuard] Authenticated user needs onboarding -> /onboarding');
+        router.replace('/onboarding');
+      }
+      return;
+    }
+
+    if (inAuth || inOnboarding || inLanguageSelect || inIndex) {
+      console.log('[AuthGuard] Authenticated and onboarded -> /(tabs)/(home)');
+      router.replace('/(tabs)/(home)');
     }
   }, [user, authLoading, onboardingCompleted, segments, router]);
 
-  if (authLoading) {
+  if (authLoading || (user && onboardingCompleted === null)) {
     return <AuthLoadingScreen />;
   }
 
@@ -201,7 +192,6 @@ export default function RootLayout() {
                 <GestureHandlerRootView style={{ flex: 1 }}>
                   <AuthGuard>
                     <Stack>
-                      {/* Auth screens — gestureEnabled: false prevents swipe-back bypass */}
                       <Stack.Screen
                         name="auth"
                         options={{ headerShown: false, gestureEnabled: false }}
@@ -215,7 +205,6 @@ export default function RootLayout() {
                         options={{ headerShown: false, gestureEnabled: false }}
                       />
 
-                      {/* Main app with tabs */}
                       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                       <Stack.Screen name="workout-session" options={{ headerShown: false }} />
                       <Stack.Screen name="training-plan" options={{ headerShown: true }} />
@@ -234,7 +223,6 @@ export default function RootLayout() {
                       <Stack.Screen name="student-workout/[id]" options={{ headerShown: true }} />
                       <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings' }} />
 
-                      {/* Modal Demo Screens */}
                       <Stack.Screen
                         name="modal"
                         options={{
@@ -273,8 +261,8 @@ export default function RootLayout() {
         visible={showOfflineModal}
         onClose={() => setShowOfflineModal(false)}
         type="warning"
-        title="🔌 You are offline"
-        message="You can keep using the app! Your changes will be saved locally and synced when you are back online."
+        title="You are offline"
+        message="You can keep using the app. Your changes will be saved locally and synced when you are back online."
         confirmText="OK"
       />
     </I18nextProvider>
