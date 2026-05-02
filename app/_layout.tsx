@@ -90,31 +90,39 @@ function AuthLoadingScreen() {
  * Guest mode is intentionally NOT supported — all users must authenticate.
  */
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  // We need to pull 'onboardingCompleted' from your AuthContext
+  const { user, loading: authLoading, onboardingCompleted } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (authLoading) return;
 
-    const inAuthScreen = segments[0] === 'auth';
-    const inPublicGroup =
-      inAuthScreen ||
-      segments[0] === 'onboarding' ||
-      segments[0] === 'language-select' ||
-      segments[0] === 'index';
-
-    if (!user && !inPublicGroup) {
-      console.log('[AuthGuard] No authenticated user — redirecting to /auth');
+    const inAuthGroup = segments[0] === 'auth';
+    const inOnboardingGroup = segments[0] === 'onboarding';
+    
+    // 1. If NOT logged in and trying to access protected routes -> send to Auth
+    if (!user && !inAuthGroup && segments[0] !== 'language-select') {
+      console.log('[AuthGuard] No user -> redirecting to /auth');
       router.replace('/auth');
-    } else if (user && inAuthScreen) {
-      console.log('[AuthGuard] Authenticated user on auth screen — redirecting to /(tabs)');
+      return;
+    }
+
+    // 2. If logged in but ONBOARDING is not done -> force them to /onboarding
+    // This prevents the user from skipping to the tabs
+    if (user && !onboardingCompleted && !inOnboardingGroup) {
+      console.log('[AuthGuard] User exists but onboarding incomplete -> forcing /onboarding');
+      router.replace('/onboarding');
+      return;
+    }
+
+    // 3. If logged in AND onboarding is done, but still in auth/onboarding -> send to Home
+    if (user && onboardingCompleted && (inAuthGroup || inOnboardingGroup)) {
+      console.log('[AuthGuard] Authenticated & Onboarded -> redirecting to /(tabs)');
       router.replace('/(tabs)');
     }
-  }, [user, authLoading, segments, router]);
+  }, [user, authLoading, onboardingCompleted, segments, router]);
 
-  // While auth is resolving, show a full-screen dark loading indicator.
-  // Nothing renders until we know the auth state — prevents any screen flash.
   if (authLoading) {
     return <AuthLoadingScreen />;
   }
