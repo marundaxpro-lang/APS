@@ -122,24 +122,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for deep links after OAuth (e.g. aps://auth-callback) and refresh session
   useEffect(() => {
-    const subscription = Linking.addEventListener('url', ({ url }) => {
+    const subscription = Linking.addEventListener('url', async ({ url }) => {
       if (url.includes('auth-callback') || url.includes('auth?')) {
-        console.log('[AuthContext] Deep link received, polling for session:', url);
+        console.log('[AuthContext] Deep link received, locking Guard and polling:', url);
+        
+        // CRITICAL: Set loading to true immediately so AuthGuard doesn't kick us out
+        setLoading(true); 
 
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15; // Increased slightly for slower connections
 
         const pollForSession = async () => {
           attempts++;
-          console.log(`[AuthContext] Polling for session, attempt ${attempts}/${maxAttempts}`);
-
           try {
             const { data } = await authClient.getSession();
             if (data?.user) {
-              console.log('[AuthContext] Session found after OAuth, uid:', data.user.id);
+              console.log('[AuthContext] Session found, applying and unlocking Guard');
               await applySession(data as any);
-              setLoading(false);
-              return; // success — stop polling
+              setLoading(false); // Only unlock once we have the user
+              return; 
             }
           } catch (e) {
             console.warn('[AuthContext] Poll error:', e);
@@ -148,16 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (attempts < maxAttempts) {
             setTimeout(pollForSession, 500);
           } else {
-            console.warn('[AuthContext] Session not found after OAuth after max attempts');
+            setLoading(false); // Stop waiting if we really can't find a session
+            console.warn('[AuthContext] Max attempts reached');
           }
         };
 
-        // Start polling after a short initial delay
         setTimeout(pollForSession, 300);
       }
     });
     return () => subscription.remove();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchUser = async () => {
     try {
