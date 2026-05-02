@@ -31,6 +31,8 @@ export const app = await createApplication(schema);
 export type App = typeof app;
 
 const DEFAULT_BACKEND_URL = 'https://6n56k42q4ee7wx23tvj24hjhn64k9a89.app.specular.dev';
+const NEWLY_EXPO_PREVIEW_ORIGIN = 'exp://u.expo.dev/5950a233-af82-4b65-94cc-56b70b186c04';
+const NEWLY_EXPO_ONBOARDING_CALLBACK = `${NEWLY_EXPO_PREVIEW_ORIGIN}/--/onboarding`;
 
 function envFirst(keys: string[]): string | undefined {
   for (const key of keys) {
@@ -59,6 +61,8 @@ const trustedOrigins = Array.from(new Set([
   'aps://auth',
   'aps://auth-callback',
   'aps://onboarding',
+  NEWLY_EXPO_PREVIEW_ORIGIN,
+  NEWLY_EXPO_ONBOARDING_CALLBACK,
   'exp://',
   'http://localhost:8081',
   'http://localhost:19000',
