@@ -30,6 +30,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const SOCIAL_AUTH_BUILD_MARKER = '[APS Build] social auth onboarding redirect active - 2026-05-02';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (options?.forceOnboardingIncomplete) {
       await clearOnboarding(u.id);
       setOnboardingCompletedState(false);
+      console.log('[AuthContext] Onboarding marked incomplete for social auth user:', u.id);
       return true;
     }
 
@@ -238,17 +240,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => signUpWithEmail(email, password);
 
   const signInWithGoogle = async () => {
-    console.log('[AuthContext] signInWithGoogle');
+    console.log('[AuthContext] signInWithGoogle', SOCIAL_AUTH_BUILD_MARKER);
     setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: '/auth-callback',
+        callbackURL: '/onboarding',
         newUserCallbackURL: '/onboarding',
       });
       if (error) throw new Error(error.message || 'Google sign in failed.');
-      const ok = await waitForSession();
+      const ok = await waitForSession({ forceOnboardingIncomplete: true });
       if (!ok) throw new Error('Google sign in did not complete. Please try again.');
+      console.log('[AuthContext] Google social auth ready -> onboarding');
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
@@ -258,17 +261,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithApple = async () => {
-    console.log('[AuthContext] signInWithApple');
+    console.log('[AuthContext] signInWithApple', SOCIAL_AUTH_BUILD_MARKER);
     setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'apple',
-        callbackURL: '/auth-callback',
+        callbackURL: '/onboarding',
         newUserCallbackURL: '/onboarding',
       });
       if (error) throw new Error(error.message || 'Apple sign in failed.');
-      const ok = await waitForSession();
+      const ok = await waitForSession({ forceOnboardingIncomplete: true });
       if (!ok) throw new Error('Apple sign in did not complete. Please try again.');
+      console.log('[AuthContext] Apple social auth ready -> onboarding');
     } catch (err: any) {
       if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') return;
       if (err.message) throw err;
