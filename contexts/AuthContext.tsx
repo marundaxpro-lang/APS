@@ -30,10 +30,16 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const SOCIAL_AUTH_BUILD_MARKER = '[APS Build] social auth onboarding redirect active - 2026-05-02';
+const SOCIAL_AUTH_BUILD_MARKER = '[APS Build] explicit Expo OAuth callback active - 2026-05-02';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getSocialCallbackURL(): string {
+  const url = Linking.createURL('onboarding');
+  console.log('[AuthContext] OAuth callback URL:', url);
+  return url;
 }
 
 function isAuthCallbackUrl(url: string): boolean {
@@ -157,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Auth callback received:', url);
       setLoading(true);
       try {
-        await waitForSession();
+        await waitForSession({ forceOnboardingIncomplete: true });
       } finally {
         setLoading(false);
       }
@@ -241,18 +247,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle', SOCIAL_AUTH_BUILD_MARKER);
+    const callbackURL = getSocialCallbackURL();
     setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: '/onboarding',
-        newUserCallbackURL: '/onboarding',
+        callbackURL,
+        newUserCallbackURL: callbackURL,
       });
       if (error) throw new Error(error.message || 'Google sign in failed.');
       const ok = await waitForSession({ forceOnboardingIncomplete: true });
       if (!ok) throw new Error('Google sign in did not complete. Please try again.');
       console.log('[AuthContext] Google social auth ready -> onboarding');
     } catch (err: any) {
+      console.error('[AuthContext] Google social auth failed:', err?.message ?? err);
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
     } finally {
@@ -262,12 +270,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple', SOCIAL_AUTH_BUILD_MARKER);
+    const callbackURL = getSocialCallbackURL();
     setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'apple',
-        callbackURL: '/onboarding',
-        newUserCallbackURL: '/onboarding',
+        callbackURL,
+        newUserCallbackURL: callbackURL,
       });
       if (error) throw new Error(error.message || 'Apple sign in failed.');
       const ok = await waitForSession({ forceOnboardingIncomplete: true });
@@ -275,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthContext] Apple social auth ready -> onboarding');
     } catch (err: any) {
       if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') return;
+      console.error('[AuthContext] Apple social auth failed:', err?.message ?? err);
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
     } finally {
