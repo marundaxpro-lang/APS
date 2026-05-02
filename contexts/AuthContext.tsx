@@ -3,13 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { makeRedirectUri } from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
 import { authClient } from '@/lib/auth';
 import { isOnboardingComplete } from '@/utils/onboardingStorage';
-
-// Ensures the web browser closes correctly after an OAuth redirect
-WebBrowser.maybeCompleteAuthSession();
 
 interface User {
   id: string;
@@ -183,24 +178,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    try {
-      const { data, error } = await authClient.signIn.email({ email, password });
-      if (error) throw new Error(error.message || 'Sign in failed.');
-      await applySession(data as any);
-    } catch (err: any) {
-      throw err;
-    }
+    const { data, error } = await authClient.signIn.email({ email, password });
+    if (error) throw new Error(error.message || 'Sign in failed.');
+    await applySession(data as any);
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    try {
-      const { data, error } = await authClient.signUp.email({ email, password, name: name ?? '' });
-      if (error) throw new Error(error.message || 'Sign up failed.');
-      if (name) await AsyncStorage.setItem('signupName', name);
-      await applySession(data as any);
-    } catch (err: any) {
-      throw err;
-    }
+    const { data, error } = await authClient.signUp.email({ email, password, name: name ?? '' });
+    if (error) throw new Error(error.message || 'Sign up failed.');
+    if (name) await AsyncStorage.setItem('signupName', name);
+    await applySession(data as any);
   };
 
   const signIn = signInWithEmail;
@@ -209,34 +196,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle');
     try {
-      await clearAllLocalData(); 
+      await clearAllLocalData();
       setOnboardingCompleted(false);
 
-      // Dynamically generate the correct redirect URI for Expo Go or Production
-      const redirectUri = makeRedirectUri({
-        scheme: 'aps',
-        path: 'auth-callback'
-      });
-      
-      console.log('[AuthContext] Using Redirect URI:', redirectUri);
-
-      const { data, error } = await authClient.signIn.social({
+      const { error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: redirectUri,
+        callbackURL: 'aps://auth-callback',
       });
 
       if (error) {
         console.error('[AuthContext] Google OAuth error:', error.message);
         throw new Error(error.message || 'Google sign in failed.');
       }
-
-      // Explicitly open the browser using expo-web-browser
-      if (data?.url) {
-        await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-      }
+      // Session applied via deep link listener polling
     } catch (err: any) {
       if (err.message) throw err;
-      console.error('[AuthContext] signInWithGoogle network error:', err);
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
   };
@@ -266,21 +240,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw new Error(error.message || 'Apple sign in failed.');
         await applySession(data as any);
       } else {
-        const redirectUri = makeRedirectUri({
-          scheme: 'aps',
-          path: 'auth-callback'
-        });
-
-        const { data, error } = await authClient.signIn.social({
+        const { error } = await authClient.signIn.social({
           provider: 'apple',
-          callbackURL: redirectUri,
+          callbackURL: 'aps://auth-callback',
         });
-        
         if (error) throw new Error(error.message || 'Apple sign in failed.');
-        
-        if (data?.url) {
-          await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-        }
+        // Session applied via deep link listener polling
       }
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') return;
