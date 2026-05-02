@@ -196,9 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle');
     try {
-      await clearAllLocalData();
-      setOnboardingCompleted(false);
-
       const { error } = await authClient.signIn.social({
         provider: 'google',
         callbackURL: 'aps://auth-callback',
@@ -208,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthContext] Google OAuth error:', error.message);
         throw new Error(error.message || 'Google sign in failed.');
       }
-      // Session applied via deep link listener polling
+      // Session will be applied via the deep link listener polling loop
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
@@ -218,9 +215,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
     try {
-      await clearAllLocalData();
-      setOnboardingCompleted(false);
-
       if (Platform.OS === 'ios') {
         const credential = await AppleAuthentication.signInAsync({
           requestedScopes: [
@@ -245,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           callbackURL: 'aps://auth-callback',
         });
         if (error) throw new Error(error.message || 'Apple sign in failed.');
-        // Session applied via deep link listener polling
+        // Session will be applied via the deep link listener polling loop
       }
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') return;
