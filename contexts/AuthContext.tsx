@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { authClient } from '@/lib/auth';
-import { isOnboardingComplete } from '@/utils/onboardingStorage';
+import { clearOnboarding, isOnboardingComplete, setOnboardingComplete } from '@/utils/onboardingStorage';
 
 interface User {
   id: string;
@@ -30,10 +31,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/**
- * Clear all local app data. Called on logout and before a new login
- * to prevent data bleeding between accounts.
- */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAuthCallbackUrl(url: string): boolean {
+  return url.includes('auth-callback') || url.includes('auth?') || url.includes('onboarding');
+}
+
 async function clearAllLocalData(userId?: string): Promise<void> {
   console.log('[AuthContext] Clearing local data for user:', userId ?? 'all');
   try {
@@ -41,8 +46,8 @@ async function clearAllLocalData(userId?: string): Promise<void> {
     const appKeys = allKeys.filter(k =>
       k.startsWith('apex_') ||
       k.startsWith('adherence_') ||
-      k.startsWith('fitnessProfile') ||
-      k.startsWith('hasCompletedOnboarding') ||
+      k === 'fitnessProfile' ||
+      k === 'hasCompletedOnboarding' ||
       k.startsWith('caloricGoal') ||
       k.startsWith('weeklyWorkouts') ||
       k.startsWith('guest_mode') ||
@@ -74,73 +79,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<unknown | null>(null);
   const [loading, setLoading] = useState(true);
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
 
-  const applySession = async (sessionData: { user: { id: string; email: string; name?: string; image?: string } } | null) => {
-    if (sessionData?.user) {
-      const u: User = {
-        id: sessionData.user.id,
-        email: sessionData.user.email ?? '',
-        name: sessionData.user.name,
-        image: sessionData.user.image,
-      };
-      setUser(u);
-      setSession(sessionData);
-      const done = await isOnboardingComplete();
-      setOnboardingCompleted(done);
-    } else {
+  const applySession = useCallback(async (sessionData: any, options?: { forceOnboardingIncomplete?: boolean }) => {
+    if (!sessionData?.user) {
       setUser(null);
       setSession(null);
-      setOnboardingCompleted(null);
+      setOnboardingCompletedState(null);
+      return false;
     }
-  };
+
+    const u: User = {
+      id: sessionData.user.id,
+      email: sessionData.user.email ?? '',
+      name: sessionData.user.name,
+      image: sessionData.user.image,
+    };
+
+    setUser(u);
+    setSession(sessionData);
+
+    if (options?.forceOnboardingIncomplete) {
+      await clearOnboarding(u.id);
+      setOnboardingCompletedState(false);
+      return true;
+    }
+
+    const done = await isOnboardingComplete(u.id);
+    setOnboardingCompletedState(done);
+    return true;
+  }, []);
+
+  const refreshSession = useCallback(async (options?: { forceOnboardingIncomplete?: boolean }) => {
+    const { data, error } = await authClient.getSession();
+    if (error) {
+      console.warn('[AuthContext] Session refresh error:', error.message);
+      await applySession(null);
+      return false;
+    }
+    return applySession(data as any, options);
+  }, [applySession]);
+
+  const waitForSession = useCallback(async (options?: { forceOnboardingIncomplete?: boolean }) => {
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const hasSession = await refreshSession(options);
+      if (hasSession) {
+        console.log('[AuthContext] Session available after OAuth, attempt:', attempt);
+        return true;
+      }
+      await sleep(500);
+    }
+    console.warn('[AuthContext] OAuth completed, but no session was stored');
+    return false;
+  }, [refreshSession]);
 
   useEffect(() => {
     const restoreSession = async () => {
       try {
         console.log('[AuthContext] Restoring session via Better Auth...');
-        const { data, error } = await authClient.getSession();
-        if (error) {
-          console.warn('[AuthContext] Session restore error:', error.message);
-          setUser(null);
-          setSession(null);
-          setOnboardingCompleted(null);
-          return;
-        }
-        console.log('[AuthContext] Session restored:', data?.user ? `uid=${data.user.id}` : 'no session');
-        await applySession(data as any);
+        await refreshSession();
       } catch (err) {
         console.error('[AuthContext] Unexpected error during session restore:', err);
-        setUser(null);
-        setSession(null);
-        setOnboardingCompleted(null);
+        await applySession(null);
       } finally {
         setLoading(false);
       }
     };
 
     restoreSession();
-  }, []);
+  }, [applySession, refreshSession]);
+
+  useEffect(() => {
+    const handleAuthCallback = async (url: string) => {
+      if (!isAuthCallbackUrl(url)) return;
+      console.log('[AuthContext] Auth callback received:', url);
+      setLoading(true);
+      try {
+        await waitForSession();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleAuthCallback(url).catch((error) => {
+        console.error('[AuthContext] Auth callback handling failed:', error);
+        setLoading(false);
+      });
+    });
+
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) return handleAuthCallback(url);
+      })
+      .catch((error) => console.warn('[AuthContext] Could not read initial URL:', error));
+
+    return () => subscription.remove();
+  }, [waitForSession]);
 
   const fetchUser = async () => {
     try {
       setLoading(true);
       console.log('[AuthContext] fetchUser: refreshing session...');
-      const { data, error } = await authClient.getSession();
-      if (error) {
-        console.warn('[AuthContext] fetchUser session error:', error.message);
-        setUser(null);
-        setSession(null);
-        setOnboardingCompleted(null);
-        return;
-      }
-      console.log('[AuthContext] fetchUser:', data?.user ? `uid=${data.user.id}` : 'no session');
-      await applySession(data as any);
+      await refreshSession();
     } catch (error) {
       console.error('[AuthContext] Failed to fetch user:', error);
-      setUser(null);
-      setSession(null);
-      setOnboardingCompleted(null);
+      await applySession(null);
     } finally {
       setLoading(false);
     }
@@ -151,7 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await authClient.signIn.email({ email, password });
       if (error) {
-        console.error('[AuthContext] signInWithEmail error:', error.message);
         const msg = (error.message ?? '').toLowerCase();
         if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('password') || msg.includes('not found')) {
           throw new Error('Incorrect email or password. Please try again.');
@@ -161,11 +204,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         throw new Error(error.message || 'Sign in failed. Please check your credentials.');
       }
-      console.log('[AuthContext] signInWithEmail successful, uid:', (data as any)?.user?.id);
       await applySession(data as any);
     } catch (err: any) {
       if (err.message) throw err;
-      console.error('[AuthContext] signInWithEmail network error:', err);
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
   };
@@ -179,23 +220,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: name ?? '',
       });
       if (error) {
-        console.error('[AuthContext] signUpWithEmail error:', error.message);
         const msg = error.message ?? '';
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists')) {
           throw new Error('An account with this email already exists. Try signing in instead.');
         }
         throw new Error(msg || 'Sign up failed. Please try again.');
       }
-      console.log('[AuthContext] signUpWithEmail successful, uid:', (data as any)?.user?.id);
-      // Store name for onboarding pre-fill
-      if (name) {
-        await AsyncStorage.setItem('signupName', name);
-      }
-      // Explicitly refresh session to ensure token is stored
-      await fetchUser();
+      if (name) await AsyncStorage.setItem('signupName', name);
+      await applySession(data as any, { forceOnboardingIncomplete: true });
     } catch (err: any) {
       if (err.message) throw err;
-      console.error('[AuthContext] signUpWithEmail network error:', err);
       throw new Error('Unable to connect. Please check your connection and try again.');
     }
   };
@@ -205,61 +239,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle');
+    setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: 'aps://auth-callback',
+        callbackURL: '/auth-callback',
+        newUserCallbackURL: '/onboarding',
       });
-      if (error) {
-        console.error('[AuthContext] Google OAuth error:', error.message);
-        throw new Error(error.message || 'Google sign in failed.');
-      }
-      await fetchUser();
+      if (error) throw new Error(error.message || 'Google sign in failed.');
+      const ok = await waitForSession();
+      if (!ok) throw new Error('Google sign in did not complete. Please try again.');
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
+    setLoading(true);
     try {
       const { error } = await authClient.signIn.social({
         provider: 'apple',
-        callbackURL: 'aps://auth-callback',
+        callbackURL: '/auth-callback',
+        newUserCallbackURL: '/onboarding',
       });
-      if (error) {
-        console.error('[AuthContext] Apple OAuth error:', error.message);
-        throw new Error(error.message || 'Apple sign in failed.');
-      }
-      await fetchUser();
+      if (error) throw new Error(error.message || 'Apple sign in failed.');
+      const ok = await waitForSession();
+      if (!ok) throw new Error('Apple sign in did not complete. Please try again.');
     } catch (err: any) {
+      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') return;
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
-    if (!user) {
-      console.log('[AuthContext] signOut skipped — no authenticated user');
-      return;
-    }
-    console.log('[AuthContext] signOut for user:', user.id);
+    if (!user) return;
     try {
       await clearAllLocalData(user.id);
       const { error } = await authClient.signOut();
-      if (error) {
-        console.error('[AuthContext] signOut error:', error.message);
-      } else {
-        console.log('[AuthContext] signOut successful');
-      }
+      if (error) console.error('[AuthContext] signOut error:', error.message);
     } catch (err) {
       console.error('[AuthContext] signOut unexpected error:', err);
     } finally {
       setUser(null);
       setSession(null);
-      setOnboardingCompleted(null);
+      setOnboardingCompletedState(null);
     }
+  };
+
+  const persistOnboardingCompleted = (value: boolean) => {
+    setOnboardingCompletedState(value);
+    if (!user?.id) return;
+
+    const task = value ? setOnboardingComplete(user.id) : clearOnboarding(user.id);
+    task.catch((error) => {
+      console.warn('[AuthContext] Could not persist onboarding state:', error);
+    });
   };
 
   return (
@@ -271,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authLoading: loading,
         isPremium: false,
         onboardingCompleted,
-        setOnboardingCompleted: (value: boolean) => setOnboardingCompleted(value),
+        setOnboardingCompleted: persistOnboardingCompleted,
         signIn,
         signUp,
         signInWithEmail,
@@ -289,8 +330,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
