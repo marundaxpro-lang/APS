@@ -11,8 +11,7 @@ export async function isOnboardingComplete(userId?: string | null): Promise<bool
   try {
     if (userId) {
       const userValue = await AsyncStorage.getItem(onboardingKey(userId));
-      if (userValue === 'true') return true;
-      if (userValue === 'false') return false;
+      return userValue === 'true';
     }
 
     const legacyValue = await AsyncStorage.getItem(ONBOARDING_KEY);
