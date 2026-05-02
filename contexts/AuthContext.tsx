@@ -92,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(sessionData);
 
     // FIX: If the account was created in the last 60 seconds, it's a new signup
-    const isNewSignup = new Date(sessionData.user.createdAt).getTime() > Date.now() - 60000;
+    const createdAt = (sessionData.user as any).createdAt;
+    const isNewSignup = createdAt && new Date(createdAt).getTime() > Date.now() - 60000;
 
     if (isNewSignup) {
       console.log('[AuthContext] New account detected — forcing onboarding');
@@ -109,13 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Restoring session via Better Auth...');
         const { data, error } = await authClient.getSession();
         if (error) {
-          console.warn('[AuthContext] Session restore error:', error.message);
           setUser(null);
           setSession(null);
           setOnboardingCompleted(null);
           return;
         }
-        console.log('[AuthContext] Session restored:', data?.user ? `uid=${data.user.id}` : 'no session');
         await applySession(data as any);
       } catch (err) {
         console.error('[AuthContext] Unexpected error during session restore:', err);
@@ -130,26 +129,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  // Listen for deep links after OAuth (e.g. aps://auth-callback) and refresh session
+  // Listen for deep links after OAuth (e.g. aps://auth-callback)
   useEffect(() => {
     const subscription = Linking.addEventListener('url', async ({ url }) => {
       if (url.includes('auth-callback') || url.includes('auth?')) {
-        console.log('[AuthContext] Deep link received, locking Guard and polling:', url);
-        
-        // CRITICAL: Set loading to true immediately so AuthGuard doesn't kick us out
         setLoading(true); 
 
         let attempts = 0;
-        const maxAttempts = 15; // Increased slightly for slower connections
+        const maxAttempts = 15;
 
         const pollForSession = async () => {
           attempts++;
           try {
             const { data } = await authClient.getSession();
             if (data?.user) {
-              console.log('[AuthContext] Session found, applying and unlocking Guard');
               await applySession(data as any);
-              setLoading(false); // Only unlock once we have the user
+              setLoading(false); 
               return; 
             }
           } catch (e) {
@@ -159,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (attempts < maxAttempts) {
             setTimeout(pollForSession, 500);
           } else {
-            setLoading(false); // Stop waiting if we really can't find a session
+            setLoading(false); 
             console.warn('[AuthContext] Max attempts reached');
           }
         };
@@ -173,115 +168,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      console.log('[AuthContext] fetchUser: refreshing session...');
       const { data, error } = await authClient.getSession();
-      if (error) {
-        console.warn('[AuthContext] fetchUser session error:', error.message);
-        // Don't clear user on error — only signOut clears user
-        return;
-      }
-      console.log('[AuthContext] fetchUser:', data?.user ? `uid=${data.user.id}` : 'no session');
-      await applySession(data as any);
+      if (!error) await applySession(data as any);
     } catch (error) {
       console.error('[AuthContext] Failed to fetch user:', error);
-      // Don't clear user on error — only signOut clears user
     } finally {
       setLoading(false);
     }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    console.log('[AuthContext] signInWithEmail:', email);
     try {
       const { data, error } = await authClient.signIn.email({ email, password });
-      if (error) {
-        console.error('[AuthContext] signInWithEmail error:', error.message);
-        const msg = (error.message ?? '').toLowerCase();
-        if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('password') || msg.includes('not found')) {
-          throw new Error('Incorrect email or password. Please try again.');
-        }
-        if (msg.includes('verified') || msg.includes('verification')) {
-          throw new Error('Please verify your email before signing in. Check your inbox.');
-        }
-        throw new Error(error.message || 'Sign in failed. Please check your credentials.');
-      }
-      console.log('[AuthContext] signInWithEmail successful, uid:', (data as any)?.user?.id);
+      if (error) throw new Error(error.message || 'Sign in failed.');
       await applySession(data as any);
     } catch (err: any) {
-      if (err.message) throw err;
-      console.error('[AuthContext] signInWithEmail network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
+      throw err;
     }
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    console.log('[AuthContext] signUpWithEmail:', email, 'name:', name);
     try {
-      const { data, error } = await authClient.signUp.email({
-        email,
-        password,
-        name: name ?? '',
-      });
-      if (error) {
-        console.error('[AuthContext] signUpWithEmail error:', error.message);
-        const msg = error.message ?? '';
-        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists')) {
-          throw new Error('An account with this email already exists. Try signing in instead.');
-        }
-        throw new Error(msg || 'Sign up failed. Please try again.');
-      }
-      console.log('[AuthContext] signUpWithEmail successful, uid:', (data as any)?.user?.id);
-      // Store name for onboarding pre-fill
-      if (name) {
-        await AsyncStorage.setItem('signupName', name);
-      }
-      // Apply session immediately from signup response to avoid SecureStore race condition
+      const { data, error } = await authClient.signUp.email({ email, password, name: name ?? '' });
+      if (error) throw new Error(error.message || 'Sign up failed.');
+      if (name) await AsyncStorage.setItem('signupName', name);
       await applySession(data as any);
-      // Then refresh in background to ensure token is persisted
-      fetchUser().catch(() => null);
     } catch (err: any) {
-      if (err.message) throw err;
-      console.error('[AuthContext] signUpWithEmail network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
+      throw err;
     }
   };
 
   const signIn = signInWithEmail;
   const signUp = async (email: string, password: string) => signUpWithEmail(email, password);
 
- const signInWithGoogle = async () => {
-    console.log('[AuthContext] signInWithGoogle');
+  const signInWithGoogle = async () => {
     try {
-      // FIX: Wipe local cache and reset state before starting to prevent data bleeding
       await clearAllLocalData(); 
       setOnboardingCompleted(false);
-
       const { error } = await authClient.signIn.social({
         provider: 'google',
         callbackURL: 'aps://auth-callback',
       });
-
-      if (error) {
-        console.error('[AuthContext] Google OAuth error:', error.message);
-        throw new Error(error.message || 'Google sign in failed.');
-      }
-      // Session will be applied via deep link listener in useEffect
+      if (error) throw new Error(error.message || 'Google sign in failed.');
     } catch (err: any) {
-      if (err.message) throw err;
-      console.error('[AuthContext] signInWithGoogle network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
+      throw err;
     }
   };
 
   const signInWithApple = async () => {
-    console.log('[AuthContext] signInWithApple');
     try {
-      // FIX: Wipe local cache and reset state before starting to prevent data bleeding
       await clearAllLocalData();
       setOnboardingCompleted(false);
 
       if (Platform.OS === 'ios') {
-        // Use native Apple Sign-In on iOS
         const credential = await AppleAuthentication.signInAsync({
           requestedScopes: [
             AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -289,71 +228,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ],
         });
 
-        if (!credential.identityToken) {
-          throw new Error('Apple Sign-In failed: no identity token received.');
-        }
-
-        console.log('[AuthContext] Apple native credential received, exchanging with Better Auth...');
         const { data, error } = await authClient.signIn.social({
           provider: 'apple',
           idToken: {
-            token: credential.identityToken,
+            token: credential.identityToken!,
             nonce: credential.authorizationCode ?? undefined,
           },
         } as any);
 
-        if (error) {
-          console.error('[AuthContext] Apple OAuth error:', error.message);
-          throw new Error(error.message || 'Apple sign in failed.');
-        }
-
+        if (error) throw new Error(error.message || 'Apple sign in failed.');
         await applySession(data as any);
       } else {
-        // Non-iOS: fall back to web OAuth flow
-        const { error } = await authClient.signIn.social({
+        await authClient.signIn.social({
           provider: 'apple',
           callbackURL: 'aps://auth-callback',
         });
-        if (error) {
-          console.error('[AuthContext] Apple OAuth error:', error.message);
-          throw new Error(error.message || 'Apple sign in failed.');
-        }
-        // Session will be applied via deep link listener in useEffect
       }
     } catch (err: any) {
-      // User cancelled — don't show error
-      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
-        console.log('[AuthContext] Apple Sign-In cancelled by user');
-        return;
-      }
-      if (err.message) throw err;
-      console.error('[AuthContext] signInWithApple network error:', err);
-      throw new Error('Unable to connect. Please check your connection and try again.');
+      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') return;
+      throw err;
     }
   };
 
   const signOut = async () => {
-    if (!user) {
-      console.log('[AuthContext] signOut skipped — no authenticated user');
-      return;
-    }
-    console.log('[AuthContext] signOut for user:', user.id);
     try {
-      await clearAllLocalData(user.id);
-      const { error } = await authClient.signOut();
-      if (error) {
-        console.error('[AuthContext] signOut error:', error.message);
-      } else {
-        console.log('[AuthContext] signOut successful');
-      }
+      if (user) await clearAllLocalData(user.id);
+      await authClient.signOut();
     } catch (err) {
-      console.error('[AuthContext] signOut unexpected error:', err);
+      console.error('[AuthContext] signOut error:', err);
     } finally {
       setUser(null);
       setSession(null);
       setOnboardingCompleted(null);
     }
   };
+
   return (
     <AuthContext.Provider
       value={{
@@ -374,15 +283,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchUser,
       }}
     >
-     {children}
+      {children}
     </AuthContext.Provider>
-  ); 
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
