@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { authClient } from '@/lib/auth';
 import { isOnboardingComplete } from '@/utils/onboardingStorage';
 
@@ -117,6 +118,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
+  // Listen for deep links after OAuth (e.g. aps://auth-callback) and refresh session
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url.includes('auth-callback') || url.includes('auth?')) {
+        console.log('[AuthContext] Deep link received, refreshing session:', url);
+        // Small delay to let expoClient write the token to SecureStore
+        setTimeout(() => {
+          fetchUser();
+        }, 500);
+      }
+    });
+    return () => subscription.remove();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchUser = async () => {
     try {
       setLoading(true);
@@ -124,18 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await authClient.getSession();
       if (error) {
         console.warn('[AuthContext] fetchUser session error:', error.message);
-        setUser(null);
-        setSession(null);
-        setOnboardingCompleted(null);
+        // Don't clear user on error — only signOut clears user
         return;
       }
       console.log('[AuthContext] fetchUser:', data?.user ? `uid=${data.user.id}` : 'no session');
       await applySession(data as any);
     } catch (error) {
       console.error('[AuthContext] Failed to fetch user:', error);
-      setUser(null);
-      setSession(null);
-      setOnboardingCompleted(null);
+      // Don't clear user on error — only signOut clears user
     } finally {
       setLoading(false);
     }
@@ -211,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthContext] Google OAuth error:', error.message);
         throw new Error(error.message || 'Google sign in failed.');
       }
-      await fetchUser();
+      // Session will be applied via deep link listener above
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');
@@ -229,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthContext] Apple OAuth error:', error.message);
         throw new Error(error.message || 'Apple sign in failed.');
       }
-      await fetchUser();
+      // Session will be applied via deep link listener above
     } catch (err: any) {
       if (err.message) throw err;
       throw new Error('Unable to connect. Please check your connection and try again.');

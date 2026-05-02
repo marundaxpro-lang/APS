@@ -1,6 +1,6 @@
 
 import "react-native-reanimated";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -93,22 +93,23 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const hasRedirected = useRef(false);
 
   useEffect(() => {
     if (authLoading) return;
-    if (hasRedirected.current) return;
 
+    const inAuthScreen = segments[0] === 'auth';
     const inPublicGroup =
-      segments[0] === 'auth' ||
+      inAuthScreen ||
       segments[0] === 'onboarding' ||
       segments[0] === 'language-select' ||
       segments[0] === 'index';
 
     if (!user && !inPublicGroup) {
       console.log('[AuthGuard] No authenticated user — redirecting to /auth');
-      hasRedirected.current = true;
       router.replace('/auth');
+    } else if (user && inAuthScreen) {
+      console.log('[AuthGuard] Authenticated user on auth screen — redirecting to /(tabs)');
+      router.replace('/(tabs)');
     }
   }, [user, authLoading, segments, router]);
 
