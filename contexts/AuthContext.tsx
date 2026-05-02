@@ -242,32 +242,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     console.log('[AuthContext] signInWithGoogle');
     try {
+      // FIX: Wipe local cache and reset state before starting
+      await clearAllLocalData(); 
+      setOnboardingCompleted(false);
+
       const { error } = await authClient.signIn.social({
         provider: 'google',
         callbackURL: 'aps://auth-callback',
       });
-      if (error) {
-        console.error('[AuthContext] Google OAuth error:', error.message);
-        throw new Error(error.message || 'Google sign in failed.');
-      }
-      // Session will be applied via deep link listener above
-    } catch (err: any) {
-      if (err.message) throw err;
-      throw new Error('Unable to connect. Please check your connection and try again.');
-    }
-  };
 
-  const signInWithApple = async () => {
+ const signInWithApple = async () => {
     console.log('[AuthContext] signInWithApple');
     try {
+      // FIX: Wipe local cache and reset state before starting
+      await clearAllLocalData();
+      setOnboardingCompleted(false);
+
       if (Platform.OS === 'ios') {
-        // Use native Apple Sign-In on iOS
-        const credential = await AppleAuthentication.signInAsync({
-          requestedScopes: [
-            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-            AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          ],
-        });
 
         if (!credential.identityToken) {
           throw new Error('Apple Sign-In failed: no identity token received.');
