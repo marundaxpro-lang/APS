@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   const applySession = async (sessionData: any) => {
-    if (!sessionData?.user) return; // don't clear on null — only signOut clears
+    if (!sessionData?.user) return;
+    
     const u: User = {
       id: sessionData.user.id,
       email: sessionData.user.email ?? '',
@@ -89,8 +90,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setUser(u);
     setSession(sessionData);
-    const done = await isOnboardingComplete();
-    setOnboardingCompleted(done);
+
+    // FIX: If the account was created in the last 60 seconds, it's a new signup
+    const isNewSignup = new Date(sessionData.user.createdAt).getTime() > Date.now() - 60000;
+
+    if (isNewSignup) {
+      console.log('[AuthContext] New account detected — forcing onboarding');
+      setOnboardingCompleted(false);
+    } else {
+      const done = await isOnboardingComplete();
+      setOnboardingCompleted(done);
+    }
   };
 
   useEffect(() => {
