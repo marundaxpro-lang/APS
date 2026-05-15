@@ -30,16 +30,16 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const SOCIAL_AUTH_BUILD_MARKER = '[APS Build] explicit Expo OAuth callback active - 2026-05-02';
+const SOCIAL_AUTH_BUILD_MARKER = '[APS Build] relative native OAuth callback active - 2026-05-15';
+const SOCIAL_AUTH_CALLBACK_ROUTE = '/onboarding';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getSocialCallbackURL(): string {
-  const url = Linking.createURL('onboarding');
-  console.log('[AuthContext] OAuth callback URL:', url);
-  return url;
+  console.log('[AuthContext] OAuth callback route:', SOCIAL_AUTH_CALLBACK_ROUTE);
+  return SOCIAL_AUTH_CALLBACK_ROUTE;
 }
 
 function isAuthCallbackUrl(url: string): boolean {
